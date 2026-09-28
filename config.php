@@ -3,5 +3,5 @@
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
     $dotenv->load();
 
-    $SAVE_DIR = $_ENV['SAVE_DIR'];
+    $SAVE_DIR_FILES = $_ENV['SAVE_DIR'];
 ?>
