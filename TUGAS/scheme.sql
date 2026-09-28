@@ -1,0 +1,32 @@
+-- TOLONG BANGET RUN APPSNYA AJA 
+-- DIA OTOMATIS NGEGENERATE DATABASENYA
+-- UDAH KU BUATIN CLASSNYA JADI LEBIH MUDAH
+
+CREATE DATABASE IF NOT EXISTS todo_app;
+USE todo_app;
+
+CREATE TABLE IF NOT EXISTS Category (
+    id        BIGINT       NOT NULL AUTO_INCREMENT,
+    judul     VARCHAR(255) NOT NULL,
+    create_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    color     VARCHAR(8)   NULL,
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS ToDo (
+    id        BIGINT       NOT NULL AUTO_INCREMENT,
+    judul     VARCHAR(255) NOT NULL,
+    deskripsi TEXT         NULL,
+    tenggat   DATE         NULL,
+    status    VARCHAR(20)  NOT NULL DEFAULT 'pending',
+    create_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    priority  VARCHAR(8)   NULL,
+    category  BIGINT       NULL,
+    PRIMARY KEY (id),
+    INDEX idx_todo_category (category),
+    CONSTRAINT fk_todo_category
+        FOREIGN KEY (category) REFERENCES Category (id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+);
