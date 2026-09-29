@@ -1,6 +1,7 @@
 <?php
     class SessionManager{
         private static bool $started = false;
+        private static int $TTL = 60*25; //25 menit
 
         public static function start(): void{
             if(!self::$started && session_status() === PHP_SESSION_NONE){
