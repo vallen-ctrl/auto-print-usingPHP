@@ -1,7 +1,7 @@
 <?php
    
     class db {
-        private static string $host = "localhost";
+        private static string $host = "127.0.0.1"; //ganti jadi localhost kalau eror di line 38
         private static string $username = "root";
         private static string $password = "";
         private static string $dbName = "todo";
