@@ -6,7 +6,7 @@
         private static string $password = "";
         private static string $dbName = "marketplace";
         private static bool $isConnected = false;
-        private static string $scheme = "scheme.sql";
+        private static string $scheme = __DIR__ . "/scheme.sql";
         private static mysqli $conn;
 
         private static function runScheme(){
@@ -42,15 +42,18 @@
             try{
                 mysqli_select_db(self::$conn,self::$dbName);
             }catch(Exception $e){
+                mysqli_query(self::$conn, "CREATE DATABASE IF NOT EXISTS `" . self::$dbName . "`");
+                mysqli_select_db(self::$conn, self::$dbName);
                 self::runScheme();
             }
         }
 
-        public static function execute(string $query, array $param = []) : mysqli_result{
+        public static function execute(string $query, array $param = []) : mysqli_result|bool {
             return mysqli_execute_query(self::$conn, $query, $param);
         }
 
         public static function insert(string $tabel, array $colum_to_value){
+            self::start();
             if(empty($tabel)) throw new InvalidArgumentException("Please makesure the table is there");
 
             $cols = [];
@@ -73,6 +76,7 @@
         }
 
         public static function update(string $tabel, array $data, string $whereCol, int | string $whereVal): int{
+            self::start();
             $set = implode(", ", array_map(fn($item) => "`$item` = ?", array_keys($data)));
             $val = [...array_values($data), $whereVal];
             $sql = "UPDATE `$tabel` SET $set WHERE `$whereCol` = ? ";
@@ -80,13 +84,14 @@
             return mysqli_affected_rows(self::$conn);
         }
 
-        public static function delete(string $tabel, string $whereCol, int | string $whereVal){
+        public static function delete(string $tabel, string $whereCol, int|string $whereVal){
+            self::start();
             $sql = "DELETE FROM `$tabel` WHERE `$whereCol` = ?";
-            $statement = self::execute($sql, [$whereVal]);
-            $statement->close();
+            self::execute($sql, [$whereVal]);
+            return mysqli_affected_rows(self::$conn);
         }
-
         public static function get(string $query, array $param = []){
+            self::start();
             return self::execute($query, $param);
         }
     }

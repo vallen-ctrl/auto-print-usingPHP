@@ -1,5 +1,6 @@
 <?php 
     require_once "../../config.php";
+    require_once dirname(__DIR__, 2) . "/Controler/filecontorler.php";
     header('Content-Type: application/json; charset=utf-8');
     $SAVE_DIR = rtrim($SAVE_DIR_FILES, '/\\') . '/';
     if($_SERVER["REQUEST_METHOD"] === "POST" && isset($_FILES["dokumen"])){
@@ -36,12 +37,19 @@
             die('Tipe file tidak diizinkan');
         }
 
-        if(move_uploaded_file($file['tmp_name'], $SAVE_DIR . $newName)){
-            echo "Berhasil save to: $SAVE_DIR/" . $newName;
-        }else{
-            echo "Gagal weite file";
-            http_response_code(442);
-        }
+        fileControler::insertFiles([
+            "name" => $ext,
+            "path" => $fileName,
+            "size" => 23,
+            "mime" => $mime
+        ]);
+        echo "berhasil";
+        // if(move_uploaded_file($file['tmp_name'], $SAVE_DIR . $newName)){
+        //     echo "Berhasil save to: $SAVE_DIR/" . $newName;
+        // }else{
+        //     echo "Gagal weite file";
+        //     http_response_code(442);
+        // }
     }else if(!isset($_FILES["dokumen"])){
         
         echo json_encode([

@@ -1,4 +1,4 @@
-SET NAMES utf8mb4;
+
 
 CREATE TABLE IF NOT EXISTS `user` (
   `sessionid` VARCHAR(255) NOT NULL,

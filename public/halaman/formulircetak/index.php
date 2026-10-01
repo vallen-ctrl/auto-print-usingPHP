@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once dirname(__DIR__, 3) . '/Controler/formulirCetakControler.php';
 
 $old = [];
@@ -11,6 +12,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if (empty($errors)) {
         // TODO: simpan / proses data di sini
+        
         header("Location: " . $_SERVER["REQUEST_URI"]);
         exit;
     }
