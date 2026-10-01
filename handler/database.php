@@ -90,9 +90,16 @@
             self::execute($sql, [$whereVal]);
             return mysqli_affected_rows(self::$conn);
         }
-        public static function get(string $query, array $param = []){
+        public static function get(string $query, array $param = [], string $option = "all"){
             self::start();
-            return self::execute($query, $param);
+            switch($option){
+                case "row":
+                    return mysqli_fetch_row(self::execute($query, $param));
+                case "assoc":
+                return mysqli_fetch_assoc(self::execute($query, $param));
+                default:
+                    return mysqli_fetch_all(self::execute($query, $param));
+            }
         }
     }
 ?>
