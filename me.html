@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <script>
+        const es = new EventSource('ini.php');
+
+        // event default (tanpa "event:")
+        es.onmessage = (e) => console.log('Default:', e.data);
+
+        // event custom
+        es.addEventListener('update', (e) => {
+            const d = JSON.parse(e.data);
+            console.log(d.waktu, d.pesan);
+        });
+
+        es.onerror = () => console.log('Error / reconnecting...');
+
+        // es.close(); // kalau mau berhenti
+    </script>
+</body>
+
+</html>

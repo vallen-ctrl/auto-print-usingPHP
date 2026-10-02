@@ -1,6 +1,7 @@
 <?php 
     require_once "../../config.php";
     require_once dirname(__DIR__, 2) . "/Controler/filecontorler.php";
+    require_once dirname(__DIR__, 2) . "/Controler/layananControler.php";
     header('Content-Type: application/json; charset=utf-8');
     $SAVE_DIR = rtrim($SAVE_DIR_FILES, '/\\') . '/';
     if($_SERVER["REQUEST_METHOD"] === "POST" && isset($_FILES["dokumen"])){
@@ -37,12 +38,13 @@
             die('Tipe file tidak diizinkan');
         }
 
-        fileControler::insertFiles([
-            "name" => $ext,
-            "path" => $fileName,
-            "size" => 23,
-            "mime" => $mime
-        ]);
+        // fileControler::insertFiles([
+        //     "name" => $ext,
+        //     "path" => $fileName,
+        //     "size" => 23,
+        //     "mime" => $mime
+        // ]);
+        layananControler::insertLayanan("laminating", "laminating si itu", 20000);
         echo "berhasil";
         // if(move_uploaded_file($file['tmp_name'], $SAVE_DIR . $newName)){
         //     echo "Berhasil save to: $SAVE_DIR/" . $newName;
