@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS `toko` (
 	`password` VARCHAR(255) NOT NULL,
 	`tanggal_dibuat` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	`tanggal_update` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`token` BINARY(32),
 	PRIMARY KEY(`id`),
 	CONSTRAINT `uq_toko_username` UNIQUE (`username`)
 );
@@ -45,6 +46,7 @@ CREATE TABLE IF NOT EXISTS `computer` (
 	`token` BINARY(16) NOT NULL,
 	`tanggal_dibuat` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	`toko_id` BINARY(16) NOT NULL,
+	`aktif` BOOLEAN NOT NULL DEFAULT false,
 	PRIMARY KEY(`id`),
 	CONSTRAINT `uq_computer_token` UNIQUE (`token`)
 );
@@ -91,9 +93,12 @@ CREATE TABLE IF NOT EXISTS `files` (
 	`name` TEXT NOT NULL,
 	`path` TEXT NOT NULL,
 	`size` BIGINT NOT NULL,
-	`mime` ENUM('application/pdf', 'application/msword', 'application/octet-stream', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'image/jpeg', 'image/png') NOT NULL DEFAULT 'application/octet-stream',
+	`mime` ENUM('application/pdf', 'application/msword', 'application/octet-stream', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'image/jpeg', 'image/png') NOT NULL DEFAULT 'application/octet-stream',
 	`diupload_oleh` VARCHAR(255),
 	`tanggal_dibuat` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`total_pages` SMALLINT,
+	`order_id` BINARY(16) NOT NULL,
+	`dihapus` BOOLEAN NOT NULL DEFAULT false,
 	PRIMARY KEY(`id`)
 );
 
@@ -101,7 +106,7 @@ CREATE TABLE IF NOT EXISTS `files` (
 CREATE TABLE IF NOT EXISTS `orders` (
 	`id` BINARY(16) NOT NULL,
 	`tanggal_pesan` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	`tanggal_ambil` DATE NOT NULL,
+	`tanggal_ambil` DATETIME NOT NULL,
 	`biaya_admin` BIGINT NOT NULL DEFAULT 0,
 	`total_pembayaran` BIGINT NOT NULL DEFAULT 0,
 	`total_dibayar` BIGINT NOT NULL DEFAULT 0,
@@ -144,7 +149,7 @@ CREATE TABLE IF NOT EXISTS `configuration` (
 CREATE TABLE IF NOT EXISTS `file_queue` (
 	`id` INTEGER NOT NULL AUTO_INCREMENT,
 	`tanggal_dibuat` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	`status` ENUM('pending', 'processing', 'complited', 'failed') NOT NULL DEFAULT 'pending',
+	`status` ENUM('pending', 'processing', 'complited', 'failed', 'downloading') NOT NULL DEFAULT 'pending',
 	`path` TEXT NOT NULL,
 	`order_id` BINARY(16) NOT NULL,
 	`file_id` BINARY(16) NOT NULL,
@@ -176,28 +181,28 @@ ADD FOREIGN KEY(`id_metode_pembayaran`) REFERENCES `metode_pembayaran`(`id`)
 ON UPDATE CASCADE ON DELETE SET NULL;
 ALTER TABLE `orders`
 ADD FOREIGN KEY(`session_id`) REFERENCES `user`(`sessionid`)
-ON UPDATE NO ACTION ON DELETE NO ACTION;
+ON UPDATE NO ACTION ON DELETE SET NULL;
 ALTER TABLE `layanan_terpilih`
 ADD FOREIGN KEY(`files_id`) REFERENCES `files`(`id`)
-ON UPDATE CASCADE ON DELETE CASCADE;
+ON UPDATE CASCADE ON DELETE SET NULL;
 ALTER TABLE `layanan_terpilih`
 ADD FOREIGN KEY(`layanan_id`) REFERENCES `layanan`(`id`)
-ON UPDATE CASCADE ON DELETE RESTRICT;
-ALTER TABLE `layanan_terpilih`
-ADD FOREIGN KEY(`order_id`) REFERENCES `orders`(`id`)
-ON UPDATE CASCADE ON DELETE CASCADE;
+ON UPDATE CASCADE ON DELETE SET NULL;
 ALTER TABLE `configuration`
 ADD FOREIGN KEY(`file_id`) REFERENCES `files`(`id`)
 ON UPDATE CASCADE ON DELETE CASCADE;
 ALTER TABLE `configuration`
 ADD FOREIGN KEY(`paper_id`) REFERENCES `paper`(`id`)
-ON UPDATE CASCADE ON DELETE RESTRICT;
+ON UPDATE CASCADE ON DELETE SET NULL;
 ALTER TABLE `file_queue`
 ADD FOREIGN KEY(`order_id`) REFERENCES `orders`(`id`)
 ON UPDATE CASCADE ON DELETE CASCADE;
 ALTER TABLE `file_queue`
 ADD FOREIGN KEY(`file_id`) REFERENCES `files`(`id`)
-ON UPDATE CASCADE ON DELETE CASCADE;
+ON UPDATE CASCADE ON DELETE SET NULL;
 ALTER TABLE `file_queue`
 ADD FOREIGN KEY(`computer_id`) REFERENCES `computer`(`id`)
-ON UPDATE CASCADE ON DELETE CASCADE;
+ON UPDATE CASCADE ON DELETE SET NULL;
+ALTER TABLE `files`
+ADD FOREIGN KEY(`order_id`) REFERENCES `orders`(`id`)
+ON UPDATE NO ACTION ON DELETE RESTRICT;

@@ -32,6 +32,7 @@ class fileControler
             "path" => "required|min:3",
             "size" => "required|numeric",
             "mime" => "required",
+            "order_id" => "required"
         ]);
         if ($validation->fails()) {
             throw new InvalidArgumentException(
@@ -39,6 +40,7 @@ class fileControler
             );
         } else {
             $fileMetadata["id"] = $id;
+            $fileMetadata["order_id"] = hex2bin($fileMetadata["order_id"]);
             db::insert("files", $fileMetadata);
             return $uuid->toString();
         }

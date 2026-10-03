@@ -1,9 +1,8 @@
 <?php 
     require_once "../../config.php";
     require_once dirname(__DIR__, 2) . "/Controler/filecontorler.php";
-    require_once dirname(__DIR__, 2) . "/Controler/layananControler.php";
     header('Content-Type: application/json; charset=utf-8');
-    $SAVE_DIR = rtrim($SAVE_DIR_FILES, '/\\') . '/';
+    $SAVE_DIR = rtrim(dirname(__DIR__, 2) . "/temp", '/\\') . '/';
     if($_SERVER["REQUEST_METHOD"] === "POST" && isset($_FILES["dokumen"])){
         if(!is_dir($SAVE_DIR)){
             mkdir($SAVE_DIR, 0755, true);
@@ -44,7 +43,7 @@
         //     "size" => 23,
         //     "mime" => $mime
         // ]);
-        layananControler::insertLayanan("laminating", "laminating si itu", 20000);
+        // layananControler::insertLayanan("laminating", "laminating si itu", 20000);
         echo "berhasil";
         // if(move_uploaded_file($file['tmp_name'], $SAVE_DIR . $newName)){
         //     echo "Berhasil save to: $SAVE_DIR/" . $newName;

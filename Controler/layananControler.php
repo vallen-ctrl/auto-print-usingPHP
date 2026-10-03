@@ -29,8 +29,8 @@
             return db::update("layanan",$updatePack, "id", $layananId);
         }
 
-        public static function getLayanan(string $id = "all", string $option = "all"){
-            if($id == "all"){
+        public static function getLayanan(int $id = -1, string $option = "all"){
+            if($id < 0){
                 $query = "SELECT * FROM layanan";
                 return db::get($query, [], $option);
             }

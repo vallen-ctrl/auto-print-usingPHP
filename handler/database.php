@@ -103,6 +103,7 @@
         }
 
         public static function getUsingParam(string $tabel ,string $fromWhere, int | string $key, string $option = "all", array $column = ["*"]){
+        self::start();
         $sql = "SELECT ". trim(implode(", ", $column)) ." FROM ". $tabel . " WHERE " . $fromWhere . " = ?";
         
         $keys = $key;
