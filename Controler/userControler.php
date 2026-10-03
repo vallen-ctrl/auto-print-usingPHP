@@ -12,7 +12,7 @@
             }
 
             $trimNoWa = trim($noWa);
-            $removeother = trim($noWa, "-");
+            $removeother = trim($trimNoWa, "-");
 
             $inserted = [
                 "sessionid" => $sessionId,

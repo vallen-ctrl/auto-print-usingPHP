@@ -23,7 +23,7 @@
         }
 
         public static function deletePengaturanToko(int $idToko){
-
+            return db::delete("pengaturan_toko", "id", $idToko);
         }
     }
 ?>

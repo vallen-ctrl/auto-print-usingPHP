@@ -37,7 +37,7 @@
         }
 
         public static function getMetodeById(string $idTabel, string $option = "all"){
-            return db::getUsingParam("metode_pembayaran", "id", hex2bin($idTabel), $option);
+            return db::getUsingParam("metode_pembayaran", "id", hex2bin($idTabel), $option, ["nama"]);
         }
 
         public static function getMetodeAll(string $option = "all"){

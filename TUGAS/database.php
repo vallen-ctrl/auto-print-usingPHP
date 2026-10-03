@@ -4,7 +4,7 @@
         private static string $host = "127.0.0.1"; //ganti jadi localhost kalau eror di line 38
         private static string $username = "root";
         private static string $password = "";
-        private static string $dbName = "todo";
+        private static string $dbName = "todo_app";   //ijin ubah dikit dari todo ke todo_app biar plek ketiplek sama yang di schema
         private static bool $isConnected = false;
         private static string $scheme = "scheme.sql";
         private static mysqli $conn;
@@ -46,7 +46,7 @@
             }
         }
 
-        public static function execute(string $query, array $param = []) : mysqli_result{
+        public static function execute(string $query, array $param = []) {   //ijin apus mysqli_result karena bikin eror pas mau jalanin tambah agenda
             return mysqli_execute_query(self::$conn, $query, $param);
         }
 
@@ -82,8 +82,7 @@
 
         public static function delete(string $tabel, string $whereCol, int | string $whereVal){
             $sql = "DELETE FROM `$tabel` WHERE `$whereCol` = ?";
-            $statement = self::execute($sql, [$whereVal]);
-            $statement->close();
+            $statement = self::execute($sql, [$whereVal]);    //ijin apus $statement->close() karena bikin eror pas mau jalanin hapus agenda    
         }
 
         public static function get(string $query, array $param = []){

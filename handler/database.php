@@ -102,8 +102,9 @@
             }
         }
 
-        public static function getUsingParam(string $tabel ,string $fromWhere, int | string $key , string $option = "all"){
-        $sql = "SELECT * FROM ". $tabel . " WHERE " . $fromWhere . " = ?";
+        public static function getUsingParam(string $tabel ,string $fromWhere, int | string $key, string $option = "all", array $column = ["*"]){
+        $sql = "SELECT ". trim(implode(", ", $column)) ." FROM ". $tabel . " WHERE " . $fromWhere . " = ?";
+        
         $keys = $key;
         if(gettype($key) === "string"){
             $keys = hex2bin($key);
