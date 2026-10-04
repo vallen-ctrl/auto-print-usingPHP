@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS `paper` (
 	`name` VARCHAR(8) NOT NULL,
 	`width` INTEGER NOT NULL,
 	`height` INTEGER NOT NULL,
+	`harga_color` BIGINT NOT NULL DEFAULT 0,
+	`harga_grayscale` BIGINT NOT NULL DEFAULT 0,
 	PRIMARY KEY(`id`),
 	CONSTRAINT `uq_paper_name` UNIQUE (`name`)
 );
@@ -99,6 +101,7 @@ CREATE TABLE IF NOT EXISTS `files` (
 	`total_pages` SMALLINT,
 	`order_id` BINARY(16) NOT NULL,
 	`dihapus` BOOLEAN NOT NULL DEFAULT false,
+	`subtotal` BIGINT NOT NULL DEFAULT 0,
 	PRIMARY KEY(`id`)
 );
 
@@ -111,7 +114,7 @@ CREATE TABLE IF NOT EXISTS `orders` (
 	`total_pembayaran` BIGINT NOT NULL DEFAULT 0,
 	`total_dibayar` BIGINT NOT NULL DEFAULT 0,
 	`pengaturan_id` INTEGER NOT NULL,
-	`status_pembayaran` VARCHAR(15) NOT NULL DEFAULT 'belum dibayar',
+	`status_pembayaran` ENUM('pending', 'proccesing ', 'succed', 'fail') NOT NULL,
 	`metode_pembayaran` VARCHAR(255),
 	`id_metode_pembayaran` BINARY(16),
 	`session_id` VARCHAR(255) NOT NULL,
@@ -124,7 +127,6 @@ CREATE TABLE IF NOT EXISTS `layanan_terpilih` (
 	`files_id` BINARY(16) NOT NULL,
 	`layanan_id` INTEGER NOT NULL,
 	`nama_layanan` VARCHAR(50) NOT NULL,
-	`order_id` BINARY(16),
 	PRIMARY KEY(`id`)
 );
 
@@ -132,7 +134,6 @@ CREATE TABLE IF NOT EXISTS `layanan_terpilih` (
 CREATE TABLE IF NOT EXISTS `configuration` (
 	`id` INTEGER NOT NULL AUTO_INCREMENT,
 	`file_id` BINARY(16) NOT NULL,
-	`path` TEXT NOT NULL,
 	`orientasi` ENUM('potrait', 'landscape') NOT NULL,
 	`warna` ENUM('berwarna', 'hitam putih') NOT NULL,
 	`ukuran` VARCHAR(255) NOT NULL,
@@ -142,6 +143,7 @@ CREATE TABLE IF NOT EXISTS `configuration` (
 	`custom_halaman` TEXT NOT NULL,
 	`catatan_tambahan` TEXT NOT NULL,
 	`paper_id` INTEGER NOT NULL,
+	`pages_toprint` SMALLINT NOT NULL DEFAULT 0,
 	PRIMARY KEY(`id`)
 );
 

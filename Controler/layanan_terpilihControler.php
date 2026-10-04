@@ -16,8 +16,8 @@
             return db::get($query, [$filesId]);
         }
 
-        public static function insertLayanan(string $filesId, string $layananId, string $orderId){
-            if(empty($filesId) && empty($layananId) && empty($orderId)){
+        public static function insertLayanan(string $filesId, string $layananId){
+            if(empty($filesId) && empty($layananId)){
                 throw new InvalidArgumentException("expect files, layananid or order id, consider to add it");
             }
 
@@ -25,10 +25,9 @@
             $namaLayanan = $query["nama"];
 
             $dataInsert = [
-                "files_id" => hex2bin(str_replace("-", "", $filesId)),
+                "files_id" => hex2bin($filesId),
                 "layanan_id" => $layananId,
                 "nama_layanan" => $namaLayanan,
-                "order_id" =>$orderId
             ];
 
             return db::insert("layanan_terpilih", $dataInsert);

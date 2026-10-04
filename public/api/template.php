@@ -9,7 +9,7 @@ require_once dirname(__DIR__, 2) . "/vendor/autoload.php";
 require_once dirname(__DIR__, 2) . "/Controler/layananControler.php";
 require_once 'json.php';
 require_once 'helper.php';
-
+use Rakit\Validation\Validator;
 $METHOD = $_SERVER["REQUEST_METHOD"];
 
 class template

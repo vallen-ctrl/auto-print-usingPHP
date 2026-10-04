@@ -10,6 +10,7 @@ require_once 'helper.php';
 
 $SAVE_DIR = rtrim(dirname(__DIR__, 2) . "/temp", '/\\') . '/';
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_FILES["dokumen"])) {
+    $parser = new \Smalot\PdfParser\Parser();
     if (!is_dir($SAVE_DIR)) {
         mkdir($SAVE_DIR, 0755, true);
     }
@@ -79,9 +80,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_FILES["dokumen"])) {
             401
         );
     }
-    $orderid = SessionManager::get("order", null)["id"];
+    $orderid = SessionManager::get("order", null)["id"] ?? null;
     if ($orderid === null) {
-        $orderid = bin2hex(random_bytes(8));
+        $orderid = bin2hex(random_bytes(16));
         SessionManager::set("order", [
             "id" => $orderid
         ]);
@@ -89,15 +90,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_FILES["dokumen"])) {
 
     // layananControler::insertLayanan("laminating", "laminating si itu", 20000);
     if(move_uploaded_file($file['tmp_name'], $SAVE_DIR . $newName)){
-        fileControler::insertFiles([
+        $pdf_pages = $parser->parseFile($SAVE_DIR . $newName);
+        $fileId = fileControler::insertFiles([
             "name" => $newName,
             "path" => "var/".$newName,
             "size" => $fileSize,
             "mime" => $mime,
-            "order_id" => $orderid
+            "order_id" => $orderid,
+            "total_pages" => count($pdf_pages->getPages())
         ]);
         
+        $filesSave = [
+            "id" => $fileId,
+            "pages" => count($pdf_pages->getPages())
+        ];
+        SessionManager::push("order", $filesSave, "files");
         return jsonResponse("succed save", [
+            "files" => SessionManager::get("order")["files"]??[],
         ]);
     }else{
         return jsonResponse("failed save file", [

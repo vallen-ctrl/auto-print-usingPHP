@@ -2,18 +2,21 @@
     require_once dirname(__DIR__, 1) . "/handler/database.php";
 
     class paperControler{
-        public static function insertPaper(string $name, int $width, int $height) {
-            if(strlen($name) > 8 ){
-                throw new InvalidArgumentException("expected under 8 for the name");
-            }   
+        public static function insertPaper(array $paperConfiguration) {
+            $validator = new Rakit\Validation\Validator();
+            $validateInput = $validator->validate($paperConfiguration, [
+                "name" => "required|min:1|max:50",
+                "width" => "required|numeric|min:20",
+                "height" => "required|numeric|min:23",
+                "harga_color" => "required|numeric|min:1",
+                "harga_grayscale" => "required|numeric|min:1",
+            ]);
 
-            $inserted = [
-                "name" => $name,
-                "width" => $width,
-                "height" => $height
-            ];
+            if($validateInput->fails()){
+                throw new InvalidArgumentException(implode(", ", $validateInput->errors()->all()));
+            }
 
-            return db::insert("paper", $inserted);
+            return db::insert("paper", $validateInput->getValidatedData());
         }
 
         public static function deletePaper(int $paperId){

@@ -10,6 +10,8 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization");
 require_once dirname(__DIR__, 2) . "/vendor/autoload.php";
 require_once dirname(__DIR__, 2) . "/handler/session.php";
 require_once dirname(__DIR__, 2) . "/Controler/tokoControler.php";
+require_once dirname(__DIR__, 2) . "/Controler/pengaturanTokoControler.php";
+
 require_once 'json.php';
 $METHOD = $_SERVER["REQUEST_METHOD"];
 
@@ -23,13 +25,15 @@ class template
             $boolhasil = tokoControler::isValidPassword($username, $password);
 
             if (gettype($boolhasil) == "string") {
-
                 $tokoID = tokoControler::getTokoId("assoc");
                 $id = bin2hex($tokoID["id"]);
-                SessionManager::set("admin", [
+                $pengaturanId = pengaturanTokoContorler::getPengaturanByTokoId($id, ["id"]);
+                $savedData = [
                     "tokoid" => $id,
-                    "token" => $boolhasil
-                ]);
+                    "token" => $boolhasil,
+                    "pengaturanid" => $pengaturanId["id"]
+                ];
+                SessionManager::set("admin", $savedData);
                 return jsonResponse("login status", [
                     "islogin" => $boolhasil
                 ]);

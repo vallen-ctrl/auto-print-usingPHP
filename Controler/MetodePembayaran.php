@@ -5,6 +5,9 @@
 
     use Ramsey\Uuid\Uuid;
     class MetodePembayaran{
+        private static function chekLenBytes(string $id, int $len=32){
+            if(strlen($id) > $len || strlen($id) < $len) throw new Exception("eror id expected 16 bytes (32 char)");
+        }
         public static function insertMetodePembayaran(
             int $pengaturan, string $name, string $webhook,
             string $token, string $imagepath)
@@ -27,21 +30,24 @@
         }
 
         public static function updateMetodePembayaran(string $id, array $columntoValue) {
+            self::chekLenBytes($id);
             $hexTobinary = hex2bin($id);
-            db::update("metode_pembayaran", $columntoValue, "id", $hexTobinary);
+            return db::update("metode_pembayaran", $columntoValue, "id", $hexTobinary);
         }
 
         public static function deleteMetodePembayaran(string $id){
+            self::chekLenBytes($id);
             $hexTobinary = hex2bin($id);
-            db::delete("metode_pembayaran", "id", $hexTobinary);
+            return db::delete("metode_pembayaran", "id", $hexTobinary);
         }
 
         public static function getMetodeById(string $idTabel, string $option = "all"){
+            self::chekLenBytes($idTabel);
             return db::getUsingParam("metode_pembayaran", "id", hex2bin($idTabel), $option, ["nama"]);
         }
 
-        public static function getMetodeAll(string $option = "all"){
-            return db::get("SELECT * FROM metode_pembayaran", [],$option);
+        public static function getMetodeAll(array $column = ["*"], string $option = "all"){
+            return db::get("SELECT ". trim(implode(", ", $column)). " FROM metode_pembayaran", [],$option);
         }
         
     }

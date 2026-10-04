@@ -19,9 +19,11 @@ class template
             
             verifiedToken();
             $validateInput = $validator->validate($_POST, [
-                "name" => "required|min:1|max:50",
+                "name" => "required|min:1|max:5",
                 "width" => "required|numeric|min:20",
-                "height" => "required|numeric|min:23"
+                "height" => "required|numeric|min:23",
+                "harga_color" => "required|numeric|min:1",
+                "harga_grayscale" => "required|numeric|min:1",
             ]);
 
             if($validateInput->fails()){
@@ -29,7 +31,7 @@ class template
             }
 
             $data = $validateInput->getValidatedData();
-            paperControler::insertPaper($data["name"], $data["width"], $data["height"]);
+            paperControler::insertPaper($data);
             return jsonResponse("succed add paper");
         }catch(InvalidArgumentException | Exception$e){
             return jsonResponse($e->getMessage(), [], false, 403);
@@ -75,9 +77,12 @@ class template
                 "paperid" => "required",
                 "name" => "required|min:1|max:50",
                 "width" => "required|numeric|min:20",
-                "height" => "required|numeric|min:23"
+                "height" => "required|numeric|min:23",
+                "harga_color" => "required|numeric|min:1",
+                "harga_grayscale" => "required|numeric|min:1",
             ]);
 
+                
             if($validateInput->fails()){
                 throw new InvalidArgumentException(implode(", ", $validateInput->errors()->all()));
             }

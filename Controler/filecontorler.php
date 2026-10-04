@@ -13,8 +13,16 @@ class fileControler
         }else{
             return db::update("files", [
                 "diupload_oleh" => $sessionID
-            ], "id", $filesiD);
+            ], "id", hex2bin($filesiD));
         }
+    }
+
+    public static function insertSubtotal(string $fileid, int $subTotal){
+        if(empty($fileid)) throw new InvalidArgumentException("Cant find file id");
+        if($subTotal < 0) throw new InvalidArgumentException("sub total anda kurang dari 0");
+        return db::update("files", [
+            "subtotal" => $subTotal
+        ], "id", hex2bin($fileid));
     }
 
     public static function deleteFile(string $fileid){
@@ -32,7 +40,8 @@ class fileControler
             "path" => "required|min:3",
             "size" => "required|numeric",
             "mime" => "required",
-            "order_id" => "required"
+            "order_id" => "required",
+            "total_pages" => "required|numeric"
         ]);
         if ($validation->fails()) {
             throw new InvalidArgumentException(
@@ -42,7 +51,12 @@ class fileControler
             $fileMetadata["id"] = $id;
             $fileMetadata["order_id"] = hex2bin($fileMetadata["order_id"]);
             db::insert("files", $fileMetadata);
-            return $uuid->toString();
+            return str_replace("-", "", $uuid->toString());
         }
+    }
+    public static function getFileById(string $fileId, string $option = "all", array $column = ["*"]){
+        if(empty($fileId))
+            throw new InvalidArgumentException("file id is emty");
+        return db::getUsingParam("files", "id", $fileId, $option, $column);
     }
 }

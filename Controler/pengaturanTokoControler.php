@@ -7,9 +7,9 @@
             }
 
             $insertedValue = [
-                "status_buka" => false,
+                "status_buka" => 0,
                 "biaya_admin" => $biayaAdmin,
-                "id_toko" => $idToko,
+                "id_toko" => hex2bin($idToko),
                 "biaya_layanan" => $biayaLayanan,
                 "lama_file_dihapus" => $lamaHari
             ];
@@ -17,9 +17,9 @@
             return db::insert("pengaturan_toko", $insertedValue);
         }
 
-        public static function getPengaturanToko(int $idToko)
+        public static function getPengaturanByTokoId(string $idToko, array $column = ["*"])
         {
-            return db::getUsingParam("pengaturan_toko", "id_toko", $idToko, "assoc");
+            return db::getUsingParam("pengaturan_toko", "id_toko", $idToko, "assoc", $column);
         }
 
         public static function deletePengaturanToko(int $idToko){

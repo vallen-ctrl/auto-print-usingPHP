@@ -7,6 +7,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
 require_once dirname(__DIR__, 2) . "/vendor/autoload.php";
 require_once dirname(__DIR__, 2) . "/Controler/tokoControler.php";
+require_once dirname(__DIR__, 2) . "/Controler/pengaturanTokoControler.php";
 require_once 'json.php';
 require_once 'helper.php';
 $METHOD = $_SERVER["REQUEST_METHOD"];
@@ -16,8 +17,9 @@ class toko
     public static function post() {
         $postData = getInput();
         try{
-            tokoControler::insertToko($postData);
-            jsonResponse("succed create", [
+            $uuid = tokoControler::insertToko($postData);
+            pengaturanTokoContorler::insertToko($uuid, 0,0, 4);
+            return jsonResponse("succed create", [
                 "succed" => true
             ]);
         }catch(InvalidArgumentException $e){

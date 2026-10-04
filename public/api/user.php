@@ -23,10 +23,11 @@ class template
         ]);
         return $sessionId;
     }
-    public static function post()
+
+    public static function post(array $data = null)
     {
         try {
-            $input = getInput();
+            $input = $data ?? getInput();
             $validator = new Rakit\Validation\Validator();
 
             $validate = $validator->validate($input, [
@@ -107,21 +108,21 @@ class template
 
 switch ($METHOD) {
     case "POST":
-        return template::post();
+        // return template::post();
         return http_response_code(405);
     case "GET":
-        return template::get();
+        // return template::get();
         return http_response_code(405);
     case "PUT":
-        return template::put();
+        // return template::put();
         return http_response_code(405);
     case "DELETE":
-        return template::delete();
+        // return template::delete();
         return http_response_code(405);
     case "OPTIONS":
-        return template::option();
+        // return template::option();
         return http_response_code(405);
     case "PATCH":
-        return template::patch();
+        // return template::patch();
         return http_response_code(405);
 }

@@ -27,7 +27,7 @@ class tokoControler
 
         $data["id"] = $uuid->getBytes();
         db::insert("toko", $data);
-        return $uuid->toString();
+        return str_replace("-","",$uuid->toString());
     }
 
     public static function updateUsernameOrPasswordOrName(string $id, array $usernameOrPasswor)

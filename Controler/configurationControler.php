@@ -11,7 +11,6 @@ class configurationControler
         $validator = new Rakit\Validation\Validator;
 
         $conf = $validator->validate($configuration, [
-            "path" => "required",
             "orientasi" => "required",
             "warna" => "required",
             "kualitas" => "required",
@@ -19,6 +18,7 @@ class configurationControler
             "jumlah_cetak" => "numeric|min:1",
             "custom_halaman" => "nullable",
             "catatan_tambahan" => "nullable",
+            "pages_toprint" => "required|numeric",
             "paper_id" => "required|numeric"
         ]);
 
@@ -31,10 +31,10 @@ class configurationControler
         $data = $conf->getValidData();
 
         $dbPaper = paperControler::getPaper($data["paper_id"], "assoc");
-        $paperWidth = $dbPaper["height"] . " x " . $dbPaper["width"];
+        $paperWidth =  $dbPaper["name"]. "|" . $dbPaper["height"] . " x " . $dbPaper["width"];
 
         $data["ukuran"] = $paperWidth;
-        $data["file_id"] = $fileid;
+        $data["file_id"] = hex2bin($fileid);
 
         return db::insert("configuration", $data);
     }
