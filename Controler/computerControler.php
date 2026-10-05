@@ -11,7 +11,7 @@ class computerControler
         if (empty($name) || empty($tokoID)) {
             throw new InvalidArgumentException("expected name or tokoid");
         }
-        $strtoBinary = hex2bin(str_replace("-", "", $tokoID));
+        $strtoBinary = hex2bin($tokoID);
         $randomString = random_bytes(16);
 
         $insertaData = [
@@ -23,33 +23,47 @@ class computerControler
 
         db::insert("computer", $insertaData);
 
-        return bin2hex($randomString);
+        return [
+            "token" => bin2hex($randomString),
+            "id" => bin2hex($insertaData["id"])
+        ];
+    }
+
+    public static function updateComputerStatus (string $computerId, int $intStatus){
+        $status = ["not connected", "pending", "connected", "shutdown", "warning"];
+        return db::update("computer", [
+            "status" => $status[$intStatus]
+        ], "id", hex2bin($computerId));
     }
 
     public static function deleteComputer(string $id)
     {
-        if (empty($name) || empty($tokoID)) {
-            throw new InvalidArgumentException("expected name or tokoid");
+        if (empty($id)) {
+            throw new InvalidArgumentException("expected id");
         }
 
         $convertToBinary = hex2bin($id);
 
-        db::delete("computer", "id", $convertToBinary);
+        return db::delete("computer", "id", $convertToBinary);
     }
 
-    public static function getComputerToken(string $id)
+    public static function getComputerToken(string $token)
     {
-        $str2bin = hex2bin($id);
-        $result = db::get("SELECT token FROM computer WHERE id = ?", [$str2bin], "assoc");
+        $str2bin = hex2bin($token);
+        $result = db::get("SELECT token, id FROM computer WHERE token = ?", [$str2bin], "assoc");
         if (empty($result)) {
-            return "";
+            return null;
         } else {
-            return bin2hex($result["token"]);
+            return $result;
         }
+    }
+
+    public static function getComputerById(string $id, array $colum = ["*"]){
+        return db::getUsingParam("computer", "id", $id, "assoc", $colum);
     }
 
     public static function getAllComputer(string $option = "all")
     {
-        return db::get("SELECT HEX(id) AS id, name, HEX(toko_id) AS toko_id, aktif FROM computer", [], $option);
+        return db::get("SELECT HEX(id) AS id, name, HEX(toko_id) AS toko_id, status, HEX(token), tanggal_dibuat  FROM computer", [], $option);
     }
 }

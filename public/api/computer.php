@@ -56,7 +56,7 @@ class template
             $hasil = computerControler::getAllComputer();
             
             return jsonResponse("succed get all computers", [
-                "hi" => $hasil
+                $hasil
             ]);
         } catch (InvalidArgumentException | Exception $e) {
             return jsonResponse($e->getMessage(), [], false, 403);

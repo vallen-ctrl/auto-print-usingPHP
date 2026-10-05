@@ -91,6 +91,7 @@ class template
 
             if($filesessionCount !== $filesReqCount) return jsonResponse("the difference between the number of files provided and the files stored",
             [], true, 409);
+            
             userControler::insertUser($sessionId, $data["nama"], $data["no_wa"]);
             foreach ($files as $index => $value) {
                 //menghitung banyak pages di print

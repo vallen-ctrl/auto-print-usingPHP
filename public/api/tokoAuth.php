@@ -13,6 +13,7 @@ require_once dirname(__DIR__, 2) . "/Controler/tokoControler.php";
 require_once dirname(__DIR__, 2) . "/Controler/pengaturanTokoControler.php";
 
 require_once 'json.php';
+require_once 'helper.php';
 $METHOD = $_SERVER["REQUEST_METHOD"];
 
 class template
@@ -20,8 +21,10 @@ class template
     public static function post()
     {
         try {
-            $username = $_POST["username"] ?? '';
-            $password = $_POST["password"] ?? '';
+            
+            $input = getInput();
+            $username = $input["username"] ?? '';
+            $password = $input["password"] ?? '';
             $boolhasil = tokoControler::isValidPassword($username, $password);
 
             if (gettype($boolhasil) == "string") {

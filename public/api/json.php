@@ -10,5 +10,4 @@ function jsonResponse(string $msg, array $data = [], bool $isEror = false , int 
         "data" => $data,
         "responsesCode" => $code
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    exit;
 }

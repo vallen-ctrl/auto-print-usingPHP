@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS `computer` (
 	`token` BINARY(16) NOT NULL,
 	`tanggal_dibuat` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	`toko_id` BINARY(16) NOT NULL,
-	`aktif` BOOLEAN NOT NULL DEFAULT false,
+	`status` ENUM('not connected', 'shutdown', 'pending', 'connected', 'warning') NOT NULL DEFAULT 'not connected',
 	PRIMARY KEY(`id`),
 	CONSTRAINT `uq_computer_token` UNIQUE (`token`)
 );

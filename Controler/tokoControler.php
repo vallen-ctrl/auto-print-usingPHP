@@ -44,6 +44,14 @@ class tokoControler
         return db::update("toko", $dataValid, "id", hex2bin($id));
     }
 
+    public static function chekTokoMax():bool{
+        $count = db::get("SELECT COUNT(id) FROM toko");
+        if($count > 0){
+            return true;
+        }
+        return false;
+    }
+
     public static function getTokoInformation(string $option = "all")
     {
         return db::get("SELECT name, username, tanggal_dibuat, tanggal_update FROM toko", [], $option);
