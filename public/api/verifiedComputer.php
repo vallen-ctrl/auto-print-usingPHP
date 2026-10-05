@@ -7,6 +7,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
 require_once dirname(__DIR__, 2) . "/vendor/autoload.php";
 require_once dirname(__DIR__, 2) . "/Controler/computerControler.php";
+require_once dirname(__DIR__, 2) . "/Controler/fileQueueControler.php";
 require_once 'json.php';
 require_once 'helper.php';
 
@@ -66,7 +67,7 @@ class template
             $done = true;
 
             // === script saat putus ===
-            computerControler::updateComputerStatus($computerId, 1); // 1 = offline (sesuaikan)
+            computerControler::updateComputerStatus($computerId, 3); // 1 = offline (sesuaikan)
         };
 
         // jaga-jaga kalau script mati karena timeout / fatal error
@@ -82,9 +83,14 @@ class template
             }
 
             $id++;
-            echo "id: $id\n";
-            echo "event: message\n";
-            echo "data: " . json_encode(["time" => date("H:i:s")]) . "\n\n";
+            $fileQueue = fileQueueControler::getFileQueueUsingComputerId($computerId);
+            if(count($fileQueue) > 0){
+                jsonResponse("there is data", $fileQueue);
+            }else{
+                echo "id: $id\n";
+                echo "event: heartbeat\n";
+                echo "data: " . json_encode(["time" => date("H:i:s")]) . "\n\n";
+            }
             flush();
 
             sleep(2);

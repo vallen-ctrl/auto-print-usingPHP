@@ -111,14 +111,14 @@ switch ($METHOD) {
         // return template::post();
         return http_response_code(405);
     case "GET":
-        // return template::get();
-        return http_response_code(405);
+        return template::get();
+        // return http_response_code(405);
     case "PUT":
         // return template::put();
         return http_response_code(405);
     case "DELETE":
-        // return template::delete();
-        return http_response_code(405);
+        return template::delete();
+        // return http_response_code(405);
     case "OPTIONS":
         // return template::option();
         return http_response_code(405);

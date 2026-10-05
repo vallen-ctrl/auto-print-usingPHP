@@ -26,7 +26,7 @@
         }
 
         public static function getFileQueueUsingComputerId(string $computerId){
-            return db::getUsingParam("file_queue", "file_id", hex2bin($computerId));
+            return db::getUsingParam("file_queue", "file_id", $computerId);
         }
 
         public static function getFileQueueAll(){

@@ -97,7 +97,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_FILES["dokumen"])) {
             "size" => $fileSize,
             "mime" => $mime,
             "order_id" => $orderid,
-            "total_pages" => count($pdf_pages->getPages())
+            "total_pages" => count($pdf_pages->getPages()),
+            "layanan" => $validate->getValidatedData()["layanan"]
         ]);
         
         $filesSave = [

@@ -12,6 +12,8 @@ require_once dirname(__DIR__, 2) . "/Controler/layanan_terpilihControler.php";
 require_once dirname(__DIR__, 2) . "/Controler/layananControler.php";
 require_once dirname(__DIR__, 2) . "/Controler/configurationControler.php";
 require_once dirname(__DIR__, 2) . "/Controler/userControler.php";
+require_once dirname(__DIR__, 2) . "/Controler/pengaturanTokoControler.php";
+require_once dirname(__DIR__, 2) . "/Controler/orderControler.php";
 require_once 'json.php';
 require_once 'helper.php';
 
@@ -86,6 +88,8 @@ class template
          
             $data = $validate->getValidatedData();
             $files = $data["files"];
+            $data["total_pembayaran"] = 0;
+            $data["session_id"] = $sessionId;
             $filesessionCount = count($filesSession);
             $filesReqCount = count($files);
 
@@ -93,13 +97,14 @@ class template
             [], true, 409);
             
             userControler::insertUser($sessionId, $data["nama"], $data["no_wa"]);
+            
             foreach ($files as $index => $value) {
                 //menghitung banyak pages di print
                 $idFiles = $value["file_id"];
                 if($idFiles !== $filesSession[$index]["id"]) return jsonResponse("
                     difrent id from req and sever saved. did you uploaded the same files id?
                 ", [], true, 403);
-                fileControler::insertUploader($sessionId, $idFiles);
+                // fileControler::insertUploader($sessionId, $idFiles);
                 $totalPages = fileControler::getFileById($idFiles, "assoc", ["total_pages"])["total_pages"] ?? null;
                 if ($totalPages == null) throw new Exception("cant find files");
                 $pagesToPrint = self::hitungHalaman($value["custom_halaman"], $totalPages);
@@ -133,7 +138,16 @@ class template
                 fileControler::insertSubtotal($idFiles, $subTotal);
                 
                 $data["files"][$index]["subtotal"] = $subTotal;
+                $data["total_pembayaran"] += $subTotal;
             }
+            $biaya = pengaturanTokoContorler::getBiayaAdminDanLayanan();
+            $data["biaya_admin"] = $biaya["biaya_admin"];
+            $data["biaya_layanan"] = $biaya["biaya_layanan"];
+            $data["total_pembayaran"] += ($biaya["biaya_admin"] + $biaya["biaya_layanan"]);
+            $data["status_pembayaran"] = "pending";
+            orderControler::setOrder($data);
+            unset($data["session_id"]);
+            SessionManager::set("ordercreated", $data);
             return jsonResponse("Succed post order", $data);
         } catch (InvalidArgumentException | Exception $e) {
             return jsonResponse($e->getMessage(), [], false, 403);

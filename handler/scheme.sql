@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS `files` (
 	`order_id` BINARY(16) NOT NULL,
 	`dihapus` BOOLEAN NOT NULL DEFAULT false,
 	`subtotal` BIGINT NOT NULL DEFAULT 0,
+	`layanan` ENUM('kilat-edit', 'kilat-langsung', 'terjadwal') NOT NULL,
 	PRIMARY KEY(`id`)
 );
 

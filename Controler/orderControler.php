@@ -2,7 +2,7 @@
 
 require_once dirname(__DIR__, 1) . "/vendor/autoload.php";
 require_once dirname(__DIR__, 1) . "/handler/database.php";
-require_once "MetodePembayaran.php";
+
 use Ramsey\Uuid\Uuid;
 
 class orderControler
@@ -12,14 +12,10 @@ class orderControler
     {
         $validator = new Rakit\Validation\Validator();
         $data = $validator->validate($orderSet, [
-            "tanggal_ambil" => "required|date:Y-m-d H:i:s",
+            "tanggal_ambil" => "required|date:Y-m-d\TH:i:sP",
             "biaya_admin" => "required",
             "total_pembayaran" => "required",
-            "total_dibayar" => "required",
-            "pengaturan_id" => "required",
-            "status_pembayaran" => "nullable",
-            "metode_pembayaran" => "nullable",
-            "id_metode_pembayaran" => "nullable",
+            "status_pembayaran" => "required",
             "session_id" => "required"
         ]);
 
@@ -29,7 +25,7 @@ class orderControler
             );
         }
         $dataValidate = $data->getValidatedData();
-
+        $dataValidate["pengaturan_id"] = 1;
         $id = Uuid::uuid7();
         $dataValidate["id"] = $id->getBytes();
         db::insert("orders", $dataValidate);
@@ -44,14 +40,7 @@ class orderControler
         ], "id", hex2bin($orderID));
     }
 
-    public static function updateMetodePembayaran(string $orderID, string $idMetodePembayaran){
-        $getMetodePembayaranName = MetodePembayaran::getMetodeById($idMetodePembayaran, "assoc");
-        $nameMetode = $getMetodePembayaranName["name"];
-
-        if(empty($nameMetode)){
-            throw new InvalidArgumentException("cant find name of metodePmebayaran from your id $idMetodePembayaran");
-        }
-
+    public static function updateMetodePembayaran(string $orderID, string $nameMetode, string $idMetodePembayaran){
         $insertedData = [
             "metode_pembayaran" => $nameMetode,
             "id_metode_pembayaran" => hex2bin($idMetodePembayaran)

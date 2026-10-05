@@ -22,6 +22,10 @@
             return db::getUsingParam("pengaturan_toko", "id_toko", $idToko, "assoc", $column);
         }
 
+        public static function getBiayaAdminDanLayanan(){
+            return db::getUsingParam("pengaturan_toko", "id", 1, "assoc", ["biaya_admin", "biaya_layanan"]);
+        }
+
         public static function deletePengaturanToko(int $idToko){
             return db::delete("pengaturan_toko", "id", $idToko);
         }
