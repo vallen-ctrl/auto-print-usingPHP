@@ -1,0 +1,24 @@
+info:
+  name: Store
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: localhost:8000/api/toko
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Toko Printer Vallen",
+        "username": "vallenmaliaasdasd",
+        "password": "vallen271206"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

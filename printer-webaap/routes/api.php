@@ -2,6 +2,17 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Middleware\VerifyTokenMiddleware;
+
+Route::middleware(['api', VerifyTokenMiddleware::class])->group(function () {
+    // Paper
+    Route::apiResource('paper', \App\Http\Controllers\Api\PaperController::class)->only(['index', 'store', 'update', 'destroy']);
+    
+    // computer
+    Route::post('/computer', [\App\Http\Controllers\Api\ComputerController::class, 'store']);
+    Route::get('/computer', [\App\Http\Controllers\Api\ComputerController::class, 'index']);
+    Route::delete('/computer/{id}', [\App\Http\Controllers\Api\ComputerController::class, 'destroy']);
+});
 
 Route::middleware('api')->group(function () {
     // User
@@ -13,23 +24,20 @@ Route::middleware('api')->group(function () {
     // Toko
     Route::post('/toko', [\App\Http\Controllers\Api\TokoController::class, 'store']);
     Route::put('/toko/{id}', [\App\Http\Controllers\Api\TokoController::class, 'update']);
-    Route::get('/toko/max', [\App\Http\Controllers\Api\TokoController::class, 'checkMax']);
+    // Route::get('/toko/max', [\App\Http\Controllers\Api\TokoController::class, 'checkMax']);
     Route::get('/toko/info', [\App\Http\Controllers\Api\TokoController::class, 'info']);
-    Route::get('/toko/ids', [\App\Http\Controllers\Api\TokoController::class, 'ids']);
-    Route::post('/toko/{id}/token', [\App\Http\Controllers\Api\TokoController::class, 'setToken']);
+    // Route::get('/toko/ids', [\App\Http\Controllers\Api\TokoController::class, 'ids']);
+    // Route::post('/toko/{id}/token', [\App\Http\Controllers\Api\TokoController::class, 'setToken']);
     Route::post('/toko/login', [\App\Http\Controllers\Api\TokoController::class, 'login']);
-    Route::post('/toko/validate-token', [\App\Http\Controllers\Api\TokoController::class, 'validateToken']);
+    // Route::post('/toko/validate-token', [\App\Http\Controllers\Api\TokoController::class, 'validateToken']);
 
     // Paper
-    Route::apiResource('paper', \App\Http\Controllers\Api\PaperController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::get('/paper', [\App\Http\Controllers\Api\PaperController::class, "get"]);
 
     // Computer
-    Route::post('/computer', [\App\Http\Controllers\Api\ComputerController::class, 'store']);
-    Route::put('/computer/{id}/status', [\App\Http\Controllers\Api\ComputerController::class, 'updateStatus']);
-    Route::delete('/computer/{id}', [\App\Http\Controllers\Api\ComputerController::class, 'destroy']);
-    Route::get('/computer/token', [\App\Http\Controllers\Api\ComputerController::class, 'getByToken']);
-    Route::get('/computer/{id}', [\App\Http\Controllers\Api\ComputerController::class, 'getById']);
-    Route::get('/computer', [\App\Http\Controllers\Api\ComputerController::class, 'index']);
+    Route::post('/computer/SSE', [\App\Http\Controllers\Api\ComputerController::class, 'serverSendEvent']);
+    // Route::get('/computer/token', [\App\Http\Controllers\Api\ComputerController::class, 'getByToken']);
+    // Route::get('/computer/{id}', [\App\Http\Controllers\Api\ComputerController::class, 'getById']);
 
     // Pengaturan Toko
     Route::post('/pengaturan-toko', [\App\Http\Controllers\Api\PengaturanTokoController::class, 'store']);

@@ -1,0 +1,24 @@
+info:
+  name: create Computer
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{url}}/api/computer"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "pc 1"
+      }
+  auth:
+    type: bearer
+    token: "{{barer_TOKEN}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

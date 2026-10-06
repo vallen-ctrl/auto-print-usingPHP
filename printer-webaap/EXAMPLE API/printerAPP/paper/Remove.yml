@@ -1,0 +1,28 @@
+info:
+  name: Remove
+  type: http
+  seq: 4
+
+http:
+  method: DELETE
+  url: "{{url}}/api/paper/1"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "A24",
+        "width": 111234,
+        "height": 231,
+        "harga_color": 1002220,
+        "harga_grayscale": 502220
+      }
+  auth:
+    type: bearer
+    token: "{{barer_TOKEN}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

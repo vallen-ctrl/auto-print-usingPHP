@@ -1,0 +1,21 @@
+info:
+  name: Remove Computer
+  type: http
+  seq: 4
+
+http:
+  method: DELETE
+  url: "{{url}}/api/computer/3cfd8f34d9e24839a808a3b9ed3cf94e"
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{barer_TOKEN}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

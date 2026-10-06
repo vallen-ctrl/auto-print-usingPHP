@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Toko;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 
 class TokoController extends Controller
@@ -19,7 +20,13 @@ class TokoController extends Controller
         ]);
 
         $id = Str::uuid();
-        
+        $manyUsers = Toko::count();
+        if($manyUsers > 0){
+            return response()->json([
+                "message" => "cant add more users, this package create just for one user",
+                "code" => 409
+            ], 409);
+        }
         $toko = Toko::create([
             'id' => $id->getBytes(),
             'name' => $validated['name'],
@@ -56,7 +63,7 @@ class TokoController extends Controller
 
     public function info()
     {
-        $toko = Toko::select('name', 'username', 'tanggal_dibuat', 'tanggal_update')->get();
+        $toko = Toko::select('name', 'tanggal_dibuat', 'tanggal_update')->get();
         
         return response()->json($toko);
     }
@@ -94,7 +101,10 @@ class TokoController extends Controller
         if ($toko->password === $validated['password']) {
             $token = random_bytes(32);
             $toko->update(['token' => $token]);
-            
+            Cache::put("admin", [
+                "token" => bin2hex($token),
+                "tokoid" => bin2hex($toko->first()->id)
+            ]);
             return response()->json([
                 'valid' => true,
                 'token' => bin2hex($token)

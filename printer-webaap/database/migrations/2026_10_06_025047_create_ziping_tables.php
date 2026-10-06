@@ -3,7 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -30,7 +29,7 @@ return new class extends Migration
             $table->string('username', 50)->unique('uq_toko_username');
             $table->string('password');
             $table->timestamp('tanggal_dibuat')->useCurrent();
-            $table->timestamp('tanggal_update')->useCurrent();
+            $table->timestamp('tanggal_update')->useCurrent()->useCurrentOnUpdate();
             $table->binary('token', 32)->nullable();
         });
 
@@ -68,7 +67,7 @@ return new class extends Migration
             $table->time('waktu_buka')->nullable();
             $table->time('waktu_tutup')->nullable();
             $table->boolean('apakah_dibuka');
-            $table->integer('id_pengaturan');
+            $table->unsignedBigInteger('id_pengaturan');
         });
 
         Schema::create('metode_pembayaran', function (Blueprint $table) {
@@ -77,7 +76,7 @@ return new class extends Migration
             $table->text('webhook')->nullable();
             $table->text('token')->nullable();
             $table->text('image_path')->nullable();
-            $table->integer('id_pengaturan')->nullable();
+            $table->unsignedBigInteger('id_pengaturan')->nullable();
         });
 
         Schema::create('orders', function (Blueprint $table) {
@@ -87,11 +86,11 @@ return new class extends Migration
             $table->bigInteger('biaya_admin')->default(0);
             $table->bigInteger('total_pembayaran')->default(0);
             $table->bigInteger('total_dibayar')->default(0);
-            $table->integer('pengaturan_id');
-            $table->enum('status_pembayaran', ['pending', 'proccesing ', 'succed', 'fail']);
+            $table->unsignedBigInteger('pengaturan_id');
+            $table->enum('status_pembayaran', ['pending', 'processing', 'success', 'fail'])->default('pending');
             $table->string('metode_pembayaran')->nullable();
             $table->binary('id_metode_pembayaran', 16)->nullable();
-            $table->string('session_id');
+            $table->string('session_id')->nullable();
         });
 
         Schema::create('files', function (Blueprint $table) {
@@ -100,10 +99,14 @@ return new class extends Migration
             $table->text('path');
             $table->bigInteger('size');
             $table->enum('mime', [
-                'application/pdf', 'application/msword', 'application/octet-stream', 
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
-                'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
-                'image/jpeg', 'image/png'
+                'application/pdf',
+                'application/msword',
+                'application/octet-stream',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.ms-excel',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'image/jpeg',
+                'image/png',
             ])->default('application/octet-stream');
             $table->string('diupload_oleh')->nullable();
             $table->timestamp('tanggal_dibuat')->useCurrent();
@@ -116,8 +119,8 @@ return new class extends Migration
 
         Schema::create('layanan_terpilih', function (Blueprint $table) {
             $table->id();
-            $table->binary('files_id', 16);
-            $table->integer('layanan_id');
+            $table->binary('files_id', 16)->nullable();
+            $table->unsignedBigInteger('layanan_id')->nullable();
             $table->string('nama_layanan', 50);
         });
 
@@ -130,21 +133,23 @@ return new class extends Migration
             $table->enum('kualitas', ['rendah', 'standar', 'tinggi']);
             $table->string('skala');
             $table->smallInteger('jumlah_cetak');
-            $table->text('custom_halaman');
-            $table->text('catatan_tambahan');
-            $table->integer('paper_id');
+            $table->text('custom_halaman')->nullable();
+            $table->text('catatan_tambahan')->nullable();
+            $table->unsignedBigInteger('paper_id')->nullable();
             $table->smallInteger('pages_toprint')->default(0);
         });
 
         Schema::create('file_queue', function (Blueprint $table) {
             $table->id();
             $table->timestamp('tanggal_dibuat')->useCurrent();
-            $table->enum('status', ['pending', 'processing', 'complited', 'failed', 'downloading'])->default('pending');
+            $table->enum('status', ['pending', 'processing', 'completed', 'failed', 'downloading'])->default('pending');
             $table->text('path');
             $table->binary('order_id', 16);
-            $table->binary('file_id', 16);
-            $table->binary('computer_id', 16);
+            $table->binary('file_id', 16)->nullable();
+            $table->binary('computer_id', 16)->nullable();
         });
+
+        // ---- Foreign keys (setelah semua tabel ada) ----
 
         Schema::table('computer', function (Blueprint $table) {
             $table->foreign('toko_id')->references('id')->on('toko')->onUpdate('cascade')->onDelete('cascade');
@@ -162,14 +167,15 @@ return new class extends Migration
             $table->foreign('id_pengaturan')->references('id')->on('pengaturan_toko')->onUpdate('cascade')->onDelete('set null');
         });
 
-        Schema::table('files', function (Blueprint $table) {
-            $table->foreign('diupload_oleh')->references('sessionid')->on('user')->onUpdate('cascade')->onDelete('set null');
-        });
-
         Schema::table('orders', function (Blueprint $table) {
             $table->foreign('pengaturan_id')->references('id')->on('pengaturan_toko')->onUpdate('cascade')->onDelete('restrict');
             $table->foreign('id_metode_pembayaran')->references('id')->on('metode_pembayaran')->onUpdate('cascade')->onDelete('set null');
-            $table->foreign('session_id')->references('sessionid')->on('user')->onUpdate('no action')->onDelete('set null');
+            $table->foreign('session_id')->references('sessionid')->on('user')->onUpdate('cascade')->onDelete('set null');
+        });
+
+        Schema::table('files', function (Blueprint $table) {
+            $table->foreign('diupload_oleh')->references('sessionid')->on('user')->onUpdate('cascade')->onDelete('set null');
+            $table->foreign('order_id')->references('id')->on('orders')->onUpdate('cascade')->onDelete('restrict');
         });
 
         Schema::table('layanan_terpilih', function (Blueprint $table) {
@@ -187,14 +193,12 @@ return new class extends Migration
             $table->foreign('file_id')->references('id')->on('files')->onUpdate('cascade')->onDelete('set null');
             $table->foreign('computer_id')->references('id')->on('computer')->onUpdate('cascade')->onDelete('set null');
         });
-
-        Schema::table('files', function (Blueprint $table) {
-            $table->foreign('order_id')->references('id')->on('orders')->onUpdate('no action')->onDelete('restrict');
-        });
     }
 
     public function down(): void
     {
+        Schema::disableForeignKeyConstraints();
+
         Schema::dropIfExists('file_queue');
         Schema::dropIfExists('configuration');
         Schema::dropIfExists('layanan_terpilih');
@@ -208,6 +212,7 @@ return new class extends Migration
         Schema::dropIfExists('toko');
         Schema::dropIfExists('layanan');
         Schema::dropIfExists('user');
+
+        Schema::enableForeignKeyConstraints();
     }
 };
-

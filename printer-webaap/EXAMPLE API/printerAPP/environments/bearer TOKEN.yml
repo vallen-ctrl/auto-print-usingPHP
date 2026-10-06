@@ -1,0 +1,9 @@
+name: bearer TOKEN
+color: "#d85d43"
+variables:
+  - name: barer_TOKEN
+    value: 25eef2d43e909f1584b1037dea6a6470fcca68c01ef5a6eb5081d504640cc57a
+    description: ""
+  - name: url
+    value: http://printer-webaap.test
+    description: ""

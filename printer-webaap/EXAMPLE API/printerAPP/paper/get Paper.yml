@@ -1,0 +1,28 @@
+info:
+  name: get Paper
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{url}}/api/paper"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "A4",
+        "width": 114,
+        "height": 231,
+        "harga_color": 1000,
+        "harga_grayscale": 500
+      }
+  auth:
+    type: bearer
+    token: 0978bbfbd8a267a8c758be7c43323f789f3a63a52429c969ceb4fa1fe8a20364
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

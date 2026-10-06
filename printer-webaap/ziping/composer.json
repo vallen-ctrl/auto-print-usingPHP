@@ -1,9 +1,0 @@
-{
-    "require": {
-        "vlucas/phpdotenv": "^5.7",
-      "ext-mysqli": "*",
-        "ramsey/uuid": "^4.9",
-        "rakit/validation": "^1.4",
-        "smalot/pdfparser": "^2.12"
-    }
-}
