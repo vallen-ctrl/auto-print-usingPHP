@@ -13,8 +13,8 @@ http:
         "name": "A24",
         "width": 111234,
         "height": 231,
-        "harga_color": 1002220,
-        "harga_grayscale": 502220
+        "harga_color": 1000,
+        "harga_grayscale": 500
       }
   auth:
     type: bearer
