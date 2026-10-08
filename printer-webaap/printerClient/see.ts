@@ -3,7 +3,7 @@
 
 /* ───────────── Konfigurasi ───────────── */
 
-export const SSE_PATH = "/public/api/verifiedComputer.php"; // alamat yang sama dengan sebelumnya
+export const SSE_PATH = "/api/computer/SSE"; // alamat yang sama dengan sebelumnya
 const HEARTBEAT_TIMEOUT = 60_000; // tidak ada data/komentar > 60 dtk = dianggap putus, reconnect
 const BACKOFF_MIN = 1_000;
 const BACKOFF_MAX = 30_000;

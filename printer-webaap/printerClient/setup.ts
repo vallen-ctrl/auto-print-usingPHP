@@ -89,8 +89,8 @@ function normalizeHost(raw: string): string {
 function banner() {
   console.clear();
   const art = [
-    "  ╔╗╔╔═╗╔╦╗╔═╗  ╔═╗╦═╗╦╔╗╔╔╦╗╔═╗╦═╗",
-    "  ║║║║ ║ ║║║╣   ╠═╝╠╦╝║║║║ ║ ║╣ ╠╦╝",
+    "  ╔╗╔╔═╗═╦╗╔═╗  ╔═╗╦═╗╦╔╗╔╔╦╗╔═╗╦═╗",
+    "  ║║║║ ║ ║║╠═   ╠═╝╠╦╝║║║║ ║ ║╣ ╠╦╝",
     "  ╝╚╝╚═╝═╩╝╚═╝  ╩  ╩╚═╩╝╚╝ ╩ ╚═╝╩╚═",
   ].join("\n");
   console.log(pc.cyan(art));
