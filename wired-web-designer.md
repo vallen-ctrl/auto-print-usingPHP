@@ -1,31 +1,57 @@
 ---
 name: wired-web-designer
-description: Membangun halaman web bergaya sketsa/hand-drawn dengan HTML vanila dan library wired-elements (wiredjs.com), berdasarkan gambar desain mobile dari user. Gunakan skill ini setiap kali user meminta membuat halaman web, landing page, UI, atau layout dari gambar/mockup/screenshot desain, menyebut wired-elements, wiredjs, atau gaya sketsa/tulisan tangan, atau meminta desain mobile-first yang juga responsif di desktop, walaupun user tidak menyebut nama skill ini.
+description: Membangun halaman web bergaya sketsa/hand-drawn dengan HTML vanila atau Blade view Laravel, memakai library wired-elements (wiredjs.com), berdasarkan gambar desain mobile dari user. Gunakan skill ini setiap kali user meminta membuat halaman web, landing page, UI, layout, atau view Laravel dari gambar/mockup/screenshot desain, menyebut wired-elements, wiredjs, gaya sketsa/tulisan tangan, atau meminta desain mobile-first yang juga responsif di desktop, walaupun user tidak menyebut nama skill ini.
 ---
 
 # Wired Web Designer
 
-Skill ini membuat satu halaman web dari gambar desain. Hasilnya HTML vanila (tanpa framework) yang memakai komponen wired-elements, dirancang mobile-first, lalu diperluas ke desktop dengan isi yang sama.
+Skill ini membuat satu halaman web dari gambar desain. Hasilnya HTML vanila atau Blade view Laravel (tanpa framework frontend), memakai komponen wired-elements, dirancang mobile-first, lalu diperluas ke desktop dengan isi yang sama.
 
-Bahasa balasan mengikuti bahashttps://www.google.com/search?q=a user. Bahasa teks di dalam halaman mengikuti gambar desain; kalau gambar tidak menunjukkan teks yang jelas, tanyakan.
+Bahasa balasan mengikuti bahasa user. Bahasa teks di dalam halaman mengikuti gambar desain; kalau gambar tidak menunjukkan teks yang jelas, tanyakan.
 
 ## Alur kerja
 
-Ada empat tahap dan tiap tahap punya titik konfirmasi. Jangan lompat ke tahap berikutnya sebelum titik konfirmasinya selesai.
+Ada lima tahap dan tiap tahap punya titik konfirmasi. Jangan lompat ke tahap berikutnya sebelum titik konfirmasinya selesai.
 
 ### Tahap 0: Buka percakapan dengan satu pesan
 
-Di pesan pertama, minta dua hal sekaligus supaya tidak menambah putaran percakapan: gambar desain (mobile), dan nama file halaman (contoh: `beranda`, dipakai sebagai `beranda.html` dan `beranda.css`).
+Di pesan pertama, minta dua hal sekaligus supaya tidak menambah putaran percakapan: gambar desain (mobile), dan nama file halaman (contoh: `beranda`, dipakai sebagai nama view/CSS).
 
 Gambar desain wajib. Minta dengan tegas dan jangan mulai mendesain tanpa referensi visual. Kalau user benar-benar tidak punya gambar, terima salah satu pengganti ini: tautan Figma atau screenshot situs yang mirip, atau deskripsi tertulis yang rinci (daftar bagian halaman, urutan, dan isi tiap bagian). Setelah deskripsi diterima, tulis ulang pemahamanmu sebagai daftar bagian halaman dan minta user mengoreksi sebelum lanjut.
 
-Tanyakan juga format keluaran kalau user belum menyebutnya. Bawaannya `.html` + `.css`. Pakai `.php` untuk layout hanya jika user bilang akan memasangnya di server PHP atau ada logika PHP yang dibutuhkan. Kalau tidak ada logika PHP, jangan memakai `.php`, karena file itu jadi butuh server PHP hanya untuk tampil.
+untuk format keluaran menggunakan
+- **Blade view Laravel.** Struktur file mengikuti konvensi Laravel: view di `resources/views/<nama>.blade.php`, CSS di `resources/css/<nama>.css`, dan JS di `resources/js/app.js`. Route didaftarkan user di `routes/web.php` (misalnya `Route::view('/formulir-cetak', 'formulir-cetak');`).
+
+Untuk Blade, dimuat melalui wired-elements:
+Chek terlebih dahlu apakah sudah terinstall atau belum, jika sudah maka anda bisa langung merefrensikannya saja jika belum maka install terlebih dahulu.
+- **npm + Vite.** `npm install wired-elements`, lalu `import 'wired-elements';` di `resources/js/app.js`. Library ikut ter-bundle, tidak butuh CDN saat production. Panggil lewat `@vite(['resources/css/<nama>.css', 'resources/js/app.js'])` di Blade. 
+
+nilai roughness (lihat Tahap 1). pakai 1.2.
 
 ### Tahap 1: Inspirasi desain
 
 Setelah gambar diterima, deskripsikan apa yang kamu lihat: suasana, palet warna dominan, jenis bentuk (sudut, garis, bayangan), dan gaya ilustrasi atau ikon. Ambil nilai warna dari gambar dan simpan sebagai token di tahap 3.
 
 Titik konfirmasi: tampilkan ringkasan pendek (3-5 kalimat) dan palet warna dalam kode hex, lalu lanjut kecuali user mengoreksi.
+
+#### Roughness
+
+Wired-elements menggambar bentuk sketsanya dengan derajat "kegoyangan" yang disebut roughness. Nilainya berupa angka desimal, makin besar makin berantakan:
+
+| Nilai | Efek | Cocok untuk |
+|---|---|---|
+| 0.8 | Nyaris lurus, sedikit goyang | Formulir rapi, tabel |
+| 1.2 | Halus, jelas tangan | Default untuk kebanyakan UI |
+| 1.6 | Sketsa terasa, hidup | Formulir informal, kartu |
+| 2.0+ | Coretan kasar | Poster, ilustrasi |
+
+Roughness adalah atribut **per elemen**, bukan setelan global. Library ini tidak menyediakan API global resmi untuk mengubah roughness semua elemen sekaligus. Karena itu, roughness selalu ditulis sebagai atribut di setiap elemen wired:
+
+```html
+<wired-input roughness="1.6" placeholder="Nama lengkap" style="width:100%"></wired-input>
+<wired-button roughness="1.6" elevation="2">Kirim</wired-button>
+```
+Jangan pakai script yang menambahkan atribut roughness setelah render; pendekatan itu belum terverifikasi untuk semua elemen di versi 3.0.0-rc.6 dan menyulitkan debugging. Cukup tulis atribut per elemen, walau agak verbose.
 
 ### Tahap 2: Analisis tata ruang dan daftar elemen
 
@@ -42,9 +68,9 @@ Titik konfirmasi: tampilkan daftar bagian halaman dan daftar elemen yang dipilih
 
 ### Tahap 3: Implementasi layout
 
-Tulis HTML dan CSS dengan aturan di bagian "Aturan teknis", "Tipografi", dan "Warna dan spasi" di bawah. Kerjakan mobile dulu (CSS dasar tanpa media query untuk mobile), lalu tambahkan `@media (min-width: ...)` untuk layar lebih besar.
+Tulis HTML/CSS atau Blade/CSS dengan aturan di bagian "Aturan teknis", "Tipografi", dan "Warna dan spasi" di bawah. Kerjakan mobile dulu (CSS dasar tanpa media query untuk mobile), lalu tambahkan `@media (min-width: ...)` untuk layar lebih besar.
 
-Struktur halaman:
+Struktur halaman HTML statis:
 
 ```html
 <!DOCTYPE html>
@@ -65,11 +91,85 @@ Struktur halaman:
 
 Versi wired-elements dikunci (`@3.0.0-rc.6`) agar hasil tidak berubah sendiri saat library diperbarui. Sebelum menulis, cek versi terbaru yang stabil di npm dan pakai versi itu kalau berbeda. Jangan pakai URL tanpa versi.
 
+#### Varian untuk Laravel Blade
+
+Kalau outputnya Blade view, struktur `namafile.blade.php` sama seperti HTML di atas, dengan tiga perbedaan:
+
+1. Nama file berakhiran `.blade.php` dan ditaruh di `resources/views/`.
+2. CSS ada di `resources/css/namafile.css`, JS ada di `resources/js/app.js`.
+3. Kalau memakai CDN, tag `<script>` ditulis langsung di Blade. Kalau memakai npm + Vite, ganti tag `<script>` dan `<link rel="stylesheet">` untuk CSS lokal dengan direktif `@vite`:
+
+```blade
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Judul halaman</title>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Patrick+Hand&display=swap" rel="stylesheet">
+  @vite(['resources/css/namafile.css', 'resources/js/app.js'])
+</head>
+<body>
+  <!-- isi halaman -->
+</body>
+</html>
+```
+
+Lalu di `resources/js/app.js`:
+
+```js
+import 'wired-elements';
+
+// logika nilai dinamis (kalau ada), lihat "Nilai dinamis di Blade"
+```
+
+Font Google tetap dimuat lewat CDN karena tidak ada alasan membundel font.
+
+Untuk proyek Laravel dengan Vite, jangan tulis URL unpkg untuk wired-elements. Kunci versi di `package.json` supaya perilaku tidak berubah saat library diperbarui.
+
+#### Nilai dinamis di Blade
+
+Kalau desain punya nilai yang berubah mengikuti interaksi browser (misalnya sub total yang berubah saat checkbox paket dicentang), jangan hitung di PHP. Tulis logika di `resources/js/app.js` atau script terpisah yang dimuat lewat `@vite`. Simpan harga sebagai `data-harga` di elemen atau konstanta di JS, supaya tidak hard-coded berulang.
+
+Blade hanya menghasilkan HTML statis saat dirender; interaktivitas sepenuhnya di sisi browser. Contoh pola sub total:
+
+```html
+<wired-checkbox class="paket" data-harga="2000">Paket 1</wired-checkbox>
+<wired-checkbox class="paket" data-harga="2000">Paket 2</wired-checkbox>
+<wired-checkbox class="paket" data-harga="2000">Paket 3</wired-checkbox>
+
+<p>SUB TOTAL: Rp <span id="subtotal">4000</span></p>
+```
+
+```js
+import 'wired-elements';
+
+const boxes = document.querySelectorAll('.paket');
+const out = document.getElementById('subtotal');
+
+function hitung() {
+  let total = 0;
+  boxes.forEach(b => { if (b.checked) total += Number(b.dataset.harga); });
+  out.textContent = total.toLocaleString('id-ID');
+}
+
+boxes.forEach(b => b.addEventListener('change', hitung));
+hitung();
+```
+
 ### Tahap 4: Finishing dan presentasi
 
 Sebelum menyerahkan hasil, jalankan daftar cek di bagian "Daftar cek sebelum menyerahkan". Perbaiki yang gagal, jangan hanya mencatatnya.
 
-Simpan hasil sebagai `namafile.css` (gaya) dan `namafile.html` atau `namafile.php` (layout), sesuai keputusan di tahap 0. Lalu presentasikan ke user dalam paragraf singkat yang mencakup: bagian halaman yang dibuat, elemen wired yang dipakai, perbedaan layout mobile dan desktop, keputusan desain yang kamu ambil sendiri (misalnya warna atau ukuran yang kamu perkirakan dari gambar), dan cara membukanya. Untuk membuka file, cukup buka di browser; untuk `.php`, jalankan lewat server PHP, misalnya `php -S localhost:8000` di folder file. Sebutkan juga bahwa halaman butuh koneksi internet karena memuat font dan library dari CDN.
+Simpan hasil sesuai format yang disepakati di tahap 0. Untuk HTML statis: `namafile.css` + `namafile.html`. Untuk PHP polos: `namafile.css` + `namafile.php`. Untuk Laravel Blade: `resources/views/namafile.blade.php`, `resources/css/namafile.css`, dan `resources/js/app.js`.
+
+Lalu presentasikan ke user dalam paragraf singkat yang mencakup: bagian halaman yang dibuat, elemen wired yang dipakai, perbedaan layout mobile dan desktop, keputusan desain yang kamu ambil sendiri (misalnya warna atau ukuran yang kamu perkirakan dari gambar), dan cara membukanya.
+
+- Untuk HTML statis, cukup buka di browser.
+- Untuk `.php` polos, jalankan lewat server PHP, misalnya `php -S localhost:8000` di folder file.
+- Untuk Blade, jalankan lewat proyek Laravel: `php artisan serve`, atau `npm run dev` kalau memakai Vite untuk aset.
+
+Sebutkan juga bahwa halaman butuh koneksi internet kalau font atau wired-elements dimuat lewat CDN. Kalau semua dimuat lewat npm + Vite, font Google tetap butuh internet; sebutkan itu.
 
 ## Aturan teknis
 
@@ -83,6 +183,8 @@ Wired-elements menggambar bentuk sketsanya dengan JavaScript berdasarkan ukuran 
 - Gunakan elemen HTML semantik (`header`, `nav`, `main`, `section`, `footer`) untuk struktur, dan elemen wired untuk komponen interaktif dan hiasan.
 - Gambar wajib punya `alt`. Elemen wired yang menerima input wajib punya label yang terbaca (atribut `placeholder` atau `<label>` di sekitarnya).
 - Jangan bergantung pada gambar dari luar yang mungkin tidak tersedia. Kalau desain butuh gambar yang tidak diberikan, pakai kotak placeholder (`wired-card` atau `div` dengan ukuran tetap rasio) dan sebutkan di presentasi.
+- Wired-elements adalah Web Components, jadi tetap berfungsi di Blade view. Blade hanya menghasilkan HTML; JavaScript dari Vite atau CDN yang mengaktifkan elemen `<wired-input>`, `<wired-button>`, dan seterusnya. Tidak ada konflik antara PHP dan Web Components.
+- Kalau memakai npm + Vite, pastikan `import 'wired-elements'` ada di entry JS yang dimuat lewat `@vite`. Vite menangani `type="module"` secara otomatis. Kunci versi di `package.json` supaya perilaku tidak berubah saat library diperbarui.
 
 Breakpoint yang dipakai: mobile dasar (target uji 360px dan 390px), tablet mulai 768px, desktop mulai 1024px. Batasi lebar konten desktop dengan `max-width` sekitar 1120px dan pusatkan.
 
@@ -117,10 +219,6 @@ Skala ukuran: basis 16px, rasio 1.25. Karena Caveat dan Patrick Hand punya x-hei
   --fs-body: 1.0625rem; /* 17px */
   --fs-caption: 0.8125rem; /* 13px */
   --fs-label: 0.75rem;     /* 12px */
-  --color-bg: #FFFFF0;        /* latar halaman dan kartu */
-  --color-text: #1e1e1e;      /* teks dan garis utama */
-  --color-muted: #6b6b6b;     /* teks sekunder, catatan */
-  --color-border: #1e1e1e;    /* bingkai kartu, tombol, logo */
 }
 ```
 
@@ -170,19 +268,22 @@ Periksa tiap poin dan perbaiki yang gagal. Kalau kamu tidak bisa membuka browser
 - Semua field, teks, dan tombol dari versi mobile ada di versi desktop.
 - Area sentuh tombol, tautan, dan kontrol input minimal sekitar 44×44px di mobile.
 - Elemen wired tergambar dengan benar setelah halaman dimuat dan setelah ukuran layar berubah.
+- Nilai roughness yang disepakati benar-benar terpasang sebagai atribut di semua elemen wired, dan tidak ada elemen yang tertinggal dengan roughness bawaan.
 - Hanya dua weight font yang dipakai (Caveat 600 dan Patrick Hand 400), dan semua ukuran teks berasal dari token skala.
 - Tidak ada nilai warna atau spasi hard-coded di luar token.
 - Gambar punya `alt`, input punya label, kontras teks memenuhi 4.5:1.
-- File bernama sesuai permintaan user, dan CSS terpisah dari layout.
+- File bernama sesuai permintaan user, dan CSS terpisah dari layout. Untuk Blade, file berada di `resources/views/`, `resources/css/`, dan `resources/js/`.
 - Tidak ada elemen wired yang dimuat tetapi tidak dipakai.
+- Kalau memakai npm + Vite, `@vite` memanggil CSS dan JS yang benar, dan `import 'wired-elements'` ada di entry JS.
 
 ## Yang tidak boleh dilakukan
 
 - Jangan memulai desain sebelum ada referensi visual (gambar, tautan, atau deskripsi yang sudah dikonfirmasi).
 - Jangan membaca atau mengimpor semua elemen wired; hanya yang ada di daftar elemen tahap 2.
 - Jangan membuat versi desktop dengan isi yang berbeda dari mobile.
-- Jangan memakai framework, bundler, atau library selain wired-elements dan font yang ditentukan, kecuali user meminta.
+- Jangan memakai framework, bundler, atau library selain wired-elements dan font yang ditentukan, kecuali user meminta. Laravel dan Vite termasuk pengecualian yang sah kalau user bilang proyeknya Laravel atau minta output Blade.
 - Jangan mengubah nama file dari yang diminta user.
+- Jangan memakai script global untuk menambahkan atribut roughness setelah render. Tulis roughness sebagai atribut per elemen.
 
 ---
 
@@ -212,89 +313,93 @@ Semua elemen adalah custom element, jadi berikan `display: block` dan lebar flek
 
 ### Aksi
 
-**wired-button**: tombol. Atribut: `elevation` (angka, tinggi bayangan sketsa), `disabled`. Isi tombol adalah teks di dalam tag.
+**wired-button**: tombol. Atribut: `elevation` (angka, tinggi bayangan sketsa), `disabled`, `roughness`. Isi tombol adalah teks di dalam tag.
 
 ```html
-<wired-button elevation="2">Kirim</wired-button>
+<wired-button roughness="1.6" elevation="2">Kirim</wired-button>
 ```
 
 **wired-fab** dan **wired-icon-button**: tombol bulat untuk aksi utama atau ikon. Ikon diberikan lewat elemen anak (misalnya `<mwc-icon>` atau SVG inline). Karena ikon dari luar mungkin tidak termuat, utamakan SVG inline.
 
 ### Kontainer dan konten
 
-**wired-card**: kotak bergaris sketsa untuk mengelompokkan konten. Atribut: `elevation`, `fill` (warna isi). Beri `display: block` dan `padding` lewat CSS.
+**wired-card**: kotak bergaris sketsa untuk mengelompokkan konten. Atribut: `elevation`, `fill` (warna isi), `roughness`. Beri `display: block` dan `padding` lewat CSS.
 
 ```html
-<wired-card elevation="3" style="display:block; padding:16px;">
+<wired-card roughness="1.6" elevation="3" style="display:block; padding:16px;">
   <h3>Judul kartu</h3>
   <p>Isi kartu.</p>
 </wired-card>
 ```
 
-**wired-divider**: garis pemisah sketsa. Atribut: `elevation`.
+**wired-divider**: garis pemisah sketsa. Atribut: `elevation`, `roughness`.
 
-**wired-image**: gambar dengan bingkai sketsa. Atribut: `src`, `elevation`. Beri lebar lewat CSS dan tambahkan teks alternatif di konteks sekitar, karena atribut `alt` mungkin tidak diteruskan; cek di browser.
+**wired-image**: gambar dengan bingkai sketsa. Atribut: `src`, `elevation`, `roughness`. Beri lebar lewat CSS dan tambahkan teks alternatif di konteks sekitar, karena atribut `alt` mungkin tidak diteruskan; cek di browser.
 
-**wired-link**: tautan bergaris bawah sketsa. Atribut: `href`, `target`, `elevation`.
+**wired-link**: tautan bergaris bawah sketsa. Atribut: `href`, `target`, `elevation`, `roughness`.
 
 ### Input
 
-**wired-input**: input teks. Atribut: `placeholder`, `type`, `value`, `disabled`. Baca nilainya lewat properti `.value`.
+**wired-input**: input teks. Atribut: `placeholder`, `type`, `value`, `disabled`, `roughness`. Baca nilainya lewat properti `.value`.
 
 ```html
-<wired-input placeholder="Nama lengkap" style="width:100%;"></wired-input>
+<wired-input roughness="1.6" placeholder="Nama lengkap" style="width:100%;"></wired-input>
 ```
 
-**wired-textarea**: input banyak baris. Atribut: `placeholder`, `rows`, `maxlength`, `disabled`.
+**wired-textarea**: input banyak baris. Atribut: `placeholder`, `rows`, `maxlength`, `disabled`, `roughness`.
 
-**wired-search-input**: kolom pencarian. Atribut: `placeholder`, `value`.
+**wired-search-input**: kolom pencarian. Atribut: `placeholder`, `value`, `roughness`.
 
-**wired-checkbox**: kotak centang. Atribut: `checked`, `disabled`. Label adalah teks di dalam tag.
+**wired-checkbox**: kotak centang. Atribut: `checked`, `disabled`, `roughness`. Label adalah teks di dalam tag.
 
 ```html
-<wired-checkbox>Setuju dengan ketentuan</wired-checkbox>
+<wired-checkbox roughness="1.6">Setuju dengan ketentuan</wired-checkbox>
 ```
 
-**wired-toggle**: saklar. Atribut: `checked`, `disabled`.
+**wired-toggle**: saklar. Atribut: `checked`, `disabled`, `roughness`.
 
-**wired-radio-group** dan **wired-radio**: pilihan tunggal. `wired-radio-group` punya atribut `selected` (nilai `name` radio yang dipilih); tiap `wired-radio` punya `name` dan label di dalam tag. Perubahan pilihan memicu event `selected`.
+**wired-radio-group** dan **wired-radio**: pilihan tunggal. `wired-radio-group` punya atribut `selected` (nilai `name` radio yang dipilih); tiap `wired-radio` punya `name`, `roughness`, dan label di dalam tag. Perubahan pilihan memicu event `selected`.
 
 ```html
-<wired-radio-group selected="a">
+<wired-radio-group roughness="1.6" selected="a">
   <wired-radio name="a">Opsi A</wired-radio>
   <wired-radio name="b">Opsi B</wired-radio>
 </wired-radio-group>
 ```
 
-**wired-combo** dan **wired-item**: dropdown. `wired-combo` punya atribut `selected` (nilai `value` item yang dipilih), tiap `wired-item` punya `value` dan teks. Event perubahan: `selected`.
+**wired-combo** dan **wired-item**: dropdown. `wired-combo` punya atribut `selected` (nilai `value` item yang dipilih) dan `roughness`; tiap `wired-item` punya `value` dan teks. Event perubahan: `selected`.
 
 ```html
-<wired-combo selected="one">
+<wired-combo roughness="1.6" selected="one">
   <wired-item value="one">Satu</wired-item>
   <wired-item value="two">Dua</wired-item>
 </wired-combo>
 ```
 
-**wired-listbox**: daftar pilihan yang selalu terlihat, memakai `wired-item` sebagai isi. Atribut: `selected`, `horizontal`.
+**wired-listbox**: daftar pilihan yang selalu terlihat, memakai `wired-item` sebagai isi. Atribut: `selected`, `horizontal`, `roughness`.
 
-**wired-slider**: penggeser angka. Atribut: `min`, `max`, `value`, `step`.
+**wired-slider**: penggeser angka. Atribut: `min`, `max`, `value`, `step`, `roughness`.
 
 ### Navigasi dan lapisan
 
-**wired-tabs** dan **wired-tab**: tab. Tiap `wired-tab` punya atribut `name` (dan label tampil diambil dari `label`); `wired-tabs` punya `selected`. Isi tab ditaruh di dalam `wired-tab`.
+**wired-tabs** dan **wired-tab**: tab. Tiap `wired-tab` punya atribut `name` (dan label tampil diambil dari `label`); `wired-tabs` punya `selected` dan `roughness`. Isi tab ditaruh di dalam `wired-tab`.
 
 ```html
-<wired-tabs selected="info">
+<wired-tabs roughness="1.6" selected="info">
   <wired-tab name="info" label="Info">Isi tab info.</wired-tab>
   <wired-tab name="jadwal" label="Jadwal">Isi tab jadwal.</wired-tab>
 </wired-tabs>
 ```
 
-**wired-dialog**: dialog modal. Atribut: `open`. Buka dengan `dialog.open = true` dan tutup dengan `dialog.open = false`. Taruh tombol tutup di dalamnya.
+**wired-dialog**: dialog modal. Atribut: `open`, `roughness`. Buka dengan `dialog.open = true` dan tutup dengan `dialog.open = false`. Taruh tombol tutup di dalamnya.
 
 ### Indikator
 
-**wired-progress**: bilah progres. Atribut: `value`, `min`, `max`, `percentage` (menampilkan teks persen).
+**wired-progress**: bilah progres. Atribut: `value`, `min`, `max`, `percentage` (menampilkan teks persen), `roughness`.
+
+### Atribut roughness
+
+**Berlaku di semua elemen wired.** Angka desimal, makin besar makin berantakan. Contoh `roughness="1.6"`. Tidak ada API global resmi; set per elemen.
 
 ### Pola gabungan yang berguna
 
@@ -303,3 +408,25 @@ Bagian formulir di mobile: `wired-card` berisi beberapa `wired-input` berlebar 1
 Bagian daftar kartu: satu kolom di mobile (`display: grid; gap: var(--space-4)`), dua kolom mulai 768px, tiga kolom mulai 1024px lewat `grid-template-columns`.
 
 Navigasi: bar bawah dengan beberapa `wired-icon-button` di mobile, berubah menjadi baris `wired-link` atau `wired-tabs` di header pada desktop, dengan daftar tujuan yang sama.
+
+### Pola Laravel Blade + npm
+
+Untuk Blade view dengan npm + Vite, entry JS minimal:
+
+```js
+// resources/js/app.js
+import 'wired-elements';
+```
+
+Blade memanggilnya lewat `@vite(['resources/css/namafile.css', 'resources/js/app.js'])`. Roughness tetap ditulis sebagai atribut di setiap elemen wired di Blade.
+```
+
+---
+
+Itu file lengkapnya dalam satu blok `markdown`. Tinggal salin ke `wired-web-designer.md`. Semua keputusan dari percakapan kita sudah terpasang:
+
+- Output: HTML statis, `.php` polos, dan **Blade view Laravel**.
+- Blade: pilihan CDN atau **npm + Vite** dengan contoh `@vite`.
+- Roughness: **Opsi A** (atribut per elemen), script global dilarang.
+- Nilai dinamis (sub total): ditangani lewat JS, bukan PHP.
+- Daftar cek dan bagian larangan sudah disesuaikan dengan Laravel/Vite.
