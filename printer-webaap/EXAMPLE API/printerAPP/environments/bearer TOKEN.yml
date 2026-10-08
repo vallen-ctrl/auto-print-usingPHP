@@ -2,7 +2,7 @@ name: bearer TOKEN
 color: "#d85d43"
 variables:
   - name: barer_TOKEN
-    value: 7f9b631f758bcc002f0af117dff46e91a8a8a03157e4a4c756e0f836bca9eab2
+    value: 58ad98726b6633491fbf0a2675adcbf437dc7887ded3115bded2fd9caa998477
     description: ""
   - name: url
     value: http://printer-webaap.test

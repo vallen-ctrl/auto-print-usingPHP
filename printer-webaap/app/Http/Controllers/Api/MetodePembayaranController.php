@@ -58,13 +58,10 @@ class MetodePembayaranController extends Controller
         return response()->json(['message' => 'Deleted']);
     }
 
-    public function show(string $id)
+    public function show()
     {
-        $this->checkLenBytes($id);
-        
-        $metode = MetodePembayaran::findOrFail(hex2bin($id));
-        
-        return response()->json($metode);
+        $responses = MetodePembayaran::selectRaw("LOWER(HEX(id)) as id, nama, webhook, token, image_path")->get();
+        return response()->json($responses);
     }
 
     public function index()

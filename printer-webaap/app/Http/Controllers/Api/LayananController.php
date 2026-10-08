@@ -10,6 +10,8 @@ class LayananController extends Controller
 {
     public function store(Request $request)
     {
+        
+        $token = $this->gettokoId();
         $validated = $request->validate([
             'nama' => 'required|string|max:50',
             'deskripsi' => 'required|string',

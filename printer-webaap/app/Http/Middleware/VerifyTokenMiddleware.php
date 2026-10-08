@@ -19,8 +19,8 @@ class VerifyTokenMiddleware
             
             $toko = Toko::select("id", "token")->get();
             return [
-                "token" => bin2hex($toko->first()->token),
-                "tokoid" => bin2hex($toko->first()->id)
+                "token" => bin2hex($toko->first()->token ?? random_bytes(16)),
+                "tokoid" => bin2hex($toko->first()->id ?? random_bytes(16))
             ];
         });
 

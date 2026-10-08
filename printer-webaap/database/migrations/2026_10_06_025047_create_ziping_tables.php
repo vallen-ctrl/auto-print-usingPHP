@@ -110,7 +110,7 @@ return new class extends Migration
             $table->string('diupload_oleh')->nullable();
             $table->timestamp('tanggal_dibuat')->useCurrent();
             $table->smallInteger('total_pages')->nullable();
-            $table->binary('order_id', 16);
+            $table->binary('order_id', 16)->nullable();
             $table->boolean('dihapus')->default(false);
             $table->bigInteger('subtotal')->default(0);
             $table->enum('layanan', ['kilat-edit', 'kilat-langsung', 'terjadwal']);

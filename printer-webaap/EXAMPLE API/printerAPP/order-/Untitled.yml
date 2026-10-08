@@ -1,0 +1,52 @@
+info:
+  name: Untitled
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{url}}/api/order"
+  body:
+    type: json
+    data: |-
+      {
+        "orderid": "01a11b9807be723f90035c7600065919",
+        "nama": "kolens",
+        "no_wa": "085383895994",
+        "tanggal_ambil": "2026-10-08T14:30:45+07:00",
+        "metode_pembayaran":"01a11af3a9cf70afb4180c897c113bdd",
+        "files": [
+          {
+            "id": "01a11b9807cd728a824aaad0188b68c2",
+            "orientasi": "portrait",
+            "warna": "berwarna",
+            "kualitas": "standar",
+            "skala": "100%",
+            "jumlah_cetak": 2,
+            "custom_halaman": "1-5",
+            "catatan_tambahan": "Jangan dilipat",
+            "paper_id": 1,
+            "layanan_id": [2,3]
+          },
+          {
+            "id": "01a11b9807e07046ae5ca8bd3aabe6f3",
+            "orientasi": "portrait",
+            "warna": "berwarna",
+            "kualitas": "standar",
+            "skala": "100%",
+            "jumlah_cetak": 2,
+            "custom_halaman": "1-5",
+            "catatan_tambahan": "Jangan dilipat",
+            "paper_id": 1,
+            "layanan_id": [2]
+          }
+        ]
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

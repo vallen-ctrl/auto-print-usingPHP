@@ -1,0 +1,28 @@
+info:
+  name: upload
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{url}}/api/file"
+  body:
+    type: multipart-form
+    data:
+      - name: pilihan
+        type: text
+        value: kilat-edit
+      - name: file[]
+        type: file
+        value:
+          - C:\Users\vallen\Downloads\3843-Article Text-14802-1-10-20241129.pdf
+          - C:\Users\vallen\Downloads\1.+EORI+KEPRIBADI+1-16 (1).pdf
+        contentType: multipart/mixed
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

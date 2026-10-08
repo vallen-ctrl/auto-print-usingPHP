@@ -1,0 +1,16 @@
+info:
+  name: getFiles
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{url}}/api/file/01a11b946b8d7303998764bac8474b8b"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
