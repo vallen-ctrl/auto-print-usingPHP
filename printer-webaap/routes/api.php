@@ -12,6 +12,19 @@ Route::middleware(['api', VerifyTokenMiddleware::class])->group(function () {
     Route::post('/computer', [\App\Http\Controllers\Api\ComputerController::class, 'store']);
     Route::get('/computer', [\App\Http\Controllers\Api\ComputerController::class, 'index']);
     Route::delete('/computer/{id}', [\App\Http\Controllers\Api\ComputerController::class, 'destroy']);
+    
+    //pengaturan toko
+    // Route::post('/pengaturan-toko', [\App\Http\Controllers\Api\PengaturanTokoController::class, 'store']);
+    Route::put("/pengaturan-toko",[\App\Http\Controllers\Api\PengaturanTokoController::class, 'update']);
+    
+    //jamOperasional
+    Route::post('/jam-operasional', [\App\Http\Controllers\Api\JamOperasionalController::class, 'store']);
+    Route::put('/jam-operasional/{id}', [\App\Http\Controllers\Api\JamOperasionalController::class, 'update']);
+    Route::delete('/jam-operasional/{id}', [\App\Http\Controllers\Api\JamOperasionalController::class, 'destroy']);
+    
+    //metode pembayaran
+    // Kalau pendaftaran midtrans berhasil maka tidak akan menggunakan fitur ini
+    Route::apiResource('metode-pembayaran', \App\Http\Controllers\Api\MetodePembayaranController::class)->only(['store', 'update', 'destroy', 'show']);
 });
 
 Route::middleware('api')->group(function () {
@@ -40,21 +53,19 @@ Route::middleware('api')->group(function () {
     // Route::get('/computer/{id}', [\App\Http\Controllers\Api\ComputerController::class, 'getById']);
 
     // Pengaturan Toko
-    Route::post('/pengaturan-toko', [\App\Http\Controllers\Api\PengaturanTokoController::class, 'store']);
-    Route::get('/pengaturan-toko/toko/{idToko}', [\App\Http\Controllers\Api\PengaturanTokoController::class, 'getByTokoId']);
+    // Route::get('/pengaturan-toko/toko/{idToko}', [\App\Http\Controllers\Api\PengaturanTokoController::class, 'getByTokoId']);
     Route::get('/pengaturan-toko/biaya', [\App\Http\Controllers\Api\PengaturanTokoController::class, 'getBiaya']);
-    Route::delete('/pengaturan-toko/{id}', [\App\Http\Controllers\Api\PengaturanTokoController::class, 'destroy']);
+    // Route::delete('/pengaturan-toko/{id}', [\App\Http\Controllers\Api\PengaturanTokoController::class, 'destroy']);
 
     // Jam Operasional
-    Route::post('/jam-operasional', [\App\Http\Controllers\Api\JamOperasionalController::class, 'store']);
-    Route::put('/jam-operasional/{id}', [\App\Http\Controllers\Api\JamOperasionalController::class, 'update']);
-    Route::delete('/jam-operasional/{id}', [\App\Http\Controllers\Api\JamOperasionalController::class, 'destroy']);
     Route::get('/jam-operasional', [\App\Http\Controllers\Api\JamOperasionalController::class, 'index']);
-    Route::get('/jam-operasional/pengaturan/{idPengaturan}', [\App\Http\Controllers\Api\JamOperasionalController::class, 'getByPengaturan']);
+    // Route::get('/jam-operasional/pengaturan/{idPengaturan}', [\App\Http\Controllers\Api\JamOperasionalController::class, 'getByPengaturan']);
 
     // Metode Pembayaran
-    Route::apiResource('metode-pembayaran', \App\Http\Controllers\Api\MetodePembayaranController::class)->only(['index', 'store', 'update', 'destroy', 'show']);
-
+    // Kalau pendaftaran midtrans berhasil maka tidak akan menggunakan metode ini
+    Route::get('/metode-pembayaran', [\App\Http\Controllers\Api\MetodePembayaranController::class, 'index']);
+    // Kalau pendaftaran midtrans berhasil maka tidak akan menggunakan metode ini
+    
     // Order
     Route::post('/order', [\App\Http\Controllers\Api\OrderController::class, 'store']);
     Route::put('/order/{id}/total-dibayar', [\App\Http\Controllers\Api\OrderController::class, 'updateTotalDibayar']);

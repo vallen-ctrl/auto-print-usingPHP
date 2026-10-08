@@ -1,0 +1,27 @@
+info:
+  name: DELETE JAM
+  type: http
+  seq: 4
+
+http:
+  method: PUT
+  url: "{{url}}/api/jam-operasional/1"
+  body:
+    type: json
+    data: |-
+      {
+          "nomor_hari": 1,
+          "waktu_buka": "10:00:00",
+          "waktu_tutup": "18:00:00",
+          "apakah_dibuka": true
+      }
+  auth:
+    type: bearer
+    token: "{{barer_TOKEN}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

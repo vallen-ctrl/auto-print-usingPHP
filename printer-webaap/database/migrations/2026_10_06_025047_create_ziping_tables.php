@@ -62,7 +62,7 @@ return new class extends Migration
 
         Schema::create('jam_operasional', function (Blueprint $table) {
             $table->id();
-            $table->tinyInteger('nomor_hari');
+            $table->tinyInteger('nomor_hari')->unique('uq_jam_Operasional');
             $table->string('hari', 10);
             $table->time('waktu_buka')->nullable();
             $table->time('waktu_tutup')->nullable();
@@ -86,7 +86,6 @@ return new class extends Migration
             $table->bigInteger('biaya_admin')->default(0);
             $table->bigInteger('total_pembayaran')->default(0);
             $table->bigInteger('total_dibayar')->default(0);
-            $table->unsignedBigInteger('pengaturan_id');
             $table->enum('status_pembayaran', ['pending', 'processing', 'success', 'fail'])->default('pending');
             $table->string('metode_pembayaran')->nullable();
             $table->binary('id_metode_pembayaran', 16)->nullable();
@@ -168,7 +167,6 @@ return new class extends Migration
         });
 
         Schema::table('orders', function (Blueprint $table) {
-            $table->foreign('pengaturan_id')->references('id')->on('pengaturan_toko')->onUpdate('cascade')->onDelete('restrict');
             $table->foreign('id_metode_pembayaran')->references('id')->on('metode_pembayaran')->onUpdate('cascade')->onDelete('set null');
             $table->foreign('session_id')->references('sessionid')->on('user')->onUpdate('cascade')->onDelete('set null');
         });

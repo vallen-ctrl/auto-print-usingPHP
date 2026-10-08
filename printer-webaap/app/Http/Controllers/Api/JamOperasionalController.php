@@ -30,7 +30,6 @@ class JamOperasionalController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'id_pengaturan' => 'required|integer',
             'hari_ke' => 'required|integer|between:1,7',
             'jam_buka' => 'required|string',
             'jam_tutup' => 'required|string',
@@ -47,7 +46,7 @@ class JamOperasionalController extends Controller
             'waktu_buka' => $validated['jam_buka'],
             'waktu_tutup' => $validated['jam_tutup'],
             'apakah_dibuka' => $validated['apakah_buka'],
-            'id_pengaturan' => $validated['id_pengaturan'],
+            'id_pengaturan' => 1,
         ]);
 
         return response()->json($jam, 201);
@@ -56,21 +55,20 @@ class JamOperasionalController extends Controller
     public function update(Request $request, int $id)
     {
         $jam = JamOperasional::findOrFail($id);
-        $data = $request->all();
+
+        $data = $request->validate([
+            'nomor_hari'    => 'sometimes|integer|between:1,7',
+            'waktu_buka'    => 'sometimes|date_format:H:i:s',
+            'waktu_tutup'   => 'sometimes|date_format:H:i:s',
+            'apakah_dibuka' => 'sometimes|boolean',
+        ]);
+        
+        if (empty($data)) {
+            return response()->json(['message' => 'Tidak ada field valid yang dikirim.'], 422);
+        }
 
         if (isset($data['nomor_hari'])) {
-            if ($data['nomor_hari'] > 7 || $data['nomor_hari'] < 1) {
-                throw new \InvalidArgumentException('Eror while out of range hari');
-            }
             $data['hari'] = $this->getDayName($data['nomor_hari']);
-        }
-
-        if (isset($data['waktu_buka']) && !$this->validateTime($data['waktu_buka'])) {
-            throw new \InvalidArgumentException('expected jam with format H:i:s');
-        }
-
-        if (isset($data['waktu_tutup']) && !$this->validateTime($data['waktu_tutup'])) {
-            throw new \InvalidArgumentException('expected jam with format H:i:s');
         }
 
         $jam->update($data);
@@ -94,8 +92,7 @@ class JamOperasionalController extends Controller
     public function getByPengaturan(string $idPengaturan)
     {
         $jams = JamOperasional::where('id_pengaturan', $idPengaturan)->get();
-        
+
         return response()->json($jams);
     }
 }
-

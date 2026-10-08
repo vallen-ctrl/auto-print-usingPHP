@@ -19,24 +19,23 @@ class MetodePembayaranController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'pengaturan' => 'required|integer',
             'name' => 'required|string',
             'webhook' => 'required|string',
             'token' => 'required|string',
             'imagepath' => 'required|string',
         ]);
 
-        $id = Str::uuid();
+        $id = Str::uuid7();
         $metode = MetodePembayaran::create([
             'id' => $id->getBytes(),
             'nama' => $validated['name'],
             'webhook' => $validated['webhook'],
             'token' => $validated['token'],
             'image_path' => $validated['imagepath'],
-            'id_pengaturan' => $validated['pengaturan'],
+            'id_pengaturan' => 1,
         ]);
 
-        return response()->json(['id' => $id->toString()], 201);
+        return response()->json(['id' => str_replace("-", "", $id->toString())], 201);
     }
 
     public function update(Request $request, string $id)
@@ -69,8 +68,9 @@ class MetodePembayaranController extends Controller
     }
 
     public function index()
-    {
-        return response()->json(MetodePembayaran::all());
+    {   
+        $responses = MetodePembayaran::selectRaw("LOWER(HEX(id)) as id, nama, image_path")->get();
+        return response()->json($responses);
     }
 }
 

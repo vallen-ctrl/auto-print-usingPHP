@@ -1,0 +1,21 @@
+info:
+  name: "ambil biaya "
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{url}}/api/pengaturan-toko/biaya"
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{barer_TOKEN}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

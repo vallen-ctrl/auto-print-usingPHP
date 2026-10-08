@@ -8,6 +8,7 @@ use App\Models\Toko;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use App\Models\PengaturanToko;
 
 class TokoController extends Controller
 {
@@ -19,7 +20,7 @@ class TokoController extends Controller
             'password' => 'required|string|min:8|max:255',
         ]);
 
-        $id = Str::uuid();
+        $id = Str::uuid7();
         $manyUsers = Toko::count();
         if($manyUsers > 0){
             return response()->json([
@@ -27,6 +28,9 @@ class TokoController extends Controller
                 "code" => 409
             ], 409);
         }
+
+        
+        
         $toko = Toko::create([
             'id' => $id->getBytes(),
             'name' => $validated['name'],
@@ -34,8 +38,17 @@ class TokoController extends Controller
             'password' => $validated['password'],
         ]);
 
+        $pengaturanToko = PengaturanToko::create([
+            "id" => 1,
+            "status_buka" => false,
+            "biaya_admin" => 0,
+            "biaya_layanan" => 0,
+            "id_toko" => $id->getBytes(),
+            "lama_file_dihapus" => 2
+        ]);
+
         return response()->json([
-            'id' => $id->toString(),
+            'id' => str_replace("-", "",$id->toString()),
             'message' => 'Toko created'
         ], 201);
     }

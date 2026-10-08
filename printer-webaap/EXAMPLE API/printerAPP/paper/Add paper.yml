@@ -10,7 +10,7 @@ http:
     type: json
     data: |-
       {
-        "name": "A421",
+        "name": "A44",
         "width": 114,
         "height": 231,
         "harga_color": 1000,

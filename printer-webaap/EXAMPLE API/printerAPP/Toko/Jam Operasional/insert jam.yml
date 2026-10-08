@@ -1,0 +1,27 @@
+info:
+  name: insert jam
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{url}}/api/jam-operasional"
+  body:
+    type: json
+    data: |-
+      {
+        "hari_ke": 2,
+        "jam_buka": "07:00:00",
+        "jam_tutup": "18:00:00",
+        "apakah_buka": true
+      }
+  auth:
+    type: bearer
+    token: "{{barer_TOKEN}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
