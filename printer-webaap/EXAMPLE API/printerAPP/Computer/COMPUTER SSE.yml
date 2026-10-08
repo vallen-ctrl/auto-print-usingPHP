@@ -10,7 +10,7 @@ http:
     type: json
     data: |-
       {
-        "token":"7dcbb3d7921a540dc6a72a30fda027d6"
+        "token":"105d01bff0455f2a57fa9dd1a2c4c9a0"
       }
   auth:
     type: bearer
