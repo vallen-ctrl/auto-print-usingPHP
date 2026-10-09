@@ -95,3 +95,7 @@ When you need to use a component:
 - All reference files use the same frontmatter format: `title`, `description`, `category`.
 - Each file includes a `## Source` section with the full Blade code for every sub-component.
 - Some components require additional Composer dependencies (e.g., `gehrisandro/tailwind-merge-laravel`), which are listed in the `## Dependencies` section.
+- After you finish all or you want to chek the pages, **you have to run** for the tailwind.
+```bash
+bun run build
+```
