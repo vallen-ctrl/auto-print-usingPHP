@@ -12,8 +12,10 @@ class VerifyTokenMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $inputToken = $request->bearerToken();
-
+   
+        $sessionData = $request->session()->get('session');
+        $inputToken = $sessionData['token'] ?? null;
+       
         // 1. Ambil token dari cache atau database jika cache kosong
         $storedToken = Cache::remember('admin', now()->addHours(2), function () {
             

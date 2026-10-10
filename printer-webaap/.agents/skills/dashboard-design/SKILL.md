@@ -1,83 +1,84 @@
 ---
 name: "dashboard-design"
-description: "this skill will guides you to make dashboard design including login pages ant etc"
+description: "Use when building dashboard pages, login pages, and admin pages that are responsive with a natural color palette (sage green + warm neutral). Applies to HTML/CSS, Tailwind, and React."
 metadata:
   author: typeui.sh
 ---
 
-<!-- TYPEUI_SH_MANAGED_START -->
-# Printer-app Design System Skill (Universal)
+# Printer-app Dashboard Design Skill
 
 ## Mission
-You are an expert design-system guideline author for Printer-app.
-Create practical, implementation-ready guidance that can be directly used by engineers and designers.
+Build production-ready dashboard, login, and admin pages as working code, not as guideline documents. Mobile-first, responsive, accessible, with a calm and natural feel.
 
 ## Brand
--
+Printer-app: clean, warm, understated. Data readability comes first.
 
-## Style Foundations
-- Visual style: modern, clean
-- Typography scale: 12/14/16/20/24/32 | Fonts: primary=Roboto, display=Inter, mono=JetBrains Mono | weights=100, 200, 300, 400, 500, 600, 700, 800, 900
-- Color palette: primary, secondary, neutral, success, warning, danger, info | Tokens: primary=#3B82F6, secondary=#8B5CF6, success=#16A34A, warning=#D97706, danger=#DC2626, surface=#FFFFFF, text=#111827
-- Spacing scale: 4/8/12/16/24/32
+## Design Tokens
 
-## Accessibility
-WCAG 2.2 AA, keyboard-first interactions, visible focus states
+### Color (all text must pass 4.5:1 contrast on its surface)
+- bg: #F7F5F0
+- surface: #FFFFFF
+- surface-muted: #F0EDE6
+- border: #E5E1D8
+- text: #1C1917
+- text-muted: #57534E
+- primary: #2F6F4E (hover #275C41, soft #E3EFE8)
+- secondary: #9A5B34 (soft #F3E6DC)
+- success: #2E7D32 | warning: #A15C07 | danger: #B42318 | info: #1F6F8B
+- Dark mode: bg #151412, surface #1E1C19, border #2E2B26, text #F5F3EE, text-muted #A8A29A, primary #6FBF94
 
-## Writing Tone
-concise, confident, helpful
+### Typography
+- Fonts: Inter (headings/display), Roboto (body), JetBrains Mono (numbers/code)
+- Scale: 12/14/16/20/24/32 | weights used: 400, 500, 600, 700
+- Body 14-16px with line-height 1.5; headings with line-height 1.25
 
-## Rules: Do
-- prefer semantic tokens over raw values
-- preserve visual hierarchy
-- keep interaction states explicit
-- design for empty/loading/error states
-- document accessibility rationale
+### Spacing, radius, shadow
+- Spacing: 4/8/12/16/24/32/48/64
+- Radius: 6 (input/button), 12 (card), 999 (badge)
+- Shadow: a single soft level only: 0 1px 2px rgba(28,25,23,.06). Prefer borders over shadows.
 
-## Rules: Don't
-- avoid low contrast text
-- avoid inconsistent spacing rhythm
-- avoid ambiguous labels
+## Responsive Layout (mobile-first)
+- Breakpoints: 360 / 640 / 768 / 1024 / 1280
+- Below 1024px: sidebar becomes a drawer (hamburger button in topbar), closes on Esc and overlay click
+- 1024px and up: fixed 240px sidebar (collapsible to a 72px icon-only rail)
+- Content max-width 1280px, padding 16px (mobile) / 24px (tablet) / 32px (desktop)
+- Stat card grid: 1 column (<640), 2 columns (640-1023), 4 columns (>=1024)
+- Tables: below 768px, convert to a card list or wrap in overflow-x-auto with the primary column sticky
+- Touch targets must be at least 44x44px
+- No page-level horizontal scroll, ever
 
-## Expected Behavior
-- Follow the foundations first, then component consistency.
-- When uncertain, prioritize accessibility and clarity over novelty.
-- Provide concrete defaults and explain trade-offs when alternatives are possible.
-- Keep guidance opinionated, concise, and implementation-focused.
+## Components (every component must define its states)
+default, hover, focus-visible (2px primary ring, 2px offset), active, disabled, loading, error
+- Button: primary / secondary / ghost / danger, height 40px (sm 32px)
+- Input: label always visible (never placeholder-only), error message below the field with icon + text
+- Card, status Badge, Table (sticky header, optional zebra), Tabs, Modal, Toast
+- Login page: centered card, max 400px, logo, form, forgot-password link, full-width submit button
 
-## Guideline Authoring Workflow
-1. Restate the design intent in one sentence before proposing rules.
-2. Define tokens and foundational constraints before component-level guidance.
-3. Specify component anatomy, states, variants, and interaction behavior.
-4. Include accessibility acceptance criteria and content-writing expectations.
-5. Add anti-patterns and migration notes for existing inconsistent UI.
-6. End with a QA checklist that can be executed in code review.
+## Empty / Loading / Error States
+- Loading: skeletons, not a blank spinner
+- Empty: icon + one sentence + one action button
+- Error: clear message + retry button
 
-## Required Output Structure
-When generating design-system guidance, use this structure:
-- Context and goals
-- Design tokens and foundations
-- Component-level rules (anatomy, variants, states, responsive behavior)
-- Accessibility requirements and testable acceptance criteria
-- Content and tone standards with examples
-- Anti-patterns and prohibited implementations
-- QA checklist
+## Accessibility (WCAG 2.2 AA)
+- Text contrast >= 4.5:1, UI components >= 3:1
+- Everything usable by keyboard, with a logical tab order
+- Status must never rely on color alone (add an icon or text)
+- Respect prefers-reduced-motion; animations max 200ms
 
-## Component Rule Expectations
-- Define required states: default, hover, focus-visible, active, disabled, loading, error (as relevant).
-- Describe interaction behavior for keyboard, pointer, and touch.
-- State spacing, typography, and color-token usage explicitly.
-- Include responsive behavior and edge cases (long labels, empty states, overflow).
+## Do
+- Use semantic tokens (--color-primary), not raw hex values
+- Keep spacing rhythm consistent with the scale
+- Use one icon set throughout (e.g. Lucide)
 
-## Quality Gates
-- No rule should depend on ambiguous adjectives alone; anchor each rule to a token, threshold, or example.
-- Every accessibility statement must be testable in implementation.
-- Prefer system consistency over one-off local optimizations.
-- Flag conflicts between aesthetics and accessibility, then prioritize accessibility.
+## Don't
+- Don't use saturated (neon blue/purple) colors as large backgrounds
+- Don't put light gray text on the cream background
+- Don't use ambiguous labels like "Submit" or "OK"; write "Save changes"
 
-## Example Constraint Language
-- Use "must" for non-negotiable rules and "should" for recommendations.
-- Pair every do-rule with at least one concrete don't-example.
-- If introducing a new pattern, include migration guidance for existing components.
-
-<!-- TYPEUI_SH_MANAGED_END -->
+## QA Checklist
+- [ ] Checked at 360px, 768px, and 1280px with no horizontal scroll
+- [ ] All text passes 4.5:1 contrast
+- [ ] Fully navigable by keyboard, focus always visible
+- [ ] Empty, loading, and error states exist
+- [ ] No raw hex values outside the token definitions
+- [ ] Dark mode uses its own tokens, not the light ones

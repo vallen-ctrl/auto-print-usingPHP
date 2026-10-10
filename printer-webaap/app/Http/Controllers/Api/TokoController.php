@@ -12,6 +12,10 @@ use App\Models\PengaturanToko;
 
 class TokoController extends Controller
 {
+    public function countRow(){
+        $totalUser = Toko::count();
+        return $totalUser;
+    }
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -21,7 +25,7 @@ class TokoController extends Controller
         ]);
 
         $id = Str::uuid7();
-        $manyUsers = Toko::count();
+        $manyUsers = $this->countRow();
         if($manyUsers > 0){
             return response()->json([
                 "message" => "cant add more users, this package create just for one user",

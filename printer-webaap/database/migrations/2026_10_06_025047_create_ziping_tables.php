@@ -144,7 +144,7 @@ return new class extends Migration
             $table->enum('status', ['pending', 'processing', 'completed', 'failed', 'downloading'])->default('pending');
             $table->text('path');
             $table->binary('order_id', 16);
-            $table->binary('file_id', 16)->nullable();
+            $table->binary('file_id', 16)->nullable()->unique('fk_file_id_unique');
             $table->binary('computer_id', 16)->nullable();
         });
 
