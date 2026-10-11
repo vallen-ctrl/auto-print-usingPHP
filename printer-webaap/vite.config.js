@@ -11,6 +11,7 @@ export default defineConfig({
                 'resources/css/beranda.css', 
                 'resources/css/upload-terjadwal.css', 
                 'resources/css/formulir-terjadwal.css', 
+                'resources/css/formulir-kilat.css',
                 'resources/js/app.js', 
                 'resources/js/dashboard/chart-pendapatan.js',
                 'resources/js/dashboard/chart-layanan-kertas.js',
