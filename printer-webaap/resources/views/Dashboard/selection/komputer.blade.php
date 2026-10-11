@@ -58,6 +58,7 @@
                         <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Token</th>
                         <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Dibuat</th>
                         <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Status</th>
+                        <th scope="col" class="whitespace-nowrap px-4 py-3 text-right font-medium">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-line text-ink">
@@ -84,12 +85,18 @@
                                     {{ $st['label'] }}
                                 </span>
                             </td>
+                            <td class="whitespace-nowrap px-4 py-3 text-right">
+                                <button type="button" aria-label="Hapus {{ $c['nama'] }}"
+                                    class="inline-flex size-9 items-center justify-center rounded-lg bg-danger text-white transition-colors hover:bg-danger-strong focus:ring-2 focus:ring-danger/40 focus:ring-offset-2 focus:outline-none">
+                                    <x-lucide-trash-2 class="size-4" aria-hidden="true" />
+                                </button>
+                            </td>
                         </tr>
                     @endforeach
 
                     {{-- Empty state hasil pencarian --}}
                     <tr id="komputer-empty" class="hidden">
-                        <td colspan="4" class="px-4 py-12">
+                        <td colspan="5" class="px-4 py-12">
                             <div class="flex flex-col items-center justify-center gap-2 text-center">
                                 <x-lucide-search-x class="size-8 text-ink-muted" aria-hidden="true" />
                                 <p class="text-sm font-medium text-ink">Komputer tidak ditemukan</p>
