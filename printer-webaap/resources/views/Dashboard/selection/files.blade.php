@@ -79,9 +79,9 @@
                             <td class="whitespace-nowrap px-4 py-3 text-ink-muted">{{ $f['kertas'] }}</td>
                             <td class="whitespace-nowrap px-4 py-3">
                                 <div class="flex items-center justify-end gap-2">
-                                    <a href="{{ route('order.detail', $f['order']) }}" aria-label="Lihat file {{ $f['order'] }}"
+                                    <a href="{{ $f['path'] }}" download aria-label="Unduh file {{ $f['order'] }}"
                                         class="inline-flex size-9 items-center justify-center rounded-lg bg-primary text-white transition-colors hover:bg-primary-hover focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:outline-none">
-                                        <x-lucide-eye class="size-4" aria-hidden="true" />
+                                        <x-lucide-download class="size-4" aria-hidden="true" />
                                     </a>
                                     @if ($f['hapus'])
                                         <button type="button" aria-label="Hapus file {{ $f['order'] }}"
