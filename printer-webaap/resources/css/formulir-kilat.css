@@ -1,0 +1,295 @@
+:root {
+    --font-heading: "Caveat", "Patrick Hand", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+    --font-body: "Patrick Hand", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+
+    --fs-display: clamp(2.25rem, 1.6rem + 3vw, 3.06rem);
+    --fs-h1: clamp(1.9rem, 1.4rem + 2.2vw, 2.44rem);
+    --fs-h2: clamp(1.6rem, 1.3rem + 1.4vw, 1.94rem);
+    --fs-h3: 1.56rem;
+    --fs-sub: 1.25rem;
+    --fs-body: 1.0625rem;
+    --fs-caption: 0.8125rem;
+    --fs-label: 0.75rem;
+
+    --color-bg: #ffffff;
+    --color-surface: #ffffff;
+    --color-text: #1b1b1b;
+    --color-muted: #5f5f5f;
+    --color-border: #1b1b1b;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-12: 48px;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--fs-body);
+    line-height: 1.5;
+}
+
+.page {
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+    padding: var(--space-4);
+}
+
+/* Header */
+.brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.brand-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 72px;
+    height: 36px;
+    padding: 0 var(--space-2);
+    border: 1.5px solid var(--color-border);
+    border-radius: 10px;
+    font-size: var(--fs-label);
+    letter-spacing: 0.03em;
+    color: var(--color-muted);
+}
+
+.brand-name {
+    font-size: var(--fs-body);
+    color: var(--color-text);
+}
+
+.form-title {
+    margin: var(--space-2) 0 var(--space-3);
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: var(--fs-h1);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    text-align: center;
+}
+
+.form-divider {
+    display: block;
+    width: 100%;
+    margin: 0 0 var(--space-4);
+}
+
+/* Wired elements base */
+wired-input,
+wired-checkbox,
+wired-radio,
+wired-button,
+wired-radio-group {
+    font-family: var(--font-body);
+    font-size: var(--fs-body);
+}
+
+wired-input,
+wired-button {
+    display: block;
+}
+
+wired-radio-group {
+    display: grid;
+    gap: var(--space-3) var(--space-6);
+}
+
+.radio-group.two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.radio-group.three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.input-block {
+    width: 100%;
+    min-height: 44px;
+}
+
+/* Card + fields */
+.form-card {
+    display: block;
+    width: 100%;
+}
+
+.form-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    padding: var(--space-6) var(--space-4);
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.field-label {
+    margin: 0;
+    font-size: var(--fs-label);
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--color-text);
+}
+
+.section-title {
+    margin: 0;
+    font-size: var(--fs-sub);
+    font-weight: 400;
+    color: var(--color-text);
+}
+
+/* File */
+.file-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 140px;
+    min-height: 56px;
+    border: 1.5px solid var(--color-border);
+    border-radius: 12px;
+    cursor: pointer;
+    color: var(--color-muted);
+    font-size: var(--fs-caption);
+}
+
+.file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    overflow: hidden;
+}
+
+/* Option / field grids */
+.opsi-grid,
+.field-grid {
+    display: grid;
+    gap: var(--space-6);
+}
+
+/* Packages */
+.paket-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.paket-item {
+    display: block;
+    width: 100%;
+}
+
+.paket-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+}
+
+.paket-thumb {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border: 1.5px solid var(--color-border);
+    border-radius: 12px;
+    color: var(--color-muted);
+    font-size: var(--fs-caption);
+}
+
+.paket-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.paket-nama {
+    font-size: var(--fs-body);
+}
+
+.paket-desc {
+    color: var(--color-muted);
+    font-size: var(--fs-caption);
+}
+
+.paket-harga {
+    font-size: var(--fs-body);
+    white-space: nowrap;
+}
+
+.paket-checkbox {
+    min-height: 28px;
+}
+
+/* Footer */
+.form-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    margin-top: var(--space-6);
+}
+
+.btn-lanjut {
+    min-height: 44px;
+}
+
+.subtotal {
+    margin: 0;
+    font-size: var(--fs-body);
+}
+
+/* Tablet */
+@media (min-width: 768px) {
+    .page {
+        max-width: 720px;
+        padding: var(--space-6);
+    }
+
+    .form-body {
+        padding: var(--space-8) var(--space-6);
+    }
+
+    .opsi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-6) var(--space-8);
+    }
+
+    .field-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+    .page {
+        max-width: 820px;
+        padding: var(--space-8);
+    }
+
+    .form-body {
+        padding: var(--space-8);
+    }
+}

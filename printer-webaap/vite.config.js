@@ -8,6 +8,7 @@ export default defineConfig({
         laravel({
             input: [
                 'resources/css/app.css', 
+                'resources/css/formulir-kilat.css',
                 'resources/js/app.js', 
                 'resources/js/dashboard/chart-pendapatan.js',
                 'resources/js/dashboard/chart-layanan-kertas.js',

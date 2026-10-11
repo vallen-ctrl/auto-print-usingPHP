@@ -7,6 +7,8 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::view('/formulir/kilat', 'formulir-kilat')->name('formulir.kilat');
+
 Route::get('/dashboard/admin/login', [\App\http\Controllers\loginControler::class, "get"])->name('admin.login');
 Route::post('/dashboard/admin/login', [\App\http\Controllers\loginControler::class, "login"]);
 
