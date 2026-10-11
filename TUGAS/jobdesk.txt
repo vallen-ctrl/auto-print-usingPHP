@@ -1,9 +1,0 @@
-
-- Membuat bagian frontEnd (tampilan sampai keamanan frontend, dan membantu perancangan PRD)
-I Made Rai Occulia Ebenezer Putra Hartawan -> 672025018
-
-- Membuat bagian Backend (membuat database scheme, database model, dan automation migration database)
-Vallen Nathalio Malia -> 672025006
-
-- Melakukan testing dan dokumentasi (fungsi, membuat dokumentasi instalasi, dan membantu perancangan PRD)
-Kezia stefanny eflina prasetyo
