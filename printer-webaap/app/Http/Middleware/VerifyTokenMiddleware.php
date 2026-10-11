@@ -28,9 +28,7 @@ class VerifyTokenMiddleware
 
         // 2. Cek apakah token cocok
         if (!$inputToken || $inputToken !== $storedToken["token"]) {
-            return response()->json([
-                'message' => "Unautorized please relogin again"
-            ], 401);
+            return redirect()->route('admin.login');
         }
 
         return $next($request);

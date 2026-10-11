@@ -53,7 +53,7 @@ you have to use contex7 mcp that already installed on yours. this mcp helps you 
 
 After you finish everything, you must first identify what the user wants.
 
-If the user wants to make new pages, see the skill `wired-web-designer` or the user wants to make dashboard you have to use skill `dahsboard-design`. when user did't tell what the pages they wants to build, **YOU MUST TO ASKIT BEFORE CONTINUE**. This file guides you in making the design.
+If the user wants to make new pages, see the skill `wired-web-designer` or the user wants to make dashboard you have to use skill `dahsboard-design` or user define. when user did't tell what the pages they wants to build, **YOU MUST TO ASKIT BEFORE CONTINUE**. This file guides you in making the design.
 
 Second, **DO NOT ADD INTEGRATION TO ANY API OR DATABASE.** If the user asks for an integration, you must REJECT the request and remind them: "The integration must have permission from Vallen."
 
