@@ -8,6 +8,9 @@ export default defineConfig({
         laravel({
             input: [
                 'resources/css/app.css', 
+                'resources/css/beranda.css', 
+                'resources/css/upload-terjadwal.css', 
+                'resources/css/formulir-terjadwal.css', 
                 'resources/js/app.js', 
                 'resources/js/dashboard/chart-pendapatan.js',
                 'resources/js/dashboard/chart-layanan-kertas.js',

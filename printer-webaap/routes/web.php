@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('beranda');
 });
 
 Route::get('/dashboard/admin/login', [\App\http\Controllers\loginControler::class, "get"])->name('admin.login');
@@ -13,6 +13,12 @@ Route::post('/dashboard/admin/login', [\App\http\Controllers\loginControler::cla
 Route::get('/dashboard/admin/signup', [\App\http\Controllers\signupControler::class, "get"]);
 Route::post('/dashboard/admin/signup', [\App\http\Controllers\signupControler::class, "store"]);
 
+
+// alur cetak terjadwal
+Route::view('/upload/terjadwal', 'upload-terjadwal')->name('upload.terjadwal');
+Route::view('/formulir/terjadwal', 'formulir-terjadwal')->name('formulir.terjadwal');
+
+//-------------------------------------------------------------------------------------------------------------------------------------
 Route::prefix('dashboard')->middleware([\App\http\Middleware\VerifyTokenMiddleware::class])->group(function () {
     // Mengakses URL: /dashboard
     Route::get('/pendapatan/data', [\App\http\Controllers\dashboardControler::class, 'pendapatan'])
