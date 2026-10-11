@@ -182,8 +182,9 @@
 
                 <div class="mt-4 flex items-center justify-between gap-3 rounded-lg border border-line bg-muted/40 p-3 text-sm">
                     <span class="text-ink-muted">Status koneksi</span>
-                    <span class="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-ink-muted">
-                        <span class="size-1.5 rounded-full bg-ink-muted" aria-hidden="true"></span>
+                    
+                    <span class=" inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-ink-muted">
+                        <span class="animate-ping size-1.5 rounded-full bg-ink-muted" aria-hidden="true"></span>
                         Not connected
                     </span>
                 </div>
