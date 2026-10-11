@@ -36,7 +36,7 @@
             <div class="flex items-start gap-4">
                 <div class="relative shrink-0">
                     <div class="flex size-20 items-center justify-center rounded-full border border-line bg-muted/40">
-                        <x-lucide-printer class="size-8 text-ink-muted" aria-hidden="true" />
+                        <x-lucide-pencil class="size-8 text-ink-muted" aria-hidden="true" />
                     </div>
                     <span class="absolute -right-1 -bottom-1 flex size-7 items-center justify-center rounded-full border-2 border-surface bg-warning text-white">
                         <x-lucide-check class="size-4" aria-hidden="true" />
