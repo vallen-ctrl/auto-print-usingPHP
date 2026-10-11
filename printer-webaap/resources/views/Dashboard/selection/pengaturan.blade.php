@@ -34,12 +34,19 @@
         {{-- Profil toko --}}
         <section class="rounded-xl border border-line bg-surface p-5 shadow-sm">
             <div class="flex items-start gap-4">
-                <div class="relative shrink-0">
+                <div class="group relative shrink-0">
                     <div class="flex size-20 items-center justify-center rounded-full border border-line bg-muted/40">
-                        <x-lucide-pencil class="size-8 text-ink-muted" aria-hidden="true" />
+                        <x-lucide-printer class="size-8 text-ink-muted" aria-hidden="true" />
                     </div>
+
+                    {{-- Ikon pencil muncul saat logo di-hover --}}
+                    <div class="absolute inset-0 flex items-center justify-center rounded-full bg-ink/40 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                        <x-lucide-pencil class="size-7 text-white" aria-hidden="true" />
+                    </div>
+
+                    {{-- Badge pencil --}}
                     <span class="absolute -right-1 -bottom-1 flex size-7 items-center justify-center rounded-full border-2 border-surface bg-warning text-white">
-                        <x-lucide-check class="size-4" aria-hidden="true" />
+                        <x-lucide-pencil class="size-4" aria-hidden="true" />
                     </span>
                 </div>
 
