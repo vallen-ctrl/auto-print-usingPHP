@@ -52,7 +52,7 @@
     {{-- Table card --}}
     <div class="mt-4 overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
         <div class="overflow-x-auto">
-            <table id="tabel-order" class="w-full min-w-[62rem] text-left text-sm">
+            <table id="tabel-order" class="w-full min-w-248 text-left text-sm">
                 <thead class="border-b border-line bg-muted/60">
                     <tr class="text-ink-muted">
                         <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Order Id</th>
@@ -90,10 +90,10 @@
                             </td>
                             <td class="whitespace-nowrap px-4 py-3 text-ink-muted">{{ $o['cetak'] }}</td>
                             <td class="whitespace-nowrap px-4 py-3 text-right">
-                                <button type="button"
+                                <a href="{{ route('order.detail', $o['id']) }}"
                                     class="inline-flex h-9 items-center rounded-lg bg-primary px-4 text-sm font-medium text-white transition-colors hover:bg-primary-hover focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:outline-none">
                                     Detail
-                                </button>
+                                </a>
                             </td>
                         </tr>
                     @endforeach

@@ -37,6 +37,7 @@ Route::prefix('dashboard')->middleware([\App\http\Middleware\VerifyTokenMiddlewa
 
     //order
     Route::get('/order', [\App\Http\Controllers\OrderController::class, "get"])->name("order.index");
+    Route::get('/orders/files/{id}', [\App\Http\Controllers\OrderController::class, "detail"])->name("order.detail");
 
     //Layanan
     Route::get('/layanan', [\App\Http\Controllers\LayananController::class, "get"])->name("layanan.index");
