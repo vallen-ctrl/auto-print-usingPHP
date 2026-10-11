@@ -127,10 +127,32 @@
 
     {{-- Tombol simpan: fixed di pojok kanan bawah, muncul saat ada perubahan --}}
     <div id="simpan-bar" class="fixed right-6 bottom-6 z-40 hidden">
-        <button type="button"
-            class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-6 text-sm font-medium text-white shadow-lg transition-colors hover:bg-primary-hover focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:outline-none">
-            <x-lucide-save class="size-4" aria-hidden="true" />
-            Simpan perubahan
+        <button type="button" id="btn-simpan"
+            class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-6 text-sm font-medium text-white shadow-lg transition-colors hover:bg-primary-hover focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-70">
+            <span id="btn-simpan-label" class="inline-flex items-center gap-2">
+                <x-lucide-save class="size-4" aria-hidden="true" />
+                Simpan perubahan
+            </span>
+            <span id="btn-simpan-loading" class="hidden items-center gap-2">
+                <x-lucide-loader-circle class="size-4 animate-spin" aria-hidden="true" />
+                Menyimpan...
+            </span>
+        </button>
+    </div>
+
+    {{-- Flowbite toast: konfirmasi berhasil disimpan --}}
+    <div id="toast-simpan" role="alert" aria-live="polite"
+        class="pointer-events-none fixed right-6 bottom-6 z-50 flex w-full max-w-xs translate-y-2 items-center rounded-lg border border-line bg-surface p-4 opacity-0 shadow-lg transition-all duration-300">
+        <div class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-success-soft text-success-strong">
+            <x-lucide-check class="size-4" aria-hidden="true" />
+        </div>
+        <div class="ms-3 text-sm font-normal text-ink">
+            <span class="mb-0.5 block font-semibold">Berhasil disimpan</span>
+            <span class="text-ink-muted">Perubahan pengaturan sudah dikirim ke database.</span>
+        </div>
+        <button type="button" id="toast-simpan-close" data-dismiss-target="#toast-simpan" aria-label="Tutup notifikasi"
+            class="ms-auto -mx-1.5 -my-1.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-muted hover:bg-muted hover:text-ink focus:ring-2 focus:ring-primary/30 focus:outline-none">
+            <x-lucide-x class="size-4" aria-hidden="true" />
         </button>
     </div>
 </div>
@@ -139,14 +161,63 @@
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('pengaturan-form');
     const bar = document.getElementById('simpan-bar');
-    if (!form || !bar) return;
+    const btn = document.getElementById('btn-simpan');
+    const label = document.getElementById('btn-simpan-label');
+    const loading = document.getElementById('btn-simpan-loading');
+    const toast = document.getElementById('toast-simpan');
+    const tutup = document.getElementById('toast-simpan-close');
+    if (!form || !bar || !btn || !toast) return;
 
-    const tampilkan = function () {
+    let timerToast;
+
+    const tampilkanBar = function () {
         bar.classList.remove('hidden');
     };
 
-    form.addEventListener('input', tampilkan);
-    form.addEventListener('change', tampilkan);
+    const sembunyikanToast = function () {
+        toast.classList.add('opacity-0', 'translate-y-2', 'pointer-events-none');
+        clearTimeout(timerToast);
+    };
+
+    const tampilkanToast = function () {
+        toast.classList.remove('hidden', 'opacity-0', 'translate-y-2', 'pointer-events-none');
+        clearTimeout(timerToast);
+        // Toast hilang otomatis setelah 5 detik
+        timerToast = setTimeout(sembunyikanToast, 5000);
+    };
+
+    form.addEventListener('input', tampilkanBar);
+    form.addEventListener('change', tampilkanBar);
+
+    if (tutup) {
+        tutup.addEventListener('click', function (e) {
+            e.preventDefault();
+            sembunyikanToast();
+        });
+    }
+
+    btn.addEventListener('click', function () {
+        if (btn.disabled) return;
+
+        // State loading: tombol menampilkan spinner
+        btn.disabled = true;
+        label.classList.add('hidden');
+        label.classList.remove('inline-flex');
+        loading.classList.remove('hidden');
+        loading.classList.add('inline-flex');
+
+        // Ilustrasi proses kirim ke database
+        setTimeout(function () {
+            btn.disabled = false;
+            loading.classList.add('hidden');
+            loading.classList.remove('inline-flex');
+            label.classList.remove('hidden');
+            label.classList.add('inline-flex');
+
+            bar.classList.add('hidden');
+            tampilkanToast();
+        }, 1500);
+    });
 });
 </script>
 @endsection
