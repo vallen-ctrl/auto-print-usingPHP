@@ -29,7 +29,7 @@
         <p class="text-sm text-ink-muted">{{ now()->translatedFormat('l, j F Y') }}</p>
     </div>
 
-    <div class="mt-6 space-y-4">
+    <div id="pengaturan-form" class="mt-6 space-y-4 pb-4">
 
         {{-- Profil toko --}}
         <section class="rounded-xl border border-line bg-surface p-5 shadow-sm">
@@ -123,14 +123,30 @@
             </div>
         </section>
 
-        {{-- Simpan --}}
-        <div class="flex justify-end pb-4">
-            <button type="button"
-                class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-6 text-sm font-medium text-white transition-colors hover:bg-primary-hover focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:outline-none">
-                <x-lucide-save class="size-4" aria-hidden="true" />
-                Simpan perubahan
-            </button>
-        </div>
+    </div>
+
+    {{-- Tombol simpan: fixed di pojok kanan bawah, muncul saat ada perubahan --}}
+    <div id="simpan-bar" class="fixed right-6 bottom-6 z-40 hidden">
+        <button type="button"
+            class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-6 text-sm font-medium text-white shadow-lg transition-colors hover:bg-primary-hover focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:outline-none">
+            <x-lucide-save class="size-4" aria-hidden="true" />
+            Simpan perubahan
+        </button>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('pengaturan-form');
+    const bar = document.getElementById('simpan-bar');
+    if (!form || !bar) return;
+
+    const tampilkan = function () {
+        bar.classList.remove('hidden');
+    };
+
+    form.addEventListener('input', tampilkan);
+    form.addEventListener('change', tampilkan);
+});
+</script>
 @endsection
