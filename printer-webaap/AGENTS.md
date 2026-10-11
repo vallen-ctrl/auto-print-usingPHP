@@ -77,10 +77,17 @@ Steps:
 
 ## After Finishing the Todo
 
-When you have finished all the todo items you made, you must do these steps in order:
+When you have finished all the todo items you made, you must perform these steps in order:
 
-1. `git add .`
-2. `git commit -m "fitur: <deskripsi fitur>"`
-3. `git push origin fitur/<deskripsi-singkat>`
+1. Create and switch to a new feature branch using `git switch -c fitur/<deskripsi-singkat>`. Use a unique branch name that describes the feature you worked on. Do not work directly on `main` or another shared branch.
+2. Stage all changes using `git add .`.
+3. Commit the changes using `git commit -m "fitur: <deskripsi fitur>"`.
+4. Push the feature branch to the remote repository using `git push -u origin fitur/<deskripsi-singkat>`.
 
-Do not skip any step, and do not push to any branch other than the one you created for this feature.
+### Important Rules
+- Always create a separate branch for each feature before staging, committing, or pushing changes.
+- Do not rename the existing branch using `git branch -M`, because it can rename a shared branch and cause conflicts.
+- Do not push feature changes directly to `main` or another shared branch.
+- Ensure the branch name is unique and relevant to the feature being implemented.
+- If the feature branch already exists, switch to it using `git switch fitur/<deskripsi-singkat>` instead of creating it again.
+- Push only the feature branch you worked on, so different features can be developed independently and merged later.
