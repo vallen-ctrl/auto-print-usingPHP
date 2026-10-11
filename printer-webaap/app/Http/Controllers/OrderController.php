@@ -9,4 +9,8 @@ class OrderController extends Controller
     public function get(){
         return view("Dashboard.selection.order");
     }
+
+    public function detail(string $id){
+        return view("Dashboard.selection.order-detail", compact("id"));
+    }
 }

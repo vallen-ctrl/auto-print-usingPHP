@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('beranda');
 });
 
 Route::view('/formulir/kilat', 'formulir-kilat')->name('formulir.kilat');
@@ -15,6 +15,12 @@ Route::post('/dashboard/admin/login', [\App\http\Controllers\loginControler::cla
 Route::get('/dashboard/admin/signup', [\App\http\Controllers\signupControler::class, "get"]);
 Route::post('/dashboard/admin/signup', [\App\http\Controllers\signupControler::class, "store"]);
 
+
+// alur cetak terjadwal
+Route::view('/upload/terjadwal', 'upload-terjadwal')->name('upload.terjadwal');
+Route::view('/formulir/terjadwal', 'formulir-terjadwal')->name('formulir.terjadwal');
+
+//-------------------------------------------------------------------------------------------------------------------------------------
 Route::prefix('dashboard')->middleware([\App\http\Middleware\VerifyTokenMiddleware::class])->group(function () {
     // Mengakses URL: /dashboard
     Route::get('/pendapatan/data', [\App\http\Controllers\dashboardControler::class, 'pendapatan'])
@@ -33,6 +39,7 @@ Route::prefix('dashboard')->middleware([\App\http\Middleware\VerifyTokenMiddlewa
 
     //order
     Route::get('/order', [\App\Http\Controllers\OrderController::class, "get"])->name("order.index");
+    Route::get('/orders/files/{id}', [\App\Http\Controllers\OrderController::class, "detail"])->name("order.detail");
 
     //Layanan
     Route::get('/layanan', [\App\Http\Controllers\LayananController::class, "get"])->name("layanan.index");

@@ -16,7 +16,7 @@
     <div class="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
         <!-- Order selesai -->
-        <div class="flex min-h-[7rem] flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div class="flex min-h-28 flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <h5 class="text-sm font-medium text-gray-500">Order selesai</h5>
             <div class="mt-4 flex items-end justify-between gap-2">
                 <span class="text-3xl font-semibold leading-none text-gray-900">4/18</span>
@@ -25,7 +25,7 @@
         </div>
 
         <!-- Kertas -->
-        <div class="flex min-h-[7rem] flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div class="flex min-h-28 flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <h5 class="text-sm font-medium text-gray-500">Pendapatan</h5>
             <div class="mt-4 flex items-end justify-between gap-2">
                 <span class="text-3xl font-semibold leading-none text-gray-900">Rp. 12.000</span>
@@ -37,7 +37,7 @@
         </div>
 
         <!-- Komputer -->
-        <div class="flex min-h-[7rem] flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div class="flex min-h-28 flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <h5 class="text-sm font-medium text-gray-500">Komputer</h5>
             <div class="mt-4 flex items-end justify-between gap-2">
                 <span class="text-3xl font-semibold leading-none text-gray-900">3/2</span>
@@ -46,7 +46,7 @@
         </div>
 
         <!-- File tersimpan -->
-        <div class="flex min-h-[7rem] flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div class="flex min-h-28 flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <h5 class="text-sm font-medium text-gray-500">File tersimpan</h5>
             <div class="mt-4 flex items-end justify-between gap-2">
                 <span class="text-3xl font-semibold leading-none text-gray-900">89</span>
@@ -175,7 +175,7 @@
             <h5 class="text-lg font-semibold text-gray-900">Order</h5>
 
             <div class="mt-4 overflow-x-auto">
-                <table id="tabel-order" data-url="{{ route('order.data') }}" class="w-full min-w-[48rem] text-left text-sm">
+                <table id="tabel-order" data-url="{{ route('order.data') }}" class="w-full min-w-3xl text-left text-sm">
                     <thead class="border-b border-gray-200 text-gray-500">
                         <tr>
                             <th class="pb-3 pr-4 font-medium">Tanggal order</th>

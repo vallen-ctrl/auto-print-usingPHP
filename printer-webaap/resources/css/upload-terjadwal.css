@@ -1,0 +1,380 @@
+/* Halaman upload cetak terjadwal (/upload/terjadwal).
+   Gaya sketsa tangan memakai wired-elements. Mobile-first. */
+
+:root {
+    --font-heading: "Caveat", "Patrick Hand", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+    --font-body: "Patrick Hand", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+
+    --fs-display: clamp(2.25rem, 1.6rem + 3vw, 3.06rem);
+    --fs-h1: clamp(1.9rem, 1.4rem + 2.2vw, 2.44rem);
+    --fs-h2: clamp(1.6rem, 1.3rem + 1.4vw, 1.94rem);
+    --fs-h3: 1.56rem;
+    --fs-sub: 1.25rem;
+    --fs-body: 1.0625rem;
+    --fs-caption: 0.8125rem;
+    --fs-label: 0.75rem;
+
+    --color-bg: #ffffff;
+    --color-surface: #ffffff;
+    --color-text: #1f1f1f;
+    --color-muted: #57575c;
+    --color-border: #1f1f1f;
+    --color-line: #d8d8d8;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-12: 48px;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--fs-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Kepala halaman: logo jasa + nama print + tombol kembali ---------- */
+
+.site-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+}
+
+.site-header-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.logo-placeholder {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 46px;
+    padding: var(--space-1);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    color: var(--color-muted);
+    font-size: var(--fs-label);
+    line-height: 1.2;
+    letter-spacing: 0.03em;
+    text-align: center;
+}
+
+.brand-name {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: var(--fs-h3);
+    line-height: 1.3;
+    letter-spacing: -0.005em;
+}
+
+/* ---------- Isi halaman ---------- */
+
+.page-main {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-4);
+}
+
+/* margin:auto meratakan isi ke tengah selama masih ada ruang,
+   dan tidak memotong bagian atas kalau isinya lebih tinggi dari layar. */
+.content {
+    width: 100%;
+    margin: auto;
+}
+
+/* ---------- Panel utama ---------- */
+
+.panel {
+    display: block;
+    padding: var(--space-6);
+    color: var(--color-border);
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-4);
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    font-size: var(--fs-label);
+    line-height: 1.3;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.badge-icon {
+    flex: none;
+    width: 12px;
+    height: 12px;
+}
+
+.panel-title {
+    margin: 0 0 var(--space-3);
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: var(--fs-h2);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+}
+
+.panel-text {
+    margin: 0 0 var(--space-6);
+    max-width: 65ch;
+    color: var(--color-muted);
+}
+
+/* ---------- Kotak upload PDF ---------- */
+
+.dropzone {
+    display: block;
+    padding: var(--space-6);
+    color: var(--color-border);
+    text-align: center;
+}
+
+.dropzone-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    margin: 0 auto var(--space-4);
+    border: 2px solid var(--color-border);
+    border-radius: 50%;
+}
+
+.dropzone-glyph {
+    width: 40px;
+    height: 40px;
+}
+
+/* Lembaran di belakang tertutup lembaran di depannya, jadi tumpukannya terbaca. */
+.dropzone-glyph rect {
+    fill: var(--color-bg);
+}
+
+.dropzone-title {
+    margin: 0 0 var(--space-1);
+    font-size: var(--fs-sub);
+}
+
+.dropzone-hint {
+    margin: 0 0 var(--space-4);
+    color: var(--color-muted);
+    font-size: var(--fs-caption);
+}
+
+/* ---------- Daftar file PDF yang dipilih ---------- */
+
+.file-count {
+    margin: var(--space-4) 0 0;
+    color: var(--color-muted);
+    font-size: var(--fs-caption);
+}
+
+.file-list {
+    display: grid;
+    gap: var(--space-2);
+    max-height: 320px;
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    list-style: none;
+    text-align: left;
+}
+
+.file-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    font-size: var(--fs-caption);
+}
+
+.file-name {
+    overflow-wrap: anywhere;
+}
+
+.file-size {
+    color: var(--color-muted);
+    white-space: nowrap;
+}
+
+.file-remove {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    color: var(--color-text);
+}
+
+.file-remove-icon {
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+}
+
+.file-warning {
+    margin: var(--space-2) 0 0;
+    color: var(--color-muted);
+    font-size: var(--fs-caption);
+}
+
+.file-count[hidden],
+.file-list[hidden],
+.file-warning[hidden] {
+    display: none;
+}
+
+/* ---------- Tombol ---------- */
+
+/* display:grid dipakai supaya <button> di dalam shadow DOM wired-button
+   melebar mengisi elemennya, sehingga sketsanya ikut ukuran elemen. */
+wired-button.pick-button,
+wired-button.next-button {
+    display: grid;
+    width: 100%;
+    margin-inline: auto;
+    color: var(--color-text);
+    font-family: var(--font-body);
+}
+
+wired-button.pick-button {
+    max-width: 260px;
+    min-height: 48px;
+    font-size: var(--fs-caption);
+}
+
+wired-button.next-button {
+    max-width: 260px;
+    min-height: 56px;
+    font-size: var(--fs-body);
+}
+
+.next-step {
+    margin-top: var(--space-12);
+}
+
+/* Tombol kembali: kecil, hanya selebar isinya (inline-grid) dan rata kiri. */
+wired-button.back-button {
+    display: inline-grid;
+    min-height: 44px;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--fs-caption);
+}
+
+.back-icon {
+    width: 14px;
+    height: 14px;
+    margin-right: var(--space-1);
+    vertical-align: -2px;
+}
+
+/* Wired elements menyembunyikan diri sampai sketsanya selesai digambar.
+   Kalau JavaScript gagal, tombol tetap terlihat supaya halaman tidak kosong. */
+wired-button:not(.wired-rendered) {
+    opacity: 1;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+}
+
+/* Input file hanya dibuka lewat tombol, jadi disembunyikan secara visual. */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* ---------- Desktop ---------- */
+
+@media (min-width: 768px) {
+    .site-header {
+        gap: var(--space-4);
+        padding: var(--space-6) var(--space-8);
+    }
+
+    .logo-placeholder {
+        width: 64px;
+        height: 56px;
+        border-radius: 12px;
+        font-size: var(--fs-caption);
+    }
+
+    .brand-name {
+        font-size: var(--fs-h2);
+    }
+
+    .page-main {
+        padding: var(--space-6) var(--space-8) var(--space-12);
+    }
+
+    .content {
+        max-width: 720px;
+    }
+
+    .panel {
+        padding: var(--space-8);
+    }
+
+    .panel-title {
+        font-size: var(--fs-h1);
+    }
+
+    .dropzone {
+        padding: var(--space-8);
+    }
+
+    wired-button.pick-button {
+        max-width: 320px;
+        min-height: 56px;
+        font-size: var(--fs-body);
+    }
+
+    wired-button.next-button {
+        max-width: 320px;
+        min-height: 60px;
+        font-size: var(--fs-sub);
+    }
+}
