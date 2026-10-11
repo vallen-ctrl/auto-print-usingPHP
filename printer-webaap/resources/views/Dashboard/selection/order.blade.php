@@ -29,7 +29,7 @@
 @endphp
 
 @section('content')
-<div class="mx-auto w-full max-w-[80rem]">
+<div class="w-full">
 
     {{-- Header --}}
     <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
