@@ -14,7 +14,11 @@ class VerifyTokenMiddleware
     {
    
         $sessionData = $request->session()->get('session');
-        $inputToken = $sessionData['token'] ?? null;
+        $inputToken = $sessionData['token'] ?? $request->bearerToken() ?? null;
+
+        $hasToken = $request->has('_token') || 
+                    $request->hasHeader('X-CSRF-TOKEN') || 
+                    $request->hasHeader('X-XSRF-TOKEN');
        
         // 1. Ambil token dari cache atau database jika cache kosong
         $storedToken = Cache::remember('admin', now()->addHours(2), function () {
@@ -28,7 +32,12 @@ class VerifyTokenMiddleware
 
         // 2. Cek apakah token cocok
         if (!$inputToken || $inputToken !== $storedToken["token"]) {
-            return redirect()->route('admin.login');
+            if($hasToken){
+                return redirect()->route('admin.login');
+            }
+            return response()->json([
+                "message" => "unautorized request from api!"
+            ], 401);
         }
 
         return $next($request);
