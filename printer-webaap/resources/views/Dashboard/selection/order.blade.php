@@ -52,7 +52,7 @@
     {{-- Table card --}}
     <div class="mt-4 overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
         <div class="overflow-x-auto">
-            <table id="tabel-order" class="w-full min-w-[62rem] text-left text-sm">
+            <table id="tabel-order" class="w-full min-w-248 text-left text-sm">
                 <thead class="border-b border-line bg-muted/60">
                     <tr class="text-ink-muted">
                         <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Order Id</th>

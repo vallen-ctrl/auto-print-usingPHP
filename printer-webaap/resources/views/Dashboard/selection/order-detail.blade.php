@@ -115,7 +115,7 @@
     {{-- Pemilihan file (radio) --}}
     <div class="mt-6 flex gap-3 overflow-x-auto pb-2" role="radiogroup" aria-label="Pilih file">
         @foreach ($files as $f)
-            <label class="group flex min-w-[13rem] flex-1 cursor-pointer items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 transition-colors hover:bg-muted has-checked:border-primary has-checked:bg-primary-soft">
+            <label class="group flex min-w-52 flex-1 cursor-pointer items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 transition-colors hover:bg-muted has-checked:border-primary has-checked:bg-primary-soft">
                 <input type="radio" name="file-pilih" value="{{ $f['id'] }}" @checked($loop->first)
                     class="size-4 shrink-0 accent-primary focus:ring-2 focus:ring-primary/40">
                 <x-lucide-file-text class="size-4 shrink-0 text-ink-muted group-has-checked:text-primary" aria-hidden="true" />
