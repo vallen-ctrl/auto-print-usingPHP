@@ -19,7 +19,10 @@ return new class extends Migration
             $table->id();
             $table->string('nama', 50);
             $table->text('deskripsi')->nullable();
+            $table->bigInteger('jumlah')->default(0);
             $table->bigInteger('harga')->default(0);
+            $table->boolean('aktif')->default(false);
+            $table->string('image_path')->default("-");
             $table->timestamp('tanggal_dibuat')->useCurrent();
         });
 
@@ -38,6 +41,7 @@ return new class extends Migration
             $table->string('name', 8)->unique('uq_paper_name');
             $table->integer('width');
             $table->integer('height');
+            $table->boolean('aktif')->default(false);
             $table->bigInteger('harga_color')->default(0);
             $table->bigInteger('harga_grayscale')->default(0);
         });
