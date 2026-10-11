@@ -1,28 +1,6 @@
-<<<<<<< HEAD
-// Entry JS bersama proyek.
-import 'wired-elements';
-
-// Sub total paket dihitung di browser, bukan di PHP.
-const paket = document.querySelectorAll('.paket-checkbox');
-const subtotal = document.getElementById('subtotal');
-
-if (paket.length && subtotal) {
-    const hitung = () => {
-        let total = 0;
-        paket.forEach((checkbox) => {
-            if (checkbox.checked) {
-                total += Number(checkbox.dataset.harga || 0);
-            }
-        });
-        subtotal.textContent = total.toLocaleString('id-ID');
-    };
-
-    paket.forEach((checkbox) => checkbox.addEventListener('change', hitung));
-    hitung();
-=======
 // Komponen sketsa + perilaku UI untuk halaman beranda, /upload/terjadwal,
-// dan /formulir/terjadwal. Impor per elemen supaya seluruh koleksi
-// wired-elements tidak ikut dibundel.
+// /formulir/terjadwal, dan /formulir-kilat. Impor per elemen supaya seluruh
+// koleksi wired-elements tidak ikut dibundel.
 import 'wired-elements/lib/wired-card.js';
 import 'wired-elements/lib/wired-button.js';
 import 'wired-elements/lib/wired-icon-button.js';
@@ -30,6 +8,7 @@ import 'wired-elements/lib/wired-input.js';
 import 'wired-elements/lib/wired-radio.js';
 import 'wired-elements/lib/wired-radio-group.js';
 import 'wired-elements/lib/wired-checkbox.js';
+import 'wired-elements/lib/wired-divider.js';
 import 'wired-elements/lib/wired-combo.js';
 import 'wired-elements/lib/wired-item.js';
 
@@ -610,5 +589,26 @@ if (cetakForm) {
     cetakForm.addEventListener('submit', (event) => {
         event.preventDefault();
     });
->>>>>>> origin/main
+}
+
+/* ---------- Sub total paket di halaman formulir kilat ---------- */
+
+const paketKilat = document.querySelectorAll('.paket-checkbox');
+const subtotalKilat = document.getElementById('subtotal');
+
+if (paketKilat.length && subtotalKilat) {
+    const hitung = () => {
+        let total = 0;
+
+        paketKilat.forEach((checkbox) => {
+            if (checkbox.checked) {
+                total += Number(checkbox.dataset.harga || 0);
+            }
+        });
+
+        subtotalKilat.textContent = total.toLocaleString('id-ID');
+    };
+
+    paketKilat.forEach((checkbox) => checkbox.addEventListener('change', hitung));
+    hitung();
 }
