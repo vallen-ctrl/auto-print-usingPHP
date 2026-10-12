@@ -18,6 +18,7 @@ Route::post('/dashboard/admin/signup', [\App\http\Controllers\signupControler::c
 
 // alur cetak terjadwal
 Route::view('/upload/terjadwal', 'upload-terjadwal')->name('upload.terjadwal');
+Route::post('/upload/terjadwal', [\App\Http\Controllers\UploadTerjadwalController::class, 'store'])->name('upload.terjadwal.store');
 Route::view('/formulir/terjadwal', 'formulir-terjadwal')->name('formulir.terjadwal');
 
 //-------------------------------------------------------------------------------------------------------------------------------------
