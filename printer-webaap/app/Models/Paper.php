@@ -21,6 +21,7 @@ class Paper extends Model
         'height',
         'harga_color',
         'harga_grayscale',
+        'aktif'
     ];
 }
 

@@ -16,6 +16,7 @@ class LayananController extends Controller
             'nama' => 'required|string|max:50',
             'deskripsi' => 'required|string',
             'harga' => 'required|integer',
+            'stok'
         ]);
 
         $layanan = Layanan::create($validated);

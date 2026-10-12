@@ -155,5 +155,28 @@ document.addEventListener('DOMContentLoaded', function () {
         kosong.classList.toggle('hidden', tampil !== 0);
     });
 });
+
+fetch("{{ route('get.all') }}", {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest' // Menandai request sebagai AJAX
+        },
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Gagal mengambil data');
+        }
+        return response.json(); // Mengubah response menjadi JSON
+    })
+    .then(data => {
+        console.log('Data diterima:', data);
+        
+        // Contoh menampilkan data ke HTML
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+
 </script>
 @endsection

@@ -40,16 +40,19 @@ Route::prefix('dashboard')->middleware([\App\http\Middleware\VerifyTokenMiddlewa
     //order
     Route::get('/order', [\App\Http\Controllers\OrderController::class, "get"])->name("order.index");
     Route::get('/orders/files/{id}', [\App\Http\Controllers\OrderController::class, "detail"])->name("order.detail");
-
+    Route::get('/order/all', [\App\http\Controllers\OrderController::class, "getorderData"])->name("get.all");
     //Layanan
     Route::get('/layanan', [\App\Http\Controllers\LayananController::class, "get"])->name("layanan.index");
+    Route::post('/layanan/add', [\App\Http\Controllers\LayananController::class, "store"])->name("layanan.post");
 
     //kertas
     Route::get('/kertas', [\App\Http\Controllers\KertasController::class, "get"])->name("kertas.index");
-    
+    Route::post('/kertas/add', [\App\http\Controllers\KertasController::class,"store"])->name("kertas.store");
     //komputer
     Route::get('/komputer', [\App\Http\Controllers\KomputerController::class, "get"])->name("komputer.index");
-    
+    Route::post('/komputer/add', [\App\http\Controllers\KomputerController::class, "store"])->name("komputer.post");
+    Route::get('/komputer/isActive', [\App\http\Controllers\KomputerController::class, "getStatucisActivebyId"])->name("komputer.status");
+
     //pengaturan
     Route::get('/pengaturan', [\App\Http\Controllers\PengaturanController::class, "get"])->name("pengaturan.index");
 });
