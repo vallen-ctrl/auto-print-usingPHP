@@ -129,7 +129,7 @@
                                     <span class="paket-desc">{{ $p->deskripsi }}</span>
                                 </span>
                                 <span class="paket-price">Rp. {{ number_format($p->harga, 0, ',', '.') }}</span>
-                                <wired-checkbox roughness="1.2" class="paket-check" data-harga="{{ $p->harga }}">
+                                <wired-checkbox roughness="1.2" class="paket-check" data-id="{{ $p->id }}" data-harga="{{ $p->harga }}">
                                     <span class="visually-hidden">Pilih {{ $p->nama }}</span>
                                 </wired-checkbox>
                             </li>

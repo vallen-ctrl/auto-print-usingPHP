@@ -365,6 +365,9 @@ const kolomPengaturan = {
 };
 
 if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
+    const paketChecks = Array.from(document.querySelectorAll('.paket-check'));
+    const subTotal = document.getElementById('sub-total');
+
     const pengaturanAwal = () => ({
         orientasi: 'portrait',
         ukuran: 'a4',
@@ -372,7 +375,8 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         kualitas: 'standar',
         jumlah: '1',
         halaman: '',
-        catatan: ''
+        catatan: '',
+        paket: []
     });
 
     const namaFile = bacaNamaFile();
@@ -383,6 +387,21 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
     // nama lengkapnya tetap ada di tooltip.
     const potongNama = (name) => (name.length > 26 ? name.slice(0, 23) + '…' : name);
 
+    // Sub total dihitung dari paket yang dicentang pada file yang sedang aktif.
+    const hitungSubTotal = () => {
+        let total = 0;
+
+        paketChecks.forEach((box) => {
+            if (box.checked) {
+                total += Number(box.dataset.harga) || 0;
+            }
+        });
+
+        if (subTotal) {
+            subTotal.textContent = total.toLocaleString('id-ID');
+        }
+    };
+
     const bacaPengaturan = () => ({
         orientasi: kolomPengaturan.orientasi.selected,
         ukuran: kolomPengaturan.ukuran.selected,
@@ -390,7 +409,8 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         kualitas: kolomPengaturan.kualitas.selected,
         jumlah: kolomPengaturan.jumlah.value,
         halaman: kolomPengaturan.halaman.value,
-        catatan: kolomPengaturan.catatan.value
+        catatan: kolomPengaturan.catatan.value,
+        paket: paketChecks.filter((box) => box.checked).map((box) => box.dataset.id)
     });
 
     const tulisPengaturan = (state) => {
@@ -401,6 +421,15 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         kolomPengaturan.jumlah.value = state.jumlah;
         kolomPengaturan.halaman.value = state.halaman;
         kolomPengaturan.catatan.value = state.catatan;
+
+        // Pilihan paket (layanan) juga melekat per file.
+        const dipilih = state.paket || [];
+
+        paketChecks.forEach((box) => {
+            box.checked = dipilih.includes(box.dataset.id);
+        });
+
+        hitungSubTotal();
     };
 
     const simpanFileAktif = () => {
@@ -449,27 +478,14 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
     ['jumlah', 'halaman', 'catatan'].forEach((key) => {
         kolomPengaturan[key].addEventListener('change', simpanFileAktif);
     });
-}
 
-/* ---------- Sub total paket di halaman formulir ---------- */
-
-const subTotal = document.getElementById('sub-total');
-const paketChecks = Array.from(document.querySelectorAll('.paket-check'));
-
-if (subTotal && paketChecks.length > 0) {
-    const hitungSubTotal = () => {
-        let total = 0;
-
-        paketChecks.forEach((box) => {
-            if (box.checked) {
-                total += Number(box.dataset.harga) || 0;
-            }
+    // Mencentang paket menyimpan pilihan itu ke file yang sedang aktif.
+    paketChecks.forEach((box) => {
+        box.addEventListener('change', () => {
+            simpanFileAktif();
+            hitungSubTotal();
         });
-
-        subTotal.textContent = total.toLocaleString('id-ID');
-    };
-
-    paketChecks.forEach((box) => box.addEventListener('change', hitungSubTotal));
+    });
 
     // Seluruh baris paket bisa diklik supaya area sentuhnya lebih lega.
     document.querySelectorAll('.paket-item').forEach((item) => {
@@ -482,12 +498,18 @@ if (subTotal && paketChecks.length > 0) {
 
             if (box) {
                 box.checked = !box.checked;
+                simpanFileAktif();
                 hitungSubTotal();
             }
         });
     });
 
-    hitungSubTotal();
+    // Terapkan state file pertama (termasuk paket) lalu hitung sub totalnya.
+    if (fileAktif) {
+        tulisPengaturan(pengaturanPerFile.get(fileAktif));
+    } else {
+        hitungSubTotal();
+    }
 }
 
 /* ---------- Validasi isi formulir ---------- */
