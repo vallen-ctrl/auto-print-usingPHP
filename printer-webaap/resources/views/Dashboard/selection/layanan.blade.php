@@ -224,26 +224,22 @@
         el.classList.toggle('hidden', !msg);
     }
 
-    function previewImage(event) {
-        const input = event.target;
+    function handleFile(file) {
         const dropzoneWrapper = document.getElementById('dropzone-wrapper');
         const previewContainer = document.getElementById('image-preview-container');
         const previewImg = document.getElementById('image-preview');
 
-        if (!input.files || !input.files[0]) return;
-        const file = input.files[0];
+        if (!file) return false;
 
         if (!ALLOWED_TYPES.includes(file.type)) {
             showImageError('File harus PNG atau JPEG.');
-            input.value = '';
-            return;
+            return false;
         }
 
         if (file.size > MAX_SIZE_MB * 1024 * 1024) {
             const sizeMB = (file.size / 1024 / 1024).toFixed(1);
             showImageError(`Ukuran gambar ${sizeMB}MB, maksimal ${MAX_SIZE_MB}MB.`);
-            input.value = '';
-            return;
+            return false;
         }
 
         showImageError('');
@@ -255,6 +251,15 @@
             previewContainer.classList.remove('hidden');
         };
         reader.readAsDataURL(file);
+
+        return true;
+    }
+
+    function previewImage(event) {
+        const input = event.target;
+        if (!handleFile(input.files && input.files[0])) {
+            input.value = '';
+        }
     }
 
     function removeImage() {
@@ -271,6 +276,39 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
+        const dropzone = document.getElementById('dropzone-wrapper');
+        const fileInput = document.getElementById('gambar');
+        if (dropzone && fileInput) {
+            ['dragenter', 'dragover'].forEach(function(ev) {
+                dropzone.addEventListener(ev, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.add('bg-gray-100');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(function(ev) {
+                dropzone.addEventListener(ev, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.remove('bg-gray-100');
+                });
+            });
+
+            dropzone.addEventListener('drop', function(e) {
+                const file = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : null;
+                if (!file) return;
+
+                if (handleFile(file)) {
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    fileInput.files = dt.files;
+                } else {
+                    fileInput.value = '';
+                }
+            });
+        }
+
         const input = document.getElementById('layanan-search');
         const cards = document.querySelectorAll('[data-card]');
         const kosong = document.getElementById('layanan-empty');
