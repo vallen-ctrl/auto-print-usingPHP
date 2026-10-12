@@ -271,15 +271,78 @@ if (pickButton && pdfInput && pdfCount && pdfList && pdfWarning) {
     const lanjutButton = document.getElementById('btn-lanjutkan');
 
     if (lanjutButton) {
-        lanjutButton.addEventListener('click', () => {
+        let mengirim = false;
+
+        lanjutButton.addEventListener('click', async () => {
+            if (mengirim) {
+                return;
+            }
+
+            if (chosen.length === 0) {
+                pdfWarning.textContent = 'Pilih minimal satu file PDF dulu.';
+                pdfWarning.hidden = false;
+                return;
+            }
+
+            // Simpan nama file supaya halaman formulir tetap bisa menampilkan daftarnya.
             try {
                 sessionStorage.setItem(FILE_STORAGE_KEY, JSON.stringify(chosen.map((file) => file.name)));
             } catch (error) {
                 // Penyimpanan browser tidak tersedia: halaman formulir tetap bisa dibuka.
             }
 
-            if (lanjutButton.dataset.next) {
-                window.location.href = lanjutButton.dataset.next;
+            const action = lanjutButton.dataset.action;
+
+            // Kalau endpoint belum tersedia, kembali ke perilaku navigasi lama.
+            if (!action) {
+                if (lanjutButton.dataset.next) {
+                    window.location.href = lanjutButton.dataset.next;
+                }
+                return;
+            }
+
+            // Kirim file yang dipilih ke server. Satu kali upload hanya boleh
+            // maksimal 10 file dan semuanya PDF (validasi juga diulang di server).
+            const formData = new FormData();
+
+            chosen.forEach((file) => formData.append('files[]', file));
+
+            mengirim = true;
+
+            try {
+                const response = await fetch(action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': lanjutButton.dataset.token || '',
+                        Accept: 'application/json',
+                    },
+                    body: formData,
+                });
+
+                // Server mengarahkan ke halaman berikutnya dengan order id.
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+
+                const data = await response.json().catch(() => ({}));
+
+                if (response.ok) {
+                    window.location.href = data.redirect || lanjutButton.dataset.next;
+                    return;
+                }
+
+                const pesan = data.message
+                    || (data.errors ? Object.values(data.errors).flat()[0] : null)
+                    || 'Upload gagal. Coba lagi.';
+
+                pdfWarning.textContent = pesan;
+                pdfWarning.hidden = false;
+            } catch (error) {
+                pdfWarning.textContent = 'Tidak bisa menghubungi server. Coba lagi.';
+                pdfWarning.hidden = false;
+            } finally {
+                mengirim = false;
             }
         });
     }
