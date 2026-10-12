@@ -29,6 +29,13 @@ Route::get('/upload/terjadwal', [\App\Http\Controllers\UploadTerjadwalController
 Route::post('/upload/terjadwal', [\App\Http\Controllers\UploadTerjadwalController::class, 'store'])->name('upload.terjadwal.store');
 Route::get('/formulir/terjadwal', [\App\Http\Controllers\FormulirTerjadwalController::class, 'get'])->name('formulir.terjadwal');
 
+// Keluar dari alur terjadwal: hapus order id di session lalu kembali ke beranda.
+Route::get('/terjadwal/keluar', function (\Illuminate\Http\Request $request) {
+    $request->session()->forget(\App\Http\Controllers\UploadTerjadwalController::SESSION_KEY);
+
+    return redirect('/');
+})->name('terjadwal.keluar');
+
 //-------------------------------------------------------------------------------------------------------------------------------------
 Route::prefix('dashboard')->middleware([\App\http\Middleware\VerifyTokenMiddleware::class])->group(function () {
     // Mengakses URL: /dashboard

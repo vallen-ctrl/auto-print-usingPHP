@@ -92,12 +92,17 @@ document.querySelectorAll('[data-href]').forEach((el) => {
 
 /* ---------- Tombol kembali ---------- */
 
-// Kembali ke halaman sebelumnya. Kalau halaman ini dibuka langsung (tidak ada
-// halaman sebelumnya dari situs ini), dipakai data-fallback dari Blade.
+// Kalau tombol punya tujuan tetap (data-href) langsung ke sana. Kalau tidak,
+// kembali ke halaman sebelumnya, atau ke data-fallback kalau tidak ada.
 const backButton = document.getElementById('btn-kembali');
 
 if (backButton) {
     backButton.addEventListener('click', () => {
+        if (backButton.dataset.href) {
+            window.location.href = backButton.dataset.href;
+            return;
+        }
+
         const fromThisSite = document.referrer !== '' && document.referrer.startsWith(window.location.origin);
 
         if (fromThisSite && window.history.length > 1) {
