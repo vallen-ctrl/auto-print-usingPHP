@@ -10,6 +10,23 @@ use Illuminate\Support\Str;
 
 class UploadTerjadwalController extends Controller
 {
+    /**
+     * Kunci session tempat order id terjadwal disimpan.
+     */
+    public const SESSION_KEY = 'terjadwal_order';
+
+    /**
+     * Tampilkan halaman upload. Membuka halaman ini dianggap memulai order
+     * baru (termasuk saat user menekan tombol back dari halaman formulir),
+     * jadi order id yang tersimpan di session dihapus.
+     */
+    public function show(Request $request)
+    {
+        $request->session()->forget(self::SESSION_KEY);
+
+        return view('upload-terjadwal');
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -49,6 +66,10 @@ class UploadTerjadwalController extends Controller
                 ]);
             }
         });
+
+        // Order id disimpan di session supaya order ini "melekat" selama user
+        // tidak membuka halaman upload lagi.
+        $request->session()->put(self::SESSION_KEY, $orderHex);
 
         return redirect()->route('formulir.terjadwal', ['order' => $orderHex]);
     }

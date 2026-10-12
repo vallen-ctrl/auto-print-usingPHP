@@ -3,7 +3,15 @@
 use Illuminate\Support\Facades\Route;
 
 
-Route::get('/', function () {
+Route::get('/', function (\Illuminate\Http\Request $request) {
+    $order = $request->session()->get(\App\Http\Controllers\UploadTerjadwalController::SESSION_KEY);
+
+    // User sudah punya order terjadwal yang belum selesai: lanjutkan ke
+    // formulir dengan order id tersebut, bukan memulai dari awal.
+    if ($order) {
+        return redirect()->route('formulir.terjadwal', ['order' => $order]);
+    }
+
     return view('beranda');
 });
 
@@ -17,7 +25,7 @@ Route::post('/dashboard/admin/signup', [\App\http\Controllers\signupControler::c
 
 
 // alur cetak terjadwal
-Route::view('/upload/terjadwal', 'upload-terjadwal')->name('upload.terjadwal');
+Route::get('/upload/terjadwal', [\App\Http\Controllers\UploadTerjadwalController::class, 'show'])->name('upload.terjadwal');
 Route::post('/upload/terjadwal', [\App\Http\Controllers\UploadTerjadwalController::class, 'store'])->name('upload.terjadwal.store');
 Route::get('/formulir/terjadwal', [\App\Http\Controllers\FormulirTerjadwalController::class, 'get'])->name('formulir.terjadwal');
 

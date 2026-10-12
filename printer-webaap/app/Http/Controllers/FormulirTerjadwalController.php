@@ -13,7 +13,13 @@ class FormulirTerjadwalController extends Controller
             ->orderBy('id')
             ->get();
 
-        $order = $request->query('order');
+        $order = $request->query('order') ?? $request->session()->get(UploadTerjadwalController::SESSION_KEY);
+
+        // Kalau order id dibawa di URL, simpan/segarkan di session supaya
+        // order ini tetap melekat selama user belum membuka halaman upload.
+        if ($order) {
+            $request->session()->put(UploadTerjadwalController::SESSION_KEY, $order);
+        }
 
         return view('formulir-terjadwal', compact('layanan', 'order'));
     }
