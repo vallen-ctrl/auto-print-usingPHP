@@ -160,9 +160,14 @@
     <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         @foreach ($layanan as $l)
         <div data-card class="flex flex-col rounded-xl border border-line bg-surface p-4 shadow-sm">
-            <div class="flex h-32 items-center justify-center rounded-lg border border-dashed border-line bg-muted/40 text-sm text-ink-muted">
-                gambar
+            @if (!empty($l['gambar']) && $l['gambar'] !== '-' && \Illuminate\Support\Facades\Storage::disk('public')->exists($l['gambar']))
+            <img src="{{ asset('storage/' . $l['gambar']) }}" alt="{{ $l['nama'] }}"
+                class="h-32 w-full rounded-lg border border-line object-cover">
+            @else
+            <div class="flex h-32 items-center justify-center rounded-lg border border-dashed border-line bg-muted/40 text-ink-muted">
+                <x-lucide-image class="size-8" aria-hidden="true" />
             </div>
+            @endif
 
             <div class="my-3 border-t border-line"></div>
 
@@ -219,26 +224,22 @@
         el.classList.toggle('hidden', !msg);
     }
 
-    function previewImage(event) {
-        const input = event.target;
+    function handleFile(file) {
         const dropzoneWrapper = document.getElementById('dropzone-wrapper');
         const previewContainer = document.getElementById('image-preview-container');
         const previewImg = document.getElementById('image-preview');
 
-        if (!input.files || !input.files[0]) return;
-        const file = input.files[0];
+        if (!file) return false;
 
         if (!ALLOWED_TYPES.includes(file.type)) {
             showImageError('File harus PNG atau JPEG.');
-            input.value = '';
-            return;
+            return false;
         }
 
         if (file.size > MAX_SIZE_MB * 1024 * 1024) {
             const sizeMB = (file.size / 1024 / 1024).toFixed(1);
             showImageError(`Ukuran gambar ${sizeMB}MB, maksimal ${MAX_SIZE_MB}MB.`);
-            input.value = '';
-            return;
+            return false;
         }
 
         showImageError('');
@@ -250,6 +251,15 @@
             previewContainer.classList.remove('hidden');
         };
         reader.readAsDataURL(file);
+
+        return true;
+    }
+
+    function previewImage(event) {
+        const input = event.target;
+        if (!handleFile(input.files && input.files[0])) {
+            input.value = '';
+        }
     }
 
     function removeImage() {
@@ -266,6 +276,39 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
+        const dropzone = document.getElementById('dropzone-wrapper');
+        const fileInput = document.getElementById('gambar');
+        if (dropzone && fileInput) {
+            ['dragenter', 'dragover'].forEach(function(ev) {
+                dropzone.addEventListener(ev, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.add('bg-gray-100');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(function(ev) {
+                dropzone.addEventListener(ev, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.remove('bg-gray-100');
+                });
+            });
+
+            dropzone.addEventListener('drop', function(e) {
+                const file = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : null;
+                if (!file) return;
+
+                if (handleFile(file)) {
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    fileInput.files = dt.files;
+                } else {
+                    fileInput.value = '';
+                }
+            });
+        }
+
         const input = document.getElementById('layanan-search');
         const cards = document.querySelectorAll('[data-card]');
         const kosong = document.getElementById('layanan-empty');
