@@ -52,7 +52,7 @@ Route::prefix('dashboard')->middleware([\App\http\Middleware\VerifyTokenMiddlewa
     Route::get('/komputer', [\App\Http\Controllers\KomputerController::class, "get"])->name("komputer.index");
     Route::post('/komputer/add', [\App\http\Controllers\KomputerController::class, "store"])->name("komputer.post");
     Route::get('/komputer/isActive', [\App\http\Controllers\KomputerController::class, "getStatucisActivebyId"])->name("komputer.status");
-
+    Route::get('/komputer/destroy/{id}', [\App\http\Controllers\KomputerController::class, "destroy"])->name("komputer.destroy");
     //pengaturan
     Route::get('/pengaturan', [\App\Http\Controllers\PengaturanController::class, "get"])->name("pengaturan.index");
 });
