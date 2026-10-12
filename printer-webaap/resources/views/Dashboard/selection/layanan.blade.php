@@ -132,6 +132,104 @@
         </div>
     </div>
 
+    <!-- Modal Edit -->
+    <div id="edit-layanan" data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+        <div class="relative p-4 w-full max-w-md max-h-full">
+            <!-- Modal content -->
+            <div class="relative bg-white rounded-lg shadow-sm">
+                <!-- Modal header -->
+                <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">
+                        Edit Layanan
+                    </h3>
+                    <button type="button" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center" data-modal-hide="edit-layanan">
+                        <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" />
+                        </svg>
+                        <span class="sr-only">Close modal</span>
+                    </button>
+                </div>
+                <!-- Modal body -->
+                <form id="form-edit-layanan" action="" method="POST" enctype="multipart/form-data" class="p-4 md:p-5">
+                    @csrf
+                    @method('PUT')
+                    <div class="grid gap-4 mb-4 grid-cols-2">
+                        <!-- Upload Foto -->
+                        <div class="col-span-2">
+                            <label class="block mb-2 text-sm font-medium text-gray-900">Upload Foto</label>
+
+                            <div id="edit-dropzone-wrapper" class="flex items-center justify-center w-full">
+                                <label for="edit-gambar" class="flex flex-col items-center justify-center w-full h-48 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                        <svg class="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h3a3 3 0 0 0 0-6h-.025a5.56 5.56 0 0 0 .025-.5A5.5 5.5 0 0 0 7.207 9.021C7.137 9.017 7.071 9 7 9a4 4 0 1 0 0 8h2.167M12 19v-9m0 0-2 2m2-2 2 2" />
+                                        </svg>
+                                        <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">Klik untuk upload</span> atau drag and drop</p>
+                                        <p class="text-xs text-gray-500">PNG atau JPEG (Maks. 2MB)</p>
+                                    </div>
+                                    <p id="edit-gambar-error" class="hidden mt-1 text-xs text-red-600"></p>
+                                    <input id="edit-gambar" name="gambar" type="file" class="hidden" accept="image/png, image/jpeg" onchange="previewEditImage(event)" />
+                                </label>
+                            </div>
+
+                            <div id="edit-image-preview-container" class="hidden relative">
+                                <img id="edit-image-preview" src="#" alt="Preview" class="w-full h-48 object-cover rounded-lg border border-gray-200 shadow-sm">
+                                <button type="button" onclick="removeEditImage()" class="absolute top-2 right-2 bg-white/90 hover:bg-white text-gray-700 hover:text-red-600 rounded-full p-1.5 shadow-md focus:outline-none transition-colors" title="Ganti gambar">
+                                    <x-lucide-x class="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Input Nama -->
+                        <div class="col-span-2">
+                            <label for="edit-nama" class="block mb-2 text-sm font-medium text-gray-900">Nama Layanan</label>
+                            <input type="text" name="nama" id="edit-nama" maxlength="50" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5" placeholder="Nama layanan" required>
+                        </div>
+
+                        <!-- Input Harga -->
+                        <div class="col-span-2 sm:col-span-1">
+                            <label for="edit-harga" class="block mb-2 text-sm font-medium text-gray-900">Harga</label>
+                            <input type="number" name="harga" id="edit-harga" step="1" min="0" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5" placeholder="Rp 2999" required>
+                        </div>
+
+                        <!-- Input Jumlah -->
+                        <div class="col-span-2 sm:col-span-1">
+                            <label for="edit-jumlah" class="block mb-2 text-sm font-medium text-gray-900">Jumlah</label>
+                            <input type="number" name="jumlah" id="edit-jumlah" step="1" min="0" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5" placeholder="100" required>
+                        </div>
+
+                        <!-- Toggle Switch Aktif -->
+                        <div class="col-span-2">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="hidden" name="aktif" value="0">
+                                <input type="checkbox" name="aktif" value="1" id="edit-aktif" class="sr-only peer">
+                                <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                                <span class="ms-3 text-sm font-medium text-gray-900">Aktif</span>
+                            </label>
+                            <p class="mt-1 text-xs text-gray-500">Centang jika layanan aktif, kosongkan jika nonaktif.</p>
+                        </div>
+
+                        <!-- Input Deskripsi -->
+                        <div class="col-span-2">
+                            <label for="edit-deskripsi" class="block mb-2 text-sm font-medium text-gray-900">Deskripsi</label>
+                            <textarea id="edit-deskripsi" name="deskripsi" rows="4" class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-primary-600 focus:border-primary-600" placeholder="Tulis deskripsi layanan di sini..." required></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <button type="submit" class="text-white inline-flex items-center bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center">
+                            <x-lucide-save class="me-1 -ms-1 w-5 h-5" />
+                            Simpan Perubahan
+                        </button>
+                        <button type="button" data-modal-hide="edit-layanan" class="text-gray-900 inline-flex items-center bg-white border border-gray-300 hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-gray-200 font-medium rounded-lg text-sm px-5 py-2.5">
+                            Batal
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {{-- Header --}}
     <div class="flex items-start justify-between gap-4">
         <h1 class="text-2xl font-semibold text-ink">Layanan</h1>
@@ -195,7 +293,14 @@
             </dl>
 
             <div class="mt-auto pt-4">
-                <button type="button"
+                <button type="button" data-modal-target="edit-layanan" data-modal-toggle="edit-layanan"
+                    data-id="{{ $l['id'] }}"
+                    data-nama="{{ $l['nama'] }}"
+                    data-deskripsi="{{ $l['deskripsi'] }}"
+                    data-harga="{{ $l['harga_raw'] }}"
+                    data-jumlah="{{ $l['jumlah_raw'] }}"
+                    data-aktif="{{ $l['status'] ? 1 : 0 }}"
+                    data-gambar="{{ $l['gambar'] }}"
                     class="inline-flex h-10 w-full items-center justify-center rounded-lg border border-line bg-surface text-sm font-medium text-ink transition-colors hover:bg-muted focus:ring-2 focus:ring-primary/30 focus:outline-none">
                     Edit
                 </button>
@@ -224,34 +329,42 @@
         el.classList.toggle('hidden', !msg);
     }
 
-    function handleFile(file) {
-        const dropzoneWrapper = document.getElementById('dropzone-wrapper');
-        const previewContainer = document.getElementById('image-preview-container');
-        const previewImg = document.getElementById('image-preview');
+    function showEditImageError(msg) {
+        const el = document.getElementById('edit-gambar-error');
+        el.textContent = msg;
+        el.classList.toggle('hidden', !msg);
+    }
 
-        if (!file) return false;
-
-        if (!ALLOWED_TYPES.includes(file.type)) {
-            showImageError('File harus PNG atau JPEG.');
-            return false;
-        }
-
+    function validateFile(file) {
+        if (!file) return '';
+        if (!ALLOWED_TYPES.includes(file.type)) return 'File harus PNG atau JPEG.';
         if (file.size > MAX_SIZE_MB * 1024 * 1024) {
             const sizeMB = (file.size / 1024 / 1024).toFixed(1);
-            showImageError(`Ukuran gambar ${sizeMB}MB, maksimal ${MAX_SIZE_MB}MB.`);
-            return false;
+            return `Ukuran gambar ${sizeMB}MB, maksimal ${MAX_SIZE_MB}MB.`;
         }
+        return '';
+    }
 
-        showImageError('');
+    function showPreview(imgId, wrapperId, containerId, file) {
+        const wrapper = document.getElementById(wrapperId);
+        const container = document.getElementById(containerId);
+        const img = document.getElementById(imgId);
 
         const reader = new FileReader();
         reader.onload = function(e) {
-            previewImg.src = e.target.result;
-            dropzoneWrapper.classList.add('hidden');
-            previewContainer.classList.remove('hidden');
+            img.src = e.target.result;
+            wrapper.classList.add('hidden');
+            container.classList.remove('hidden');
         };
         reader.readAsDataURL(file);
+    }
 
+    function handleFile(file) {
+        const error = validateFile(file);
+        showImageError(error);
+        if (error) return false;
+
+        showPreview('image-preview', 'dropzone-wrapper', 'image-preview-container', file);
         return true;
     }
 
@@ -263,7 +376,7 @@
     }
 
     function removeImage() {
-        const input = document.getElementById('gambar'); // sebelumnya 'layanan_image'
+        const input = document.getElementById('gambar');
         const dropzoneWrapper = document.getElementById('dropzone-wrapper');
         const previewContainer = document.getElementById('image-preview-container');
         const previewImg = document.getElementById('image-preview');
@@ -275,39 +388,110 @@
         showImageError('');
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        const dropzone = document.getElementById('dropzone-wrapper');
-        const fileInput = document.getElementById('gambar');
-        if (dropzone && fileInput) {
-            ['dragenter', 'dragover'].forEach(function(ev) {
-                dropzone.addEventListener(ev, function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropzone.classList.add('bg-gray-100');
-                });
-            });
+    function handleEditFile(file) {
+        const error = validateFile(file);
+        showEditImageError(error);
+        if (error) return false;
 
-            ['dragleave', 'drop'].forEach(function(ev) {
-                dropzone.addEventListener(ev, function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropzone.classList.remove('bg-gray-100');
-                });
-            });
+        showPreview('edit-image-preview', 'edit-dropzone-wrapper', 'edit-image-preview-container', file);
+        return true;
+    }
 
-            dropzone.addEventListener('drop', function(e) {
-                const file = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : null;
-                if (!file) return;
-
-                if (handleFile(file)) {
-                    const dt = new DataTransfer();
-                    dt.items.add(file);
-                    fileInput.files = dt.files;
-                } else {
-                    fileInput.value = '';
-                }
-            });
+    function previewEditImage(event) {
+        const input = event.target;
+        if (!handleEditFile(input.files && input.files[0])) {
+            input.value = '';
         }
+    }
+
+    function removeEditImage() {
+        const input = document.getElementById('edit-gambar');
+        const dropzoneWrapper = document.getElementById('edit-dropzone-wrapper');
+        const previewContainer = document.getElementById('edit-image-preview-container');
+        const previewImg = document.getElementById('edit-image-preview');
+
+        input.value = '';
+        previewImg.src = '#';
+        dropzoneWrapper.classList.remove('hidden');
+        previewContainer.classList.add('hidden');
+        showEditImageError('');
+    }
+
+    function openEditModal(button) {
+        const form = document.getElementById('form-edit-layanan');
+        if (!form) return;
+
+        form.action = "{{ route('layanan.perbarui', ['id' => '__ID__']) }}".replace('__ID__', button.dataset.id);
+
+        document.getElementById('edit-nama').value = button.dataset.nama || '';
+        document.getElementById('edit-harga').value = button.dataset.harga || '';
+        document.getElementById('edit-jumlah').value = button.dataset.jumlah || '';
+        document.getElementById('edit-deskripsi').value = button.dataset.deskripsi || '';
+        document.getElementById('edit-aktif').checked = button.dataset.aktif === '1';
+
+        const input = document.getElementById('edit-gambar');
+        const dropzoneWrapper = document.getElementById('edit-dropzone-wrapper');
+        const previewContainer = document.getElementById('edit-image-preview-container');
+        const previewImg = document.getElementById('edit-image-preview');
+        const gambar = button.dataset.gambar;
+
+        input.value = '';
+        showEditImageError('');
+
+        if (gambar && gambar !== '-') {
+            previewImg.src = "{{ asset('storage') }}/" + gambar;
+            dropzoneWrapper.classList.add('hidden');
+            previewContainer.classList.remove('hidden');
+        } else {
+            previewImg.src = '#';
+            previewContainer.classList.add('hidden');
+            dropzoneWrapper.classList.remove('hidden');
+        }
+    }
+
+    function setupDropzone(wrapperId, fileInput, onFile) {
+        const wrapper = document.getElementById(wrapperId);
+        if (!wrapper || !fileInput) return;
+
+        ['dragenter', 'dragover'].forEach(function(ev) {
+            wrapper.addEventListener(ev, function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                wrapper.classList.add('bg-gray-100');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(function(ev) {
+            wrapper.addEventListener(ev, function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                wrapper.classList.remove('bg-gray-100');
+            });
+        });
+
+        wrapper.addEventListener('drop', function(e) {
+            const file = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : null;
+            if (!file) return;
+
+            if (onFile(file)) {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                fileInput.files = dt.files;
+            } else {
+                fileInput.value = '';
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        setupDropzone('dropzone-wrapper', document.getElementById('gambar'), handleFile);
+        setupDropzone('edit-dropzone-wrapper', document.getElementById('edit-gambar'), handleEditFile);
+
+        document.querySelectorAll('[data-modal-target="edit-layanan"]').forEach(function(button) {
+            button.addEventListener('click', function() {
+                openEditModal(button);
+            });
+        });
 
         const input = document.getElementById('layanan-search');
         const cards = document.querySelectorAll('[data-card]');
