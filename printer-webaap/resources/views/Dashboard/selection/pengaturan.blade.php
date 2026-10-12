@@ -3,9 +3,20 @@
 @section('title', 'Pengaturan')
 
 @php
+    // Data contoh (statis). Integrasi API/database menyusul setelah izin Vallen.
     $biaya = [
-        ['id' => 'biaya-admin',   'label' => 'Admin',   'value' => $pengaturan['biaya_admin']],
-        ['id' => 'biaya-layanan', 'label' => 'Layanan', 'value' => $pengaturan['biaya_layanan']],
+        ['label' => 'Admin',   'value' => '20.000'],
+        ['label' => 'Layanan', 'value' => '20.000'],
+    ];
+
+    $hari = [
+        ['nama' => 'Senin',  'mulai' => '07:00', 'selesai' => '18:00', 'buka' => true],
+        ['nama' => 'Selasa', 'mulai' => '07:00', 'selesai' => '18:00', 'buka' => true],
+        ['nama' => 'Rabu',   'mulai' => '07:00', 'selesai' => '18:00', 'buka' => true],
+        ['nama' => 'Kamis',  'mulai' => '07:00', 'selesai' => '18:00', 'buka' => true],
+        ['nama' => 'Jumat',  'mulai' => '07:00', 'selesai' => '18:00', 'buka' => true],
+        ['nama' => 'Sabtu',  'mulai' => '07:00', 'selesai' => '18:00', 'buka' => true],
+        ['nama' => 'Minggu', 'mulai' => '07:00', 'selesai' => '18:00', 'buka' => true],
     ];
 @endphp
 
@@ -41,11 +52,11 @@
 
                 <div class="min-w-0 flex-1">
                     <p class="text-sm text-ink-muted">Nama toko</p>
-                    <p class="text-lg font-semibold text-ink">{{ $pengaturan['nama_toko'] }}</p>
+                    <p class="text-lg font-semibold text-ink">Toko print saya</p>
 
                     <div class="mt-3 flex flex-wrap items-center gap-3">
-                        <x-switch :checked="$pengaturan['status_buka']" id="status-buka" name="status_buka" />
-                        <span id="status-buka-label" class="text-sm font-semibold text-ink">{{ $pengaturan['status_buka'] ? 'BUKA' : 'TUTUP' }}</span>
+                        <x-switch :checked="true" />
+                        <span class="text-sm font-semibold text-ink">BUKA</span>
                         <span class="text-sm text-ink-muted">Menerima file dari pelanggan</span>
                     </div>
                 </div>
@@ -60,10 +71,10 @@
             <div class="mt-4 divide-y divide-line">
                 @foreach ($biaya as $b)
                     <div class="flex items-center justify-between gap-4 py-3">
-                        <label for="{{ $b['id'] }}" class="text-sm font-medium text-ink">{{ $b['label'] }}</label>
+                        <label for="biaya-{{ Str::slug($b['label']) }}" class="text-sm font-medium text-ink">{{ $b['label'] }}</label>
                         <div class="flex h-10 items-center rounded-lg border border-line bg-surface pr-3 pl-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
                             <span class="text-sm text-ink-muted">Rp</span>
-                            <input type="text" id="{{ $b['id'] }}" value="{{ $b['value'] }}" inputmode="numeric"
+                            <input type="text" id="biaya-{{ Str::slug($b['label']) }}" value="{{ $b['value'] }}" inputmode="numeric"
                                 class="h-full w-24 border-0 bg-transparent pl-2 text-right text-sm tabular-nums text-ink focus:ring-0 focus:outline-none">
                         </div>
                     </div>
@@ -79,7 +90,7 @@
             <div class="mt-4 flex items-center justify-between gap-4">
                 <label for="lama-disimpan" class="text-sm font-medium text-ink">Lama disimpan</label>
                 <div class="flex h-10 items-center rounded-lg border border-line bg-surface px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
-                    <input type="text" id="lama-disimpan" value="{{ $pengaturan['lama_file_dihapus'] }}" inputmode="numeric"
+                    <input type="text" id="lama-disimpan" value="5" inputmode="numeric"
                         class="h-full w-10 border-0 bg-transparent text-right text-sm tabular-nums text-ink focus:ring-0 focus:outline-none">
                     <span class="ml-1 text-sm text-ink-muted">hari</span>
                 </div>
@@ -90,21 +101,21 @@
         <section class="rounded-xl border border-line bg-surface p-5 shadow-sm">
             <div class="flex items-center justify-between gap-4">
                 <h2 class="text-base font-semibold text-ink">Jam operasional</h2>
-                <button type="button" id="btn-samakan-semua"
+                <button type="button"
                     class="rounded text-sm font-medium text-primary hover:text-primary-hover focus:ring-2 focus:ring-primary/30 focus:outline-none">Samakan semua</button>
             </div>
             <p class="mt-0.5 text-sm text-ink-muted">Matikan hari yang toko libur.</p>
 
             <div class="mt-3 divide-y divide-line">
                 @foreach ($hari as $h)
-                    <div class="flex flex-wrap items-center gap-3 py-3" data-hari data-nomor="{{ $h['nomor_hari'] }}" data-nama="{{ $h['nama'] }}">
-                        <x-switch :checked="$h['buka']" data-apakah-dibuka="1" />
+                    <div class="flex flex-wrap items-center gap-3 py-3">
+                        <x-switch :checked="$h['buka']" />
                         <span class="w-20 text-sm font-medium text-ink">{{ $h['nama'] }}</span>
                         <div class="flex items-center gap-2">
-                            <input type="time" value="{{ $h['mulai'] }}" data-waktu-buka aria-label="Jam buka {{ $h['nama'] }}"
+                            <input type="time" value="{{ $h['mulai'] }}" aria-label="Jam buka {{ $h['nama'] }}"
                                 class="h-9 rounded-lg border border-line bg-surface px-2 text-sm tabular-nums text-ink focus:border-primary focus:ring-2 focus:ring-primary/30 focus:outline-none">
                             <span class="text-ink-muted">&ndash;</span>
-                            <input type="time" value="{{ $h['selesai'] }}" data-waktu-tutup aria-label="Jam tutup {{ $h['nama'] }}"
+                            <input type="time" value="{{ $h['selesai'] }}" aria-label="Jam tutup {{ $h['nama'] }}"
                                 class="h-9 rounded-lg border border-line bg-surface px-2 text-sm tabular-nums text-ink focus:border-primary focus:ring-2 focus:ring-primary/30 focus:outline-none">
                         </div>
                     </div>
@@ -132,14 +143,14 @@
     {{-- Flowbite toast: konfirmasi berhasil disimpan --}}
     <div id="toast-simpan" role="alert" aria-live="polite"
         class="pointer-events-none fixed right-6 bottom-6 z-50 flex w-full max-w-xs translate-y-2 items-center rounded-lg border border-line bg-surface p-4 opacity-0 shadow-lg transition-all duration-300">
-        <div id="toast-simpan-icon" class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-success-soft text-success-strong">
+        <div class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-success-soft text-success-strong">
             <x-lucide-check class="size-4" aria-hidden="true" />
         </div>
         <div class="ms-3 text-sm font-normal text-ink">
-            <span id="toast-simpan-title" class="mb-0.5 block font-semibold">Berhasil disimpan</span>
-            <span id="toast-simpan-desc" class="text-ink-muted">Perubahan pengaturan sudah dikirim ke database.</span>
+            <span class="mb-0.5 block font-semibold">Berhasil disimpan</span>
+            <span class="text-ink-muted">Perubahan pengaturan sudah dikirim ke database.</span>
         </div>
-        <button type="button" id="toast-simpan-close" aria-label="Tutup notifikasi"
+        <button type="button" id="toast-simpan-close" data-dismiss-target="#toast-simpan" aria-label="Tutup notifikasi"
             class="ms-auto -mx-1.5 -my-1.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-muted hover:bg-muted hover:text-ink focus:ring-2 focus:ring-primary/30 focus:outline-none">
             <x-lucide-x class="size-4" aria-hidden="true" />
         </button>
@@ -155,19 +166,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const loading = document.getElementById('btn-simpan-loading');
     const toast = document.getElementById('toast-simpan');
     const tutup = document.getElementById('toast-simpan-close');
-    const statusBuka = document.getElementById('status-buka');
-    const statusBukaLabel = document.getElementById('status-buka-label');
-    const toastTitle = document.getElementById('toast-simpan-title');
-    const toastDesc = document.getElementById('toast-simpan-desc');
-    const toastIcon = document.getElementById('toast-simpan-icon');
-    const btnSamakan = document.getElementById('btn-samakan-semua');
     if (!form || !bar || !btn || !toast) return;
 
-    const csrf = document.querySelector('meta[name="csrf-token"]').content;
-    const endpoint = "{{ route('pengaturan.store') }}";
     let timerToast;
-
-    const angka = (v) => parseInt(String(v).replace(/[^0-9]/g, ''), 10) || 0;
 
     const tampilkanBar = function () {
         bar.classList.remove('hidden');
@@ -178,41 +179,12 @@ document.addEventListener('DOMContentLoaded', function () {
         clearTimeout(timerToast);
     };
 
-    const tampilkanToast = function (sukses, judul, pesan) {
-        toastIcon.className = sukses
-            ? 'inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-success-soft text-success-strong'
-            : 'inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-danger-soft text-fg-danger';
-        toastTitle.textContent = judul;
-        toastDesc.textContent = pesan;
+    const tampilkanToast = function () {
         toast.classList.remove('hidden', 'opacity-0', 'translate-y-2', 'pointer-events-none');
         clearTimeout(timerToast);
         // Toast hilang otomatis setelah 5 detik
         timerToast = setTimeout(sembunyikanToast, 5000);
     };
-
-    const perbaruiLabelStatus = function () {
-        if (!statusBuka || !statusBukaLabel) return;
-        statusBukaLabel.textContent = statusBuka.checked ? 'BUKA' : 'TUTUP';
-    };
-    perbaruiLabelStatus();
-    if (statusBuka) statusBuka.addEventListener('change', perbaruiLabelStatus);
-
-    if (btnSamakan) {
-        btnSamakan.addEventListener('click', function () {
-            const baris = document.querySelectorAll('[data-hari]');
-            if (!baris.length) return;
-
-            const mulai = baris[0].querySelector('[data-waktu-buka]').value;
-            const selesai = baris[0].querySelector('[data-waktu-tutup]').value;
-
-            baris.forEach(function (row) {
-                row.querySelector('[data-waktu-buka]').value = mulai;
-                row.querySelector('[data-waktu-tutup]').value = selesai;
-            });
-
-            tampilkanBar();
-        });
-    }
 
     form.addEventListener('input', tampilkanBar);
     form.addEventListener('change', tampilkanBar);
@@ -224,25 +196,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    const kumpulkanData = function () {
-        return {
-            status_buka: statusBuka ? statusBuka.checked : true,
-            biaya_admin: angka(document.getElementById('biaya-admin').value),
-            biaya_layanan: angka(document.getElementById('biaya-layanan').value),
-            lama_file_dihapus: angka(document.getElementById('lama-disimpan').value),
-            jam: Array.from(document.querySelectorAll('[data-hari]')).map(function (row) {
-                return {
-                    nomor_hari: parseInt(row.dataset.nomor, 10),
-                    hari: row.dataset.nama,
-                    apakah_dibuka: row.querySelector('[data-apakah-dibuka]').checked,
-                    waktu_buka: row.querySelector('[data-waktu-buka]').value || null,
-                    waktu_tutup: row.querySelector('[data-waktu-tutup]').value || null,
-                };
-            }),
-        };
-    };
-
-    btn.addEventListener('click', async function () {
+    btn.addEventListener('click', function () {
         if (btn.disabled) return;
 
         // State loading: tombol menampilkan spinner
@@ -252,37 +206,17 @@ document.addEventListener('DOMContentLoaded', function () {
         loading.classList.remove('hidden');
         loading.classList.add('inline-flex');
 
-        try {
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': csrf,
-                },
-                body: JSON.stringify(kumpulkanData()),
-            });
-
-            const data = await response.json().catch(function () { return {}; });
-
-            if (!response.ok) {
-                const pesan = data.message
-                    || (data.errors ? Object.values(data.errors).flat()[0] : null)
-                    || 'Perubahan pengaturan gagal disimpan.';
-                throw new Error(pesan);
-            }
-
-            bar.classList.add('hidden');
-            tampilkanToast(true, 'Berhasil disimpan', data.message || 'Perubahan pengaturan sudah dikirim ke database.');
-        } catch (error) {
-            tampilkanToast(false, 'Gagal menyimpan', error.message);
-        } finally {
+        // Ilustrasi proses kirim ke database
+        setTimeout(function () {
             btn.disabled = false;
             loading.classList.add('hidden');
             loading.classList.remove('inline-flex');
             label.classList.remove('hidden');
             label.classList.add('inline-flex');
-        }
+
+            bar.classList.add('hidden');
+            tampilkanToast();
+        }, 1500);
     });
 });
 </script>
