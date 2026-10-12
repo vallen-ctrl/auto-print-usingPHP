@@ -13,6 +13,10 @@ class KertasController extends Controller
         $kertas = DB::table("paper")
             ->leftJoin('configuration', 'paper.id', '=', 'configuration.paper_id')
             ->select([
+                'paper.id as id',
+                'paper.name as name',
+                'paper.width as width',
+                'paper.height as height',
                 DB::raw("CONCAT(paper.name, ' (', paper.height, '*', paper.width, ')') as ukuran"),
                 'paper.aktif as aktif', // Menggunakan kolom 'aktif' dari tabel paper
                 'paper.harga_color as berwarna',
@@ -22,8 +26,8 @@ class KertasController extends Controller
             ->groupBy(
                 'paper.id',
                 'paper.name',
-                'paper.height',
                 'paper.width',
+                'paper.height',
                 'paper.aktif',
                 'paper.harga_color',
                 'paper.harga_grayscale'
@@ -31,12 +35,19 @@ class KertasController extends Controller
             ->get()
             ->map(function ($item) {
                 return [
+                    'id'          => $item->id,
+                    'name'        => $item->name,
+                    'width'       => (int) $item->width,
+                    'height'      => (int) $item->height,
                     'ukuran'      => $item->ukuran,
                     // Memastikan nilai 'aktif' bertipe boolean (true/false)
                     'aktif'       => (bool) $item->aktif,
                     // Format angka ke mata uang "Rp. X"
                     'berwarna'    => 'Rp. ' . number_format($item->berwarna, 0, ',', '.'),
                     'hitam_putih' => 'Rp. ' . number_format($item->hitam_putih, 0, ',', '.'),
+                    // Nilai mentah (angka) untuk form edit
+                    'harga_color_raw'     => (int) $item->berwarna,
+                    'harga_grayscale_raw' => (int) $item->hitam_putih,
                     // Menambahkan suffix " order"
                     'dibeli'      => $item->dibeli . ' order',
                 ];
@@ -47,14 +58,39 @@ class KertasController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        $validated = $request->validate($this->rules(), $this->messages());
+
+        Paper::create($validated);
+
+        return redirect()->route("kertas.index")->with("success", "Sukses untuk menambahkan file");
+    }
+
+    public function update(Request $request, $id)
+    {
+        $paper = Paper::findOrFail($id);
+
+        $validated = $request->validate($this->rules(), $this->messages());
+
+        $paper->update($validated);
+
+        return redirect()->route("kertas.index")->with("success", "Sukses mengubah kertas");
+    }
+
+    private function rules(): array
+    {
+        return [
             'name'            => 'required|string|min:1|max:50',
             'width'           => 'required|integer|min:20',
             'height'          => 'required|integer|min:23',
             'harga_color'     => 'required|integer|min:1',
-            'harga_grayscale' => 'required|integer|min:1', // Sudah diperbaiki dari koma ganda
-            'aktif'          => 'required|boolean'        // Direkomendasikan pakai 'boolean'
-        ], [
+            'harga_grayscale' => 'required|integer|min:1',
+            'aktif'           => 'required|boolean',
+        ];
+    }
+
+    private function messages(): array
+    {
+        return [
             // Messages untuk 'name'
             'name.required'            => 'Nama kertas wajib diisi.',
             'name.string'              => 'Nama kertas harus berupa teks.',
@@ -84,10 +120,6 @@ class KertasController extends Controller
             // Messages untuk 'aktif'
             'aktif.required'          => 'Status aktif kertas wajib dipilih.',
             'aktif.boolean'           => 'Status aktif harus bernilai true atau false.',
-        ]);
-
-        $paper = Paper::create($validated);
-
-        return redirect()->route("kertas.index")->with("success", "Sukses untuk menambahkan file");
+        ];
     }
 }

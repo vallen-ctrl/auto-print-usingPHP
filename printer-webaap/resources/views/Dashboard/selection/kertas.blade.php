@@ -95,6 +95,91 @@
             </div>
         </div>
     </div>
+    <!-- Modal Edit -->
+    <div id="edit-kertas" data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+        <div class="relative p-4 w-full max-w-md max-h-full">
+            <!-- Modal content -->
+            <div class="relative bg-white rounded-lg shadow-sm">
+                <!-- Modal header -->
+                <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">
+                        Edit Kertas
+                    </h3>
+                    <button type="button" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center" data-modal-hide="edit-kertas">
+                        <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" />
+                        </svg>
+                        <span class="sr-only">Close modal</span>
+                    </button>
+                </div>
+                <!-- Modal body -->
+                <form id="form-edit-kertas" action="" method="POST" class="p-4 md:p-5">
+                    @csrf
+                    @method('PUT')
+                    <div class="grid gap-4 mb-4 grid-cols-2">
+                        <!-- Input Nama Kertas -->
+                        <div class="col-span-2">
+                            <label for="edit-name" class="block mb-2 text-sm font-medium text-gray-900">Nama Kertas</label>
+                            <input type="text" name="name" id="edit-name" maxlength="50" minlength="1" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5" placeholder="Contoh: Art Paper 150gr" required>
+                        </div>
+
+                        <!-- Input Width -->
+                        <div class="col-span-2 sm:col-span-1">
+                            <label for="edit-width" class="block mb-2 text-sm font-medium text-gray-900">Width (Lebar)</label>
+                            <div class="relative">
+                                <input type="number" name="width" id="edit-width" min="20" step="1" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 pe-12" placeholder="Contoh: 21" required>
+                                <span class="absolute inset-y-0 end-0 flex items-center pe-3 text-sm text-gray-500 pointer-events-none">mm</span>
+                            </div>
+                        </div>
+
+                        <!-- Input Height -->
+                        <div class="col-span-2 sm:col-span-1">
+                            <label for="edit-height" class="block mb-2 text-sm font-medium text-gray-900">Height (Tinggi)</label>
+                            <div class="relative">
+                                <input type="number" name="height" id="edit-height" min="23" step="1" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 pe-12" placeholder="Contoh: 30" required>
+                                <span class="absolute inset-y-0 end-0 flex items-center pe-3 text-sm text-gray-500 pointer-events-none">mm</span>
+                            </div>
+                        </div>
+
+                        <!-- Input Harga Color -->
+                        <div class="col-span-2 sm:col-span-1">
+                            <label for="edit-harga-color" class="block mb-2 text-sm font-medium text-gray-900">Harga Berwarna</label>
+                            <input type="number" name="harga_color" id="edit-harga-color" min="1" step="1" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5" placeholder="Rp 5000" required>
+                        </div>
+
+                        <!-- Input Harga Grayscale -->
+                        <div class="col-span-2 sm:col-span-1">
+                            <label for="edit-harga-grayscale" class="block mb-2 text-sm font-medium text-gray-900">Harga Hitam Putih</label>
+                            <input type="number" name="harga_grayscale" id="edit-harga-grayscale" min="1" step="1" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5" placeholder="Rp 2000" required>
+                        </div>
+
+                        <!-- Toggle Switch Active -->
+                        <div class="col-span-2">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="hidden" name="aktif" value="0">
+                                <input type="checkbox" name="aktif" value="1" id="edit-aktif" class="sr-only peer">
+                                <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                                <span class="ms-3 text-sm font-medium text-gray-900">Kertas status</span>
+                            </label>
+                            <p class="mt-1 text-xs text-gray-500">Matikan jika anda tidak mau kertas tampil di halaman user</p>
+                        </div>
+                    </div>
+
+                    <!-- Tombol -->
+                    <div class="w-full flex justify-end gap-3">
+                        <button type="button" data-modal-hide="edit-kertas" class="text-gray-900 inline-flex items-center bg-white border border-gray-300 hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-gray-200 font-medium rounded-lg text-sm px-5 py-2.5">
+                            Batal
+                        </button>
+                        <button type="submit" class="text-white inline-flex items-center bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center">
+                            <x-lucide-save class="me-1 -ms-1 w-5 h-5" />
+                            Simpan Perubahan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {{-- Header --}}
     <div class="flex items-start justify-between gap-4">
         <h1 class="text-2xl font-semibold text-ink">Kertas</h1>
@@ -151,7 +236,14 @@
             </p>
 
             <div class="mt-auto pt-4">
-                <button type="button"
+                <button type="button" data-modal-target="edit-kertas" data-modal-toggle="edit-kertas"
+                    data-id="{{ $k['id'] }}"
+                    data-name="{{ $k['name'] }}"
+                    data-width="{{ $k['width'] }}"
+                    data-height="{{ $k['height'] }}"
+                    data-harga-color="{{ $k['harga_color_raw'] }}"
+                    data-harga-grayscale="{{ $k['harga_grayscale_raw'] }}"
+                    data-aktif="{{ $k['aktif'] ? 1 : 0 }}"
                     class="inline-flex h-10 w-full items-center justify-center rounded-lg border border-line bg-surface text-sm font-medium text-ink transition-colors hover:bg-muted focus:ring-2 focus:ring-primary/30 focus:outline-none">
                     Edit
                 </button>
@@ -172,6 +264,24 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Isi modal edit sesuai data kartu yang tombol Edit-nya diklik.
+        const formEdit = document.getElementById('form-edit-kertas');
+
+        document.querySelectorAll('[data-modal-target="edit-kertas"]').forEach(function(button) {
+            button.addEventListener('click', function() {
+                if (!formEdit) return;
+
+                formEdit.action = "{{ route('kertas.perbarui', ['id' => '__ID__']) }}".replace('__ID__', button.dataset.id);
+
+                document.getElementById('edit-name').value = button.dataset.name || '';
+                document.getElementById('edit-width').value = button.dataset.width || '';
+                document.getElementById('edit-height').value = button.dataset.height || '';
+                document.getElementById('edit-harga-color').value = button.dataset.hargaColor || '';
+                document.getElementById('edit-harga-grayscale').value = button.dataset.hargaGrayscale || '';
+                document.getElementById('edit-aktif').checked = button.dataset.aktif === '1';
+            });
+        });
+
         const input = document.getElementById('kertas-search');
         const cards = document.querySelectorAll('[data-card]');
         const kosong = document.getElementById('kertas-empty');

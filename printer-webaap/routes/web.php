@@ -65,6 +65,7 @@ Route::prefix('dashboard')->middleware([\App\http\Middleware\VerifyTokenMiddlewa
     //kertas
     Route::get('/kertas', [\App\Http\Controllers\KertasController::class, "get"])->name("kertas.index");
     Route::post('/kertas/add', [\App\http\Controllers\KertasController::class,"store"])->name("kertas.store");
+    Route::put('/kertas/{id}', [\App\Http\Controllers\KertasController::class, "update"])->name("kertas.perbarui");
     //komputer
     Route::get('/komputer', [\App\Http\Controllers\KomputerController::class, "get"])->name("komputer.index");
     Route::post('/komputer/add', [\App\http\Controllers\KomputerController::class, "store"])->name("komputer.post");
