@@ -113,6 +113,18 @@ if (backButton) {
 // Tanpa server, objek File tidak bisa dibawa antar halaman. Jadi yang disimpan
 // hanya nama filenya, supaya halaman formulir tetap bisa menampilkan daftarnya.
 const FILE_STORAGE_KEY = 'printer:file-names';
+const FORM_STORAGE_KEY = 'printer:formulir-terjadwal';
+
+// Aturan: halaman upload selalu memulai dari nol. Begitu halaman ini dibuka,
+// semua konfigurasi formulir yang tersimpan dibersihkan.
+if (document.getElementById('input-pdf')) {
+    try {
+        localStorage.removeItem(FORM_STORAGE_KEY);
+        sessionStorage.removeItem(FILE_STORAGE_KEY);
+    } catch (error) {
+        // Penyimpanan browser tidak tersedia: tidak masalah.
+    }
+}
 
 const bacaNamaFile = () => {
     try {
@@ -379,7 +391,31 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         paket: []
     });
 
+    // Baca/tulis konfigurasi seluruh file ke localStorage supaya pilihan tetap
+    // ada saat halaman dimuat ulang.
+    const bacaKonfigurasi = () => {
+        try {
+            const raw = localStorage.getItem(FORM_STORAGE_KEY);
+            return raw ? JSON.parse(raw) : {};
+        } catch (error) {
+            return {};
+        }
+    };
+
+    const tulisKonfigurasi = () => {
+        try {
+            localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify({
+                fileAktif: fileAktif,
+                files: Object.fromEntries(pengaturanPerFile)
+            }));
+        } catch (error) {
+            // Penyimpanan browser tidak tersedia: konfigurasi tidak persist.
+        }
+    };
+
     const namaFile = bacaNamaFile();
+    const tersimpan = bacaKonfigurasi();
+    const simpanan = tersimpan && tersimpan.files ? tersimpan.files : {};
     const pengaturanPerFile = new Map();
     let fileAktif = null;
 
@@ -435,6 +471,7 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
     const simpanFileAktif = () => {
         if (fileAktif) {
             pengaturanPerFile.set(fileAktif, bacaPengaturan());
+            tulisKonfigurasi();
         }
     };
 
@@ -444,11 +481,15 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         item.textContent = potongNama(name);
         item.title = name;
         fileCombo.append(item);
+
+        // Muat konfigurasi tersimpan untuk file ini, atau pakai nilai awal.
+        pengaturanPerFile.set(name, simpanan[name] || pengaturanAwal());
     });
 
     if (namaFile.length > 0) {
-        fileAktif = namaFile[0];
-        pengaturanPerFile.set(fileAktif, pengaturanAwal());
+        fileAktif = (tersimpan.fileAktif && namaFile.includes(tersimpan.fileAktif))
+            ? tersimpan.fileAktif
+            : namaFile[0];
         fileCombo.setAttribute('selected', fileAktif);
     }
 
@@ -468,6 +509,7 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         const state = pengaturanPerFile.get(nama) || pengaturanAwal();
         pengaturanPerFile.set(nama, state);
         tulisPengaturan(state);
+        tulisKonfigurasi();
     });
 
     // Perubahan pengaturan disimpan ke file yang sedang dipilih.
@@ -504,9 +546,10 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         });
     });
 
-    // Terapkan state file pertama (termasuk paket) lalu hitung sub totalnya.
+    // Terapkan state file aktif (termasuk paket) lalu hitung sub totalnya.
     if (fileAktif) {
         tulisPengaturan(pengaturanPerFile.get(fileAktif));
+        tulisKonfigurasi();
     } else {
         hitungSubTotal();
     }

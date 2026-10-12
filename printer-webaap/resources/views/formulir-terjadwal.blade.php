@@ -17,6 +17,13 @@
             <div class="logo-placeholder" role="img" aria-label="Logo jasa">logo jasa</div>
             <p class="brand-name">nama print</p>
         </div>
+
+        <wired-button roughness="1.2" elevation="1" id="btn-kembali" class="back-button" data-fallback="{{ url('/') }}">
+            <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M15 5 8 12l7 7" />
+            </svg>
+            Kembali
+        </wired-button>
     </header>
 
     <main class="page-main">
