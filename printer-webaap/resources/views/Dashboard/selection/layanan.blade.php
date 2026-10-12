@@ -160,9 +160,14 @@
     <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         @foreach ($layanan as $l)
         <div data-card class="flex flex-col rounded-xl border border-line bg-surface p-4 shadow-sm">
-            <div class="flex h-32 items-center justify-center rounded-lg border border-dashed border-line bg-muted/40 text-sm text-ink-muted">
-                gambar
+            @if (!empty($l['gambar']) && $l['gambar'] !== '-' && \Illuminate\Support\Facades\Storage::disk('public')->exists($l['gambar']))
+            <img src="{{ asset('storage/' . $l['gambar']) }}" alt="{{ $l['nama'] }}"
+                class="h-32 w-full rounded-lg border border-line object-cover">
+            @else
+            <div class="flex h-32 items-center justify-center rounded-lg border border-dashed border-line bg-muted/40 text-ink-muted">
+                <x-lucide-image class="size-8" aria-hidden="true" />
             </div>
+            @endif
 
             <div class="my-3 border-t border-line"></div>
 

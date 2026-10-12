@@ -25,9 +25,10 @@ class LayananController extends Controller
                 'layanan.harga as harga',
                 'layanan.aktif as status',
                 'layanan.jumlah as stok',
+                'layanan.image_path as gambar',
                 DB::raw('COUNT(layanan_terpilih.id) as dibeli')
             ])
-            ->groupBy('layanan.id', 'layanan.nama', 'layanan.harga', 'layanan.aktif', 'layanan.jumlah')
+            ->groupBy('layanan.id', 'layanan.nama', 'layanan.harga', 'layanan.aktif', 'layanan.jumlah', 'layanan.image_path')
             ->get()
             ->map(function ($item) {
                 return [
@@ -40,6 +41,8 @@ class LayananController extends Controller
                     'stok'   => (string) $item->stok,
                     // Menambahkan teks " order" di belakang angka jumlah dibeli
                     'dibeli' => $item->dibeli . ' order',
+                    // Path gambar yang tersimpan di storage/app/public
+                    'gambar' => $item->gambar,
                 ];
             });
         return view("Dashboard.selection.layanan", compact('layanan'));
