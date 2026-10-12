@@ -55,4 +55,5 @@ Route::prefix('dashboard')->middleware([\App\http\Middleware\VerifyTokenMiddlewa
     Route::get('/komputer/destroy/{id}', [\App\http\Controllers\KomputerController::class, "destroy"])->name("komputer.destroy");
     //pengaturan
     Route::get('/pengaturan', [\App\Http\Controllers\PengaturanController::class, "get"])->name("pengaturan.index");
+    Route::post('/pengaturan', [\App\Http\Controllers\PengaturanController::class, "store"])->name("pengaturan.store");
 });
