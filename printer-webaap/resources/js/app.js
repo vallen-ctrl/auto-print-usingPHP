@@ -113,6 +113,18 @@ if (backButton) {
 // Tanpa server, objek File tidak bisa dibawa antar halaman. Jadi yang disimpan
 // hanya nama filenya, supaya halaman formulir tetap bisa menampilkan daftarnya.
 const FILE_STORAGE_KEY = 'printer:file-names';
+const FORM_STORAGE_KEY = 'printer:formulir-terjadwal';
+
+// Aturan: halaman upload selalu memulai dari nol. Begitu halaman ini dibuka,
+// semua konfigurasi formulir yang tersimpan dibersihkan.
+if (document.getElementById('input-pdf')) {
+    try {
+        localStorage.removeItem(FORM_STORAGE_KEY);
+        sessionStorage.removeItem(FILE_STORAGE_KEY);
+    } catch (error) {
+        // Penyimpanan browser tidak tersedia: tidak masalah.
+    }
+}
 
 const bacaNamaFile = () => {
     try {
@@ -271,15 +283,78 @@ if (pickButton && pdfInput && pdfCount && pdfList && pdfWarning) {
     const lanjutButton = document.getElementById('btn-lanjutkan');
 
     if (lanjutButton) {
-        lanjutButton.addEventListener('click', () => {
+        let mengirim = false;
+
+        lanjutButton.addEventListener('click', async () => {
+            if (mengirim) {
+                return;
+            }
+
+            if (chosen.length === 0) {
+                pdfWarning.textContent = 'Pilih minimal satu file PDF dulu.';
+                pdfWarning.hidden = false;
+                return;
+            }
+
+            // Simpan nama file supaya halaman formulir tetap bisa menampilkan daftarnya.
             try {
                 sessionStorage.setItem(FILE_STORAGE_KEY, JSON.stringify(chosen.map((file) => file.name)));
             } catch (error) {
                 // Penyimpanan browser tidak tersedia: halaman formulir tetap bisa dibuka.
             }
 
-            if (lanjutButton.dataset.next) {
-                window.location.href = lanjutButton.dataset.next;
+            const action = lanjutButton.dataset.action;
+
+            // Kalau endpoint belum tersedia, kembali ke perilaku navigasi lama.
+            if (!action) {
+                if (lanjutButton.dataset.next) {
+                    window.location.href = lanjutButton.dataset.next;
+                }
+                return;
+            }
+
+            // Kirim file yang dipilih ke server. Satu kali upload hanya boleh
+            // maksimal 10 file dan semuanya PDF (validasi juga diulang di server).
+            const formData = new FormData();
+
+            chosen.forEach((file) => formData.append('files[]', file));
+
+            mengirim = true;
+
+            try {
+                const response = await fetch(action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': lanjutButton.dataset.token || '',
+                        Accept: 'application/json',
+                    },
+                    body: formData,
+                });
+
+                // Server mengarahkan ke halaman berikutnya dengan order id.
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+
+                const data = await response.json().catch(() => ({}));
+
+                if (response.ok) {
+                    window.location.href = data.redirect || lanjutButton.dataset.next;
+                    return;
+                }
+
+                const pesan = data.message
+                    || (data.errors ? Object.values(data.errors).flat()[0] : null)
+                    || 'Upload gagal. Coba lagi.';
+
+                pdfWarning.textContent = pesan;
+                pdfWarning.hidden = false;
+            } catch (error) {
+                pdfWarning.textContent = 'Tidak bisa menghubungi server. Coba lagi.';
+                pdfWarning.hidden = false;
+            } finally {
+                mengirim = false;
             }
         });
     }
@@ -302,6 +377,9 @@ const kolomPengaturan = {
 };
 
 if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
+    const paketChecks = Array.from(document.querySelectorAll('.paket-check'));
+    const subTotal = document.getElementById('sub-total');
+
     const pengaturanAwal = () => ({
         orientasi: 'portrait',
         ukuran: 'a4',
@@ -309,16 +387,56 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         kualitas: 'standar',
         jumlah: '1',
         halaman: '',
-        catatan: ''
+        catatan: '',
+        paket: []
     });
 
+    // Baca/tulis konfigurasi seluruh file ke localStorage supaya pilihan tetap
+    // ada saat halaman dimuat ulang.
+    const bacaKonfigurasi = () => {
+        try {
+            const raw = localStorage.getItem(FORM_STORAGE_KEY);
+            return raw ? JSON.parse(raw) : {};
+        } catch (error) {
+            return {};
+        }
+    };
+
+    const tulisKonfigurasi = () => {
+        try {
+            localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify({
+                fileAktif: fileAktif,
+                files: Object.fromEntries(pengaturanPerFile)
+            }));
+        } catch (error) {
+            // Penyimpanan browser tidak tersedia: konfigurasi tidak persist.
+        }
+    };
+
     const namaFile = bacaNamaFile();
+    const tersimpan = bacaKonfigurasi();
+    const simpanan = tersimpan && tersimpan.files ? tersimpan.files : {};
     const pengaturanPerFile = new Map();
     let fileAktif = null;
 
     // Nama panjang dipendekkan di dropdown supaya kotaknya tidak melebar;
     // nama lengkapnya tetap ada di tooltip.
     const potongNama = (name) => (name.length > 26 ? name.slice(0, 23) + '…' : name);
+
+    // Sub total dihitung dari paket yang dicentang pada file yang sedang aktif.
+    const hitungSubTotal = () => {
+        let total = 0;
+
+        paketChecks.forEach((box) => {
+            if (box.checked) {
+                total += Number(box.dataset.harga) || 0;
+            }
+        });
+
+        if (subTotal) {
+            subTotal.textContent = total.toLocaleString('id-ID');
+        }
+    };
 
     const bacaPengaturan = () => ({
         orientasi: kolomPengaturan.orientasi.selected,
@@ -327,7 +445,8 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         kualitas: kolomPengaturan.kualitas.selected,
         jumlah: kolomPengaturan.jumlah.value,
         halaman: kolomPengaturan.halaman.value,
-        catatan: kolomPengaturan.catatan.value
+        catatan: kolomPengaturan.catatan.value,
+        paket: paketChecks.filter((box) => box.checked).map((box) => box.dataset.id)
     });
 
     const tulisPengaturan = (state) => {
@@ -338,11 +457,21 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         kolomPengaturan.jumlah.value = state.jumlah;
         kolomPengaturan.halaman.value = state.halaman;
         kolomPengaturan.catatan.value = state.catatan;
+
+        // Pilihan paket (layanan) juga melekat per file.
+        const dipilih = state.paket || [];
+
+        paketChecks.forEach((box) => {
+            box.checked = dipilih.includes(box.dataset.id);
+        });
+
+        hitungSubTotal();
     };
 
     const simpanFileAktif = () => {
         if (fileAktif) {
             pengaturanPerFile.set(fileAktif, bacaPengaturan());
+            tulisKonfigurasi();
         }
     };
 
@@ -352,11 +481,15 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         item.textContent = potongNama(name);
         item.title = name;
         fileCombo.append(item);
+
+        // Muat konfigurasi tersimpan untuk file ini, atau pakai nilai awal.
+        pengaturanPerFile.set(name, simpanan[name] || pengaturanAwal());
     });
 
     if (namaFile.length > 0) {
-        fileAktif = namaFile[0];
-        pengaturanPerFile.set(fileAktif, pengaturanAwal());
+        fileAktif = (tersimpan.fileAktif && namaFile.includes(tersimpan.fileAktif))
+            ? tersimpan.fileAktif
+            : namaFile[0];
         fileCombo.setAttribute('selected', fileAktif);
     }
 
@@ -376,6 +509,7 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         const state = pengaturanPerFile.get(nama) || pengaturanAwal();
         pengaturanPerFile.set(nama, state);
         tulisPengaturan(state);
+        tulisKonfigurasi();
     });
 
     // Perubahan pengaturan disimpan ke file yang sedang dipilih.
@@ -386,27 +520,14 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
     ['jumlah', 'halaman', 'catatan'].forEach((key) => {
         kolomPengaturan[key].addEventListener('change', simpanFileAktif);
     });
-}
 
-/* ---------- Sub total paket di halaman formulir ---------- */
-
-const subTotal = document.getElementById('sub-total');
-const paketChecks = Array.from(document.querySelectorAll('.paket-check'));
-
-if (subTotal && paketChecks.length > 0) {
-    const hitungSubTotal = () => {
-        let total = 0;
-
-        paketChecks.forEach((box) => {
-            if (box.checked) {
-                total += Number(box.dataset.harga) || 0;
-            }
+    // Mencentang paket menyimpan pilihan itu ke file yang sedang aktif.
+    paketChecks.forEach((box) => {
+        box.addEventListener('change', () => {
+            simpanFileAktif();
+            hitungSubTotal();
         });
-
-        subTotal.textContent = total.toLocaleString('id-ID');
-    };
-
-    paketChecks.forEach((box) => box.addEventListener('change', hitungSubTotal));
+    });
 
     // Seluruh baris paket bisa diklik supaya area sentuhnya lebih lega.
     document.querySelectorAll('.paket-item').forEach((item) => {
@@ -419,12 +540,19 @@ if (subTotal && paketChecks.length > 0) {
 
             if (box) {
                 box.checked = !box.checked;
+                simpanFileAktif();
                 hitungSubTotal();
             }
         });
     });
 
-    hitungSubTotal();
+    // Terapkan state file aktif (termasuk paket) lalu hitung sub totalnya.
+    if (fileAktif) {
+        tulisPengaturan(pengaturanPerFile.get(fileAktif));
+        tulisKonfigurasi();
+    } else {
+        hitungSubTotal();
+    }
 }
 
 /* ---------- Validasi isi formulir ---------- */

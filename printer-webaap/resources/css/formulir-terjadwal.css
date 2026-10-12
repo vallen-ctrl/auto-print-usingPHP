@@ -96,6 +96,23 @@ body {
     letter-spacing: -0.005em;
 }
 
+/* Tombol kembali: kecil, hanya selebar isinya, dan rata kanan di kepala halaman. */
+wired-button.back-button {
+    display: inline-grid;
+    margin-left: auto;
+    min-height: 44px;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--fs-caption);
+}
+
+.back-icon {
+    width: 14px;
+    height: 14px;
+    margin-right: var(--space-1);
+    vertical-align: -2px;
+}
+
 /* ---------- Isi halaman ---------- */
 
 .page-main {
@@ -272,6 +289,13 @@ wired-item {
 .paket-thumb-icon {
     width: 22px;
     height: 22px;
+}
+
+.paket-thumb-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 6px;
+    object-fit: cover;
 }
 
 .paket-info {

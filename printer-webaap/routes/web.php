@@ -3,7 +3,15 @@
 use Illuminate\Support\Facades\Route;
 
 
-Route::get('/', function () {
+Route::get('/', function (\Illuminate\Http\Request $request) {
+    $order = $request->session()->get(\App\Http\Controllers\UploadTerjadwalController::SESSION_KEY);
+
+    // User sudah punya order terjadwal yang belum selesai: lanjutkan ke
+    // formulir dengan order id tersebut, bukan memulai dari awal.
+    if ($order) {
+        return redirect()->route('formulir.terjadwal', ['order' => $order]);
+    }
+
     return view('beranda');
 });
 
@@ -17,8 +25,9 @@ Route::post('/dashboard/admin/signup', [\App\http\Controllers\signupControler::c
 
 
 // alur cetak terjadwal
-Route::view('/upload/terjadwal', 'upload-terjadwal')->name('upload.terjadwal');
-Route::view('/formulir/terjadwal', 'formulir-terjadwal')->name('formulir.terjadwal');
+Route::get('/upload/terjadwal', [\App\Http\Controllers\UploadTerjadwalController::class, 'show'])->name('upload.terjadwal');
+Route::post('/upload/terjadwal', [\App\Http\Controllers\UploadTerjadwalController::class, 'store'])->name('upload.terjadwal.store');
+Route::get('/formulir/terjadwal', [\App\Http\Controllers\FormulirTerjadwalController::class, 'get'])->name('formulir.terjadwal');
 
 //-------------------------------------------------------------------------------------------------------------------------------------
 Route::prefix('dashboard')->middleware([\App\http\Middleware\VerifyTokenMiddleware::class])->group(function () {
@@ -44,6 +53,7 @@ Route::prefix('dashboard')->middleware([\App\http\Middleware\VerifyTokenMiddlewa
     //Layanan
     Route::get('/layanan', [\App\Http\Controllers\LayananController::class, "get"])->name("layanan.index");
     Route::post('/layanan/add', [\App\Http\Controllers\LayananController::class, "store"])->name("layanan.post");
+    Route::put('/layanan/{id}', [\App\Http\Controllers\LayananController::class, "update"])->name("layanan.perbarui");
 
     //kertas
     Route::get('/kertas', [\App\Http\Controllers\KertasController::class, "get"])->name("kertas.index");

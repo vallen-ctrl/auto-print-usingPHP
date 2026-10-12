@@ -17,6 +17,13 @@
             <div class="logo-placeholder" role="img" aria-label="Logo jasa">logo jasa</div>
             <p class="brand-name">nama print</p>
         </div>
+
+        <wired-button roughness="1.2" elevation="1" id="btn-kembali" class="back-button" data-fallback="{{ route('upload.terjadwal') }}">
+            <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M15 5 8 12l7 7" />
+            </svg>
+            Kembali
+        </wired-button>
     </header>
 
     <main class="page-main">
@@ -107,64 +114,36 @@
                         <wired-input roughness="1.2" id="catatan" name="catatan"></wired-input>
                     </div>
 
+                    @if ($layanan->isNotEmpty())
                     <fieldset class="fieldset">
                         <legend class="field-label">Pilih paket</legend>
                         <ul class="paket-list">
+                            @foreach ($layanan as $p)
                             <li class="paket-item">
                                 <span class="paket-thumb" aria-hidden="true">
+                                    @if (!empty($p->image_path) && $p->image_path !== '-' && \Illuminate\Support\Facades\Storage::disk('public')->exists($p->image_path))
+                                    <img class="paket-thumb-img" src="{{ asset('storage/' . $p->image_path) }}" alt="">
+                                    @else
                                     <svg class="paket-thumb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
                                         <rect x="3" y="4" width="18" height="16" rx="3" />
                                         <path d="M3.5 15.5 8 11l4 4 3-3 5 4.5" />
                                         <circle cx="9" cy="8.5" r="1.3" />
                                     </svg>
+                                    @endif
                                 </span>
                                 <span class="paket-info">
-                                    <span class="paket-name">Paket1</span>
-                                    <span class="paket-desc">Keterangan</span>
+                                    <span class="paket-name">{{ $p->nama }}</span>
+                                    <span class="paket-desc">{{ $p->deskripsi }}</span>
                                 </span>
-                                <span class="paket-price">Rp. 2.000</span>
-                                <wired-checkbox roughness="1.2" class="paket-check" data-harga="2000" checked>
-                                    <span class="visually-hidden">Pilih Paket1</span>
+                                <span class="paket-price">Rp. {{ number_format($p->harga, 0, ',', '.') }}</span>
+                                <wired-checkbox roughness="1.2" class="paket-check" data-id="{{ $p->id }}" data-harga="{{ $p->harga }}">
+                                    <span class="visually-hidden">Pilih {{ $p->nama }}</span>
                                 </wired-checkbox>
                             </li>
-
-                            <li class="paket-item">
-                                <span class="paket-thumb" aria-hidden="true">
-                                    <svg class="paket-thumb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-                                        <rect x="3" y="4" width="18" height="16" rx="3" />
-                                        <path d="M3.5 15.5 8 11l4 4 3-3 5 4.5" />
-                                        <circle cx="9" cy="8.5" r="1.3" />
-                                    </svg>
-                                </span>
-                                <span class="paket-info">
-                                    <span class="paket-name">Paket1</span>
-                                    <span class="paket-desc">Keterangan</span>
-                                </span>
-                                <span class="paket-price">Rp. 2.000</span>
-                                <wired-checkbox roughness="1.2" class="paket-check" data-harga="2000" checked>
-                                    <span class="visually-hidden">Pilih Paket1</span>
-                                </wired-checkbox>
-                            </li>
-
-                            <li class="paket-item">
-                                <span class="paket-thumb" aria-hidden="true">
-                                    <svg class="paket-thumb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-                                        <rect x="3" y="4" width="18" height="16" rx="3" />
-                                        <path d="M3.5 15.5 8 11l4 4 3-3 5 4.5" />
-                                        <circle cx="9" cy="8.5" r="1.3" />
-                                    </svg>
-                                </span>
-                                <span class="paket-info">
-                                    <span class="paket-name">Paket1</span>
-                                    <span class="paket-desc">Keterangan</span>
-                                </span>
-                                <span class="paket-price">Rp. 2.000</span>
-                                <wired-checkbox roughness="1.2" class="paket-check" data-harga="2000">
-                                    <span class="visually-hidden">Pilih Paket1</span>
-                                </wired-checkbox>
-                            </li>
+                            @endforeach
                         </ul>
                     </fieldset>
+                    @endif
 
                     <div class="form-footer">
                         <wired-button roughness="1.2" elevation="1" id="btn-pembayaran" class="pay-button">Lanjut proses pembayaran</wired-button>

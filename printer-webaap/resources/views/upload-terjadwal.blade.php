@@ -56,7 +56,7 @@
 
                     {{-- Angka pada keterangan di atas harus sama dengan data-max di bawah. --}}
                     <label class="visually-hidden" for="input-pdf">Pilih file PDF (maksimal 10 file)</label>
-                    <input type="file" id="input-pdf" class="visually-hidden" accept="application/pdf, .pdf" data-max="10" multiple>
+                    <input type="file" id="input-pdf" name="files[]" class="visually-hidden" accept="application/pdf, .pdf" data-max="10" multiple>
 
                     <wired-button roughness="1.2" elevation="1" id="btn-pilih-pdf" class="pick-button">
                         Pilih File PDF Sekarang
@@ -69,7 +69,7 @@
             </wired-card>
 
             <div class="next-step">
-                <wired-button roughness="1.2" elevation="1" id="btn-lanjutkan" class="next-button" data-next="{{ route('formulir.terjadwal') }}">Lanjutkan</wired-button>
+                <wired-button roughness="1.2" elevation="1" id="btn-lanjutkan" class="next-button" data-next="{{ route('formulir.terjadwal') }}" data-action="{{ route('upload.terjadwal.store') }}" data-token="{{ csrf_token() }}">Lanjutkan</wired-button>
             </div>
         </div>
     </main>
