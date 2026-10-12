@@ -39,6 +39,8 @@ Route::middleware(['api', VerifyTokenMiddleware::class])->group(function () {
 
 });
 
+Route::get('/trial', [\App\Http\Controllers\Api\UserController::class, 'tiral']);
+
 Route::middleware('api')->group(function () {
     // User
     Route::post('/user', [\App\Http\Controllers\Api\UserController::class, 'store']);

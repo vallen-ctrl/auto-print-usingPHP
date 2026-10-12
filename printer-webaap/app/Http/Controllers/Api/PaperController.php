@@ -18,6 +18,7 @@ class PaperController extends Controller
             'height' => 'required|integer|min:23',
             'harga_color' => 'required|integer|min:1',
             'harga_grayscale' => 'required|integer|min:1',
+            'active' => 'required'
         ]);
 
         $paper = Paper::create($validated);

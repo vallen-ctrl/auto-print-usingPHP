@@ -19,6 +19,9 @@ class Layanan extends Model
         'nama',
         'deskripsi',
         'harga',
+        'jumlah',
+        'aktif',
+        'image_path'
     ];
 
     protected $casts = [
