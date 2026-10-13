@@ -10,36 +10,6 @@ use Illuminate\Support\Facades\Cache;
 
 class ComputerController extends Controller
 {
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:100',
-        ]);
-
-        $Toko = Cache::get("admin", null)["tokoid"] ?? null;
-        if ($Toko == null) return response()->json([
-            "message" => "unable to find toko id, please relogin again",
-            "error" => true,
-            "data" => hex2bin($Toko)
-        ], 401);
-
-        $id = Str::uuid();
-        $token = random_bytes(16);
-
-        $validated["toko_id"] = $Toko;
-
-        $computer = Computer::create([
-            'id' => $id->getBytes(),
-            'name' => substr($validated['name'], 0, 100),
-            'token' => $token,
-            'toko_id' => hex2bin($validated['toko_id']),
-        ]);
-
-        return response()->json([
-            'token' => bin2hex($token),
-            'id' => $id->toString(),
-        ], 201);
-    }
 
     public function serverSendEvent(Request $request)
     {
@@ -87,53 +57,4 @@ class ComputerController extends Controller
         });
     }
 
-    public function destroy(string $id)
-    {
-        $computer = Computer::findOrFail(hex2bin($id));
-        $computer->delete();
-
-        return response()->json(['message' => 'Deleted']);
-    }
-
-    public function getByToken(Request $request)
-    {
-        $token = $request->query('token');
-
-        if (!$token) {
-            return response()->json(['message' => 'Token required'], 422);
-        }
-
-        $computer = Computer::where('token', hex2bin($token))->first();
-
-        if (!$computer) {
-            return response()->json(null);
-        }
-
-        return response()->json([
-            'token' => bin2hex($computer->token),
-            'id' => bin2hex($computer->id),
-        ]);
-    }
-
-    public function getById(string $id)
-    {
-        $computer = Computer::findOrFail(hex2bin($id));
-
-        return response()->json([
-            'id' => strtolower(bin2hex($computer->id)),
-            'name' => $computer->name,
-            'toko_id' => strtolower(bin2hex($computer->toko_id)),
-            'status' => $computer->status,
-            'token' => strtolower(bin2hex($computer->token)),
-            'tanggal_dibuat' => $computer->tanggal_dibuat,
-        ]);
-    }
-
-    public function index()
-    {
-        $computers = Computer::selectRaw('LOWER(HEX(id)) as id, name, LOWER(HEX(toko_id)) as toko_id, status, LOWER(HEX(token)) as token, tanggal_dibuat')
-            ->get();
-
-        return response()->json($computers);
-    }
 }
