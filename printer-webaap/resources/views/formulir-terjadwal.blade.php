@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Patrick+Hand&display=swap" rel="stylesheet">
 
-    @vite(['resources/css/formulir-terjadwal.css', 'resources/js/app.js'])
+    @vite(['resources/css/formulir-terjadwal.css', 'resources/js/pages/formulir-terjadwal.js'])
 </head>
 <body>
     <header class="site-header">
@@ -73,19 +73,22 @@
                         </wired-radio-group>
                     </fieldset>
 
+                    @if($paper->isNotEmpty())
                     <fieldset class="fieldset">
                         <legend class="field-label">Ukuran</legend>
-                        <wired-radio-group roughness="1.2" id="grup-ukuran" selected="a4">
-                            <wired-radio roughness="1.2" name="a4">A4 (210 x 297 mm)</wired-radio>
-                            <wired-radio roughness="1.2" name="f4">F4 (210 x 330 mm)</wired-radio>
+                        <wired-radio-group roughness="1.2" id="grup-ukuran" selected="{{ $paper->first()->name }}">
+                            @foreach ($paper as $pp)
+                                <wired-radio roughness="1.2" name="{{$pp->name}}" data-harga-color="{{ $pp->harga_color }}" data-harga-grayscale="{{ $pp->harga_grayscale }}">{{$pp->name}} ({{$pp->width}} mm x {{$pp->height}} mm)</wired-radio>
+                            @endforeach
                         </wired-radio-group>
                     </fieldset>
-
+                    @endif
+                    
                     <fieldset class="fieldset">
                         <legend class="field-label">Warna</legend>
                         <wired-radio-group roughness="1.2" id="grup-warna" selected="hitam-putih">
-                            <wired-radio roughness="1.2" name="hitam-putih">Hitam putih</wired-radio>
-                            <wired-radio roughness="1.2" name="berwarna">Berwarna</wired-radio>
+                            <wired-radio roughness="1.2" name="hitam-putih">Hitam putih<span class="warna-harga" data-harga-untuk="hitam-putih"></span></wired-radio>
+                            <wired-radio roughness="1.2" name="berwarna">Berwarna<span class="warna-harga" data-harga-untuk="berwarna"></span></wired-radio>
                         </wired-radio-group>
                     </fieldset>
 

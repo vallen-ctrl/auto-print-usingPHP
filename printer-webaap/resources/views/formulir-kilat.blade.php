@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Formulir Cetak Kilat</title>
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Patrick+Hand&display=swap" rel="stylesheet">
-    @vite(['resources/css/formulir-kilat.css', 'resources/js/app.js'])
+    @vite(['resources/css/formulir-kilat.css', 'resources/js/pages/formulir-kilat.js'])
 </head>
 <body>
     <div class="page">

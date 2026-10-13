@@ -7,6 +7,8 @@ use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Smalot\PdfParser\Parser;
+use Illuminate\Support\Facades\Storage;
 
 class UploadTerjadwalController extends Controller
 {
@@ -45,20 +47,32 @@ class UploadTerjadwalController extends Controller
         $orderId  = Str::uuid7()->getBytes();
         $orderHex = bin2hex($orderId);
 
-        DB::transaction(function () use ($request, $orderId, $orderHex) {
+        $files = [];
+
+        DB::transaction(function () use ($request, $orderId, $orderHex, &$files) {
             Order::create([
                 'id'            => $orderId,
                 'tanggal_ambil' => now(),
                 'status_pembayaran' => 'pending',
             ]);
-
+            $pdf = new Parser();
             foreach ($request->file('files') as $file) {
                 $path = $file->store("orders/{$orderHex}", 'local');
+                $pages = $pdf->parseFile(Storage::disk('local')->path($path))->getPages();
+                $fileid = Str::uuid7()->getBytes();
+                $filename = $file->getClientOriginalName();
+
+                $files[] = [
+                    "id" => $fileid,
+                    "name" => $filename,
+                    "total_pages" => count($pages)
+                ];
 
                 File::create([
-                    'id'       => Str::uuid7()->getBytes(),
-                    'name'     => $file->getClientOriginalName(),
+                    'id'       => $fileid,
+                    'name'     => $filename,
                     'path'     => $path,
+                    'total_pages' => count($pages),
                     'size'     => $file->getSize(),
                     'mime'     => 'application/pdf',
                     'order_id' => $orderId,
@@ -71,6 +85,22 @@ class UploadTerjadwalController extends Controller
         // tidak membuka halaman upload lagi.
         $request->session()->put(self::SESSION_KEY, $orderHex);
 
-        return redirect()->route('formulir.terjadwal', ['order' => $orderHex]);
+        // Data ringkas untuk browser: id file (hex), nama, dan jumlah halaman.
+        $payload = array_map(fn ($f) => [
+            'id'          => bin2hex($f['id']),
+            'name'        => $f['name'],
+            'total_pages' => $f['total_pages'],
+        ], $files);
+
+        // Upload lewat fetch(): balas JSON supaya daftar file bisa disimpan di
+        // browser (localStorage) sebelum pindah halaman.
+        if ($request->expectsJson()) {
+            return response()->json([
+                'redirect' => route('formulir.terjadwal', ['order' => $orderHex]),
+                'callback' => $payload,
+            ]);
+        }
+
+        return redirect()->route('formulir.terjadwal', ['order' => $orderHex])->with('callback', $payload);
     }
 }
