@@ -11,35 +11,33 @@ use Symfony\Component\HttpFoundation\Response;
 class VerifyTokenMiddleware
 {
     public function handle(Request $request, Closure $next): Response
-    {
-   
-        $sessionData = $request->session()->get('session');
-        $inputToken = $sessionData['token'] ?? $request->bearerToken() ?? null;
+{
+    $sessionData = $request->session()->get('session');
+    $inputToken  = $sessionData['token'] ?? $request->bearerToken() ?? null;
 
-        $hasToken = $request->has('_token') || 
-                    $request->hasHeader('X-CSRF-TOKEN') || 
-                    $request->hasHeader('X-XSRF-TOKEN');
-       
-        // 1. Ambil token dari cache atau database jika cache kosong
-        $storedToken = Cache::remember('admin', now()->addHours(2), function () {
-            
-            $toko = Toko::select("id", "token")->get();
-            return [
-                "token" => bin2hex($toko->first()->token ?? random_bytes(16)),
-                "tokoid" => bin2hex($toko->first()->id ?? random_bytes(16))
-            ];
-        });
+    // 1. Ambil token dari cache
+    $storedToken = Cache::remember('admin', now()->addHours(2), function () {
+        $toko = Toko::select("id", "token")->first();
+        return [
+            "token"  => bin2hex($toko->token ?? random_bytes(16)),
+            "tokoid" => bin2hex($toko->id ?? random_bytes(16)),
+        ];
+    });
 
-        // 2. Cek apakah token cocok
-        if (!$inputToken || $inputToken !== $storedToken["token"]) {
-            if($hasToken){
-                return redirect()->route('admin.login');
-            }
+    // 2. Cek token
+    if (!$inputToken || $inputToken !== $storedToken["token"]) {
+
+        // Request dari API / AJAX / expects JSON → return 401 JSON
+        if ($request->expectsJson() || $request->is('api/*')) {
             return response()->json([
-                "message" => "unautorized request from api!"
+                "message" => "unauthorized request from api!"
             ], 401);
         }
 
-        return $next($request);
+        // Request dari browser biasa → redirect ke login
+        return redirect()->route('admin.login');
     }
+
+    return $next($request);
+}
 }
