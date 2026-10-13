@@ -10,6 +10,10 @@ class loginControler extends Controller
 {
     public function get()
     {
+        $counttoko = Toko::count();
+        if($counttoko < 1){
+            return redirect()->route("admin.signup");
+        }
         return view("Auth.login");
     }
     public function login(Request $request)
