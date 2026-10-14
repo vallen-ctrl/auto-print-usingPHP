@@ -63,8 +63,8 @@ class UploadTerjadwalController extends Controller
                 $fileid = Str::uuid7()->getBytes();
                 $filename = $file->getClientOriginalName();
 
-                $files[$fileid] = [
-                    "id" => $fileid,
+                $files[bin2hex($fileid)] = [
+                    "id" => bin2hex($fileid),
                     "name" => $filename,
                     "total_pages" => count($pages),
                     "localPath" => $localPath
@@ -92,7 +92,7 @@ class UploadTerjadwalController extends Controller
 
         // Data ringkas untuk browser: id file (hex), nama, dan jumlah halaman.
         $payload = array_map(fn ($f) => [
-            'id'          => bin2hex($f['id']),
+            'id'          => $f['id'],
             'name'        => $f['name'],
             'total_pages' => $f['total_pages'],
         ], $files);
