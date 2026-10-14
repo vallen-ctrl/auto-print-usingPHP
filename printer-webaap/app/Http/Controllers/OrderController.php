@@ -118,7 +118,7 @@ class OrderController extends Controller
 
         
         $validated = $request->validate($this->setValidation());
-        DB::transaction(function () use ( &$validated, $files, $request){
+        DB::transaction(function () use ( &$validated, $files, $request, $orderSession){
             $filesOnRequest = $validated["files"];
 
             User::create([
@@ -136,7 +136,24 @@ class OrderController extends Controller
             foreach($filesOnRequest as $index => $value){
                 $subTotal = 0;
                 $filesId = $value["id"];
+                $filesOnSession = $orderSession[$filesId] ?? null;
 
+                if($filesOnSession == null){
+                    return redirect()->back()->with("error", "Id di filessession yang tersimpan tidak sama");
+                }
+
+                $filesPath = $filesOnSession["localPath"];
+
+                $totalPages = $filesOnSession["total_pages"];
+
+                $totalPagesToPrint = count($this->parseHalaman($value["halaman"]));
+
+                if($totalPagesToPrint > $totalPages){
+                    return redirect()->back()->with("error", "Jumlah pages yang anda isi di costume halaman tidak sesuai dengan total pages yang akan anda kirim");
+                }
+                
+
+                
             }
         });
     }
