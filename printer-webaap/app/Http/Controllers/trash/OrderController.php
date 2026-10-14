@@ -87,6 +87,7 @@ class OrderController extends Controller
                 "name" => $validated["nama"],
                 "no_wa" => $validated["no_wa"]
             ]);
+            
             $getBiaya = PengaturanToko::findOrFail(1);
             foreach ($validated["files"] as $index => $value) {
                 $subTotal = 0;

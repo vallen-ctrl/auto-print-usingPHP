@@ -234,6 +234,7 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         jumlah: kolomPengaturan.jumlah.value,
         halaman: kolomPengaturan.halaman.value,
         catatan: kolomPengaturan.catatan.value,
+        id_paper: cariRadioUkuran(kolomPengaturan.ukuran.selected).id,
         paket: paketChecks.filter((box) => box.checked).map((box) => box.dataset.id)
     });
 

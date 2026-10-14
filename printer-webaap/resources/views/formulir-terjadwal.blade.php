@@ -78,7 +78,7 @@
                         <legend class="field-label">Ukuran</legend>
                         <wired-radio-group roughness="1.2" id="grup-ukuran" selected="{{ $paper->first()->name }}">
                             @foreach ($paper as $pp)
-                                <wired-radio roughness="1.2" name="{{$pp->name}}" data-harga-color="{{ $pp->harga_color }}" data-harga-grayscale="{{ $pp->harga_grayscale }}">{{$pp->name}} ({{$pp->width}} mm x {{$pp->height}} mm)</wired-radio>
+                                <wired-radio roughness="1.2" id="{{$pp->id}}" name="{{$pp->name}}" data-harga-color="{{ $pp->harga_color }}" data-harga-grayscale="{{ $pp->harga_grayscale }}">{{$pp->name}} ({{$pp->width}} mm x {{$pp->height}} mm)</wired-radio>
                             @endforeach
                         </wired-radio-group>
                     </fieldset>
@@ -86,8 +86,8 @@
                     
                     <fieldset class="fieldset">
                         <legend class="field-label">Warna</legend>
-                        <wired-radio-group roughness="1.2" id="grup-warna" selected="hitam-putih">
-                            <wired-radio roughness="1.2" name="hitam-putih">Hitam putih<span class="warna-harga" data-harga-untuk="hitam-putih"></span></wired-radio>
+                        <wired-radio-group roughness="1.2" id="grup-warna" selected="hitam putih">
+                            <wired-radio roughness="1.2" name="hitam putih">Hitam putih<span class="warna-harga" data-harga-untuk="hitam putih"></span></wired-radio>
                             <wired-radio roughness="1.2" name="berwarna">Berwarna<span class="warna-harga" data-harga-untuk="berwarna"></span></wired-radio>
                         </wired-radio-group>
                     </fieldset>

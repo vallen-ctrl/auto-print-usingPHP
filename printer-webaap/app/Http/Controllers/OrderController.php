@@ -5,11 +5,60 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+use App\Http\Controllers\Controller;
+use App\Models\File;
+
+use App\Models\Order;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use App\Rules\SkalaRule;
+use App\Models\Paper;
+use App\Models\Layanan;
+use App\Models\LayananTerpilih;
+use App\Models\MetodePembayaran;
+use App\Rules\CustomHalamanRule;
+use App\Models\User;
+use App\Models\PengaturanToko;
+
 class OrderController extends Controller
 {
     public function get()
     {
         return view("Dashboard.selection.order");
+    }
+
+    public function setValidation(array $unsetArrayKey = [], array $changeValidation = []){
+        $validation = [
+            'nama' => 'required|min:1|max:255',
+            'no_wa' => 'required|min:10|max:14',
+            'tanggal_ambil' => 'required|date_format:Y-m-d\TH:i:sP',
+            'metode_pembayaran' => "required|string",
+            'files' => 'required|array|min:1|max:10',
+
+            'files.*.id' => 'required|string',
+            'files.*.orientasi' => ['required', Rule::in(["portrait", "landscape"])],
+            'files.*.warna' => ['required', Rule::in(['berwarna', 'hitam putih'])],
+            'files.*.kualitas' => ['required', Rule::in(["rendah", "standar", "tinggi"])],
+            //ingat bagian skala harus di hapus, rechek lagi bagian migration untuk skala dapat di hapus
+            'files.*.jumlah' => 'required|numeric|min:1',
+            'files.*.halaman' => ['required', new CustomHalamanRule()],
+            'files.*.catatan' => 'required',
+            'files.*.paper_id' => 'required',
+            'files.*.paket' => 'required|array|min:0',
+            'files.*.layanan_id.*' => 'numeric',
+
+            ...$changeValidation
+        ];
+
+        $clear = array_filter($validation);
+
+        foreach($unsetArrayKey as $key){
+            unset($clear[$key]);
+        }
+
+        return $clear;
+
     }
 
     public function getorderData(Request $request)
@@ -33,8 +82,62 @@ class OrderController extends Controller
             ->get();
         return response()->json($data);
     }
+
     public function detail(string $id)
     {
         return view("Dashboard.selection.order-detail", compact("id"));
+    }
+
+    private function parseHalaman(string $input): array
+    {
+        $result = [];
+        foreach (explode(',', $input) as $part) {
+            if (str_contains($part, '-')) {
+                [$start, $end] = explode('-', $part);
+                $result = array_merge($result, range((int) $start, (int) $end));
+            } else {
+                $result[] = (int) $part;
+            }
+        }
+        return array_unique($result);
+    }
+
+    public function createorder_terjadwal(Request $request)
+    {
+        $orderid = request()->validate([
+            "orderid" => "required"
+        ])["orderid"];
+
+        $orderSession = $request->session()->get(UploadTerjadwalController::SESSION_KEY);
+        if ($orderSession === null) return response()->json([
+            "message" => "your session is expierd, please reupload the file again",
+            "eror" => true
+        ], 401);
+
+        $files = $orderSession["files"] ?? null;
+
+        
+        $validated = $request->validate($this->setValidation());
+        DB::transaction(function () use ( &$validated, $files, $request){
+            $filesOnRequest = $validated["files"];
+
+            User::create([
+                "sessionid" => $request->session()->getId(),
+                "name" => $validated["nama"],
+                "no_wa" => $validated["no_wa"]
+            ]);
+
+            $getBiaya = PengaturanToko::findOrFail(1);
+
+            if(count($files) !== count($filesOnRequest)){
+                return redirect()->back()->with("error", "Jumlah file yang di upload dengan yang tersimpan berbeda");
+            }
+
+            foreach($filesOnRequest as $index => $value){
+                $subTotal = 0;
+                $filesId = $value["id"];
+
+            }
+        });
     }
 }

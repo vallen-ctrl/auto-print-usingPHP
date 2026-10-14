@@ -58,14 +58,16 @@ class UploadTerjadwalController extends Controller
             $pdf = new Parser();
             foreach ($request->file('files') as $file) {
                 $path = $file->store("orders/{$orderHex}", 'local');
-                $pages = $pdf->parseFile(Storage::disk('local')->path($path))->getPages();
+                $localPath = Storage::disk('local')->path($path);
+                $pages = $pdf->parseFile($localPath)->getPages();
                 $fileid = Str::uuid7()->getBytes();
                 $filename = $file->getClientOriginalName();
 
-                $files[] = [
+                $files[$fileid] = [
                     "id" => $fileid,
                     "name" => $filename,
-                    "total_pages" => count($pages)
+                    "total_pages" => count($pages),
+                    "localPath" => $localPath
                 ];
 
                 File::create([
@@ -83,7 +85,10 @@ class UploadTerjadwalController extends Controller
 
         // Order id disimpan di session supaya order ini "melekat" selama user
         // tidak membuka halaman upload lagi.
-        $request->session()->put(self::SESSION_KEY, $orderHex);
+        $request->session()->put(self::SESSION_KEY, [
+            "orderid" => $orderHex,
+            "files" => $files
+        ]);
 
         // Data ringkas untuk browser: id file (hex), nama, dan jumlah halaman.
         $payload = array_map(fn ($f) => [
