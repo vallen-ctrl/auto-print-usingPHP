@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 use App\Http\Controllers\Controller;
+use App\Models\Configuration;
 use App\Models\File;
 
 use App\Models\Order;
@@ -28,7 +29,8 @@ class OrderController extends Controller
         return view("Dashboard.selection.order");
     }
 
-    public function setValidation(array $unsetArrayKey = [], array $changeValidation = []){
+    public function setValidation(array $unsetArrayKey = [], array $changeValidation = [])
+    {
         $validation = [
             'nama' => 'required|min:1|max:255',
             'no_wa' => 'required|min:10|max:14',
@@ -46,19 +48,18 @@ class OrderController extends Controller
             'files.*.catatan' => 'required',
             'files.*.paper_id' => 'required',
             'files.*.paket' => 'required|array|min:0',
-            'files.*.layanan_id.*' => 'numeric',
+            'files.*.paket.*' => 'numeric',
 
             ...$changeValidation
         ];
 
         $clear = array_filter($validation);
 
-        foreach($unsetArrayKey as $key){
+        foreach ($unsetArrayKey as $key) {
             unset($clear[$key]);
         }
 
         return $clear;
-
     }
 
     public function getorderData(Request $request)
@@ -104,7 +105,7 @@ class OrderController extends Controller
 
     public function createorder_terjadwal(Request $request)
     {
-        $orderid = request()->validate([
+        $orderid = $request->validate([
             "orderid" => "required"
         ])["orderid"];
 
@@ -114,47 +115,97 @@ class OrderController extends Controller
             "eror" => true
         ], 401);
 
+        if($orderid != $orderSession["orderid"]){
+            // return redirect()->back()->
+        }
+
         $files = $orderSession["files"] ?? null;
 
-        
+
         $validated = $request->validate($this->setValidation());
-        DB::transaction(function () use ( &$validated, $files, $request, $orderSession){
+        
+        DB::transaction(function () use (&$TotalSemua, &$validated, $files, $request, $orderSession) {
             $filesOnRequest = $validated["files"];
+
+            $getBiaya = PengaturanToko::findOrFail(1);
+            $TotalSemua = 0 + $getBiaya->biaya_admin + $getBiaya->biaya_layanan;
+
+            if (count($files) !== count($filesOnRequest)) {
+                return redirect()->back()->with("error", "Jumlah file yang di upload dengan yang tersimpan berbeda");
+            }
+
+            foreach ($filesOnRequest as $index => $value) {
+                $subTotal = 0;
+                $filesId = $value["id"];
+                $filesOnSession = $orderSession[$filesId] ?? null;
+
+                if ($filesOnSession == null) {
+                    return redirect()->back()->with("error", "Id di filessession yang tersimpan tidak sama");
+                }
+
+                $totalPages = $filesOnSession["total_pages"];
+
+                $totalPagesToPrint = count($this->parseHalaman($value["halaman"]));
+
+                if ($totalPagesToPrint > $totalPages) {
+                    return redirect()->back()->with("error", "Jumlah pages yang anda isi di costume halaman tidak sesuai dengan total pages yang akan anda kirim");
+                }
+
+                $paper = Paper::findOrFail($value["paper_id"]);
+
+                $banyakHalaman = $totalPagesToPrint * $validated["jumlah"];
+
+                switch ($validated) {
+                    case "berwarna":
+                        $subTotal += ($paper->harga_color * $banyakHalaman);
+                        break;
+                    case "hitam putih":
+                        $subTotal += ($paper->harga_grayscale * $banyakHalaman);
+                        break;
+                }
+
+                foreach ($value["paket"] as $idLayanan) {
+                    $layanan = Layanan::findOrFail($idLayanan);
+                    $namaLayanan = $layanan->nama;
+                    $subTotal += $layanan->harga;
+                    LayananTerpilih::create([
+                        "files_id" => hex2bin($value["id"]),
+                        "layanan_id" => $layanan->id,
+                        "nama_layanan" => $namaLayanan
+                    ]);
+                }
+
+                Configuration::create([
+                    'file_id' => $value["id"],
+                    'orientasi' => $value["orientasi"],
+                    'warna' => $value["warna"],
+                    'ukuran' => $paper->name,
+                    'kualitas' => $value["kualitas"],
+                    'jumlah_cetak' => $value["jumlah"],
+                    'custom_halaman' => $value["halaman"],
+                    'catatan_tambahan' => $value["catatan"],
+                    'paper_id' => $value["paper_id"],
+                    'pages_toprint' => $totalPagesToPrint,
+                ]);
+
+                // Order::findOrFail()
+
+                $TotalSemua += $subTotal;
+                $validated["files"][$index]["subtotal"] = $subTotal;
+            }
 
             User::create([
                 "sessionid" => $request->session()->getId(),
                 "name" => $validated["nama"],
                 "no_wa" => $validated["no_wa"]
             ]);
-
-            $getBiaya = PengaturanToko::findOrFail(1);
-
-            if(count($files) !== count($filesOnRequest)){
-                return redirect()->back()->with("error", "Jumlah file yang di upload dengan yang tersimpan berbeda");
-            }
-
-            foreach($filesOnRequest as $index => $value){
-                $subTotal = 0;
-                $filesId = $value["id"];
-                $filesOnSession = $orderSession[$filesId] ?? null;
-
-                if($filesOnSession == null){
-                    return redirect()->back()->with("error", "Id di filessession yang tersimpan tidak sama");
-                }
-
-                $filesPath = $filesOnSession["localPath"];
-
-                $totalPages = $filesOnSession["total_pages"];
-
-                $totalPagesToPrint = count($this->parseHalaman($value["halaman"]));
-
-                if($totalPagesToPrint > $totalPages){
-                    return redirect()->back()->with("error", "Jumlah pages yang anda isi di costume halaman tidak sesuai dengan total pages yang akan anda kirim");
-                }
-                
-
-                
-            }
         });
+    
+        if($request->expectsJson()){
+            response()->json([
+                "message" => "succed create new order",
+                "data" => $validated
+            ]);
+        }
     }
 }
