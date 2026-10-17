@@ -16,7 +16,7 @@ class FormulirTerjadwalController extends Controller
         
         $paper = Paper::where("aktif", 1)->get();
 
-        $order = $request->query('order') ?? $request->session()->get(UploadTerjadwalController::SESSION_KEY);
+        $order = $request->session()->get(UploadTerjadwalController::SESSION_KEY);
 
         // Kalau order id dibawa di URL, simpan/segarkan di session supaya
         // order ini tetap melekat selama user belum membuka halaman upload.

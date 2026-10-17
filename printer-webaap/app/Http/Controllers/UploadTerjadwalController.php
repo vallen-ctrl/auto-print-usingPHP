@@ -91,11 +91,12 @@ class UploadTerjadwalController extends Controller
         ]);
 
         // Data ringkas untuk browser: id file (hex), nama, dan jumlah halaman.
-        $payload = array_map(fn ($f) => [
+        // Harus berupa list (bukan objek ber-key hex), dan id sudah berbentuk hex.
+        $payload = array_values(array_map(fn ($f) => [
             'id'          => $f['id'],
             'name'        => $f['name'],
             'total_pages' => $f['total_pages'],
-        ], $files);
+        ], $files));
 
         // Upload lewat fetch(): balas JSON supaya daftar file bisa disimpan di
         // browser (localStorage) sebelum pindah halaman.

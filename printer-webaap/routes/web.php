@@ -36,6 +36,9 @@ Route::get('/terjadwal/keluar', function (\Illuminate\Http\Request $request) {
     return redirect('/');
 })->name('terjadwal.keluar');
 
+//alur order
+Route::post("/order/create", [\App\Http\Controllers\OrderController::class, 'createorder_terjadwal'])->name("create.order");
+
 //-------------------------------------------------------------------------------------------------------------------------------------
 Route::prefix('dashboard')->middleware([\App\http\Middleware\VerifyTokenMiddleware::class])->group(function () {
     // Mengakses URL: /dashboard

@@ -26,12 +26,37 @@ const kolomPengaturan = {
     kualitas: document.getElementById('grup-kualitas'),
     jumlah: document.getElementById('jumlah'),
     halaman: document.getElementById('halaman'),
-    catatan: document.getElementById('catatan')
+    catatan: document.getElementById('catatan'),
+};
+
+const fieldPesanan = {
+    nama: document.getElementById('nama'),
+    whatsapp: document.getElementById('whatsapp'),
+    tanggal: document.getElementById('tanggal'),
+    pukul: document.getElementById('pukul'),
 };
 
 if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
     const paketChecks = Array.from(document.querySelectorAll('.paket-check'));
     const subTotal = document.getElementById('sub-total');
+
+    // Data pesanan (tidak per file): nama, whatsapp, tanggal & pukul ambil.
+
+
+
+    const tulisPesanan = (data) => {
+        if (!data) {
+            return;
+        }
+
+        Object.keys(fieldPesanan).forEach((key) => {
+            const el = fieldPesanan[key];
+
+            if (el && typeof data[key] === 'string' && data[key] !== '') {
+                el.value = data[key];
+            }
+        });
+    };
 
     // Baca/tulis konfigurasi seluruh file ke localStorage supaya pilihan tetap
     // ada saat halaman dimuat ulang.
@@ -44,19 +69,33 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         }
     };
 
+    const bacaPesanan = () => ({
+        nama: fieldPesanan.nama ? fieldPesanan.nama.value : '',
+        whatsapp: fieldPesanan.whatsapp ? fieldPesanan.whatsapp.value : '',
+        tanggal: fieldPesanan.tanggal ? fieldPesanan.tanggal.value : '',
+        pukul: fieldPesanan.pukul ? fieldPesanan.pukul.value : '',
+    });
+
+
     const tulisKonfigurasi = () => {
         try {
+            const pesananSekarang = bacaPesanan();
+            const konfigurasiLama = bacaKonfigurasi(); // Ambil data lama
+
             localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify({
                 fileAktif: fileAktif,
-                // files disimpan sebagai array supaya mudah dikirim ke server.
+                // Jika input kosong, gunakan data lama. Jika ada isinya, gunakan yang baru.
+                nama: pesananSekarang.nama || konfigurasiLama.nama || '',
+                whatsapp: pesananSekarang.whatsapp || konfigurasiLama.whatsapp || '',
+                tanggal: pesananSekarang.tanggal || konfigurasiLama.tanggal || '',
+                pukul: pesananSekarang.pukul || konfigurasiLama.pukul || '',
                 files: Array.from(pengaturanPerFile, ([name, state]) => ({ ...state, name }))
             }));
         } catch (error) {
-            // Penyimpanan browser tidak tersedia: konfigurasi tidak persist.
+            // Penyimpanan browser tidak tersedia
         }
     };
 
-    const namaFile = bacaNamaFile();
     const tersimpan = bacaKonfigurasi();
     const tersimpanFiles = Array.isArray(tersimpan.files) ? tersimpan.files : [];
     const simpanan = {};
@@ -65,6 +104,13 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
             simpanan[f.name] = f;
         }
     });
+
+    // Daftar file diutamakan dari localStorage (printer:formulir-terjadwal) supaya
+    // tetap ada saat reload; sessionStorage hanya cadangan.
+    const namaFile = tersimpanFiles.length > 0
+        ? tersimpanFiles.map((f) => f.name)
+        : bacaNamaFile();
+
     const pengaturanPerFile = new Map();
     let fileAktif = null;
 
@@ -268,6 +314,7 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
 
     namaFile.forEach((name) => {
         const item = document.createElement('wired-item');
+        
         item.setAttribute('value', name);
         item.textContent = potongNama(name);
         item.title = name;
@@ -345,6 +392,20 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
             }
         });
     });
+
+    // Data pesanan (nama, whatsapp, tanggal, pukul) disimpan setiap kali berubah.
+    Object.values(fieldPesanan).forEach((el) => {
+        if (!el) {
+            return;
+        }
+
+        ['change', 'input'].forEach((jenis) => {
+            el.addEventListener(jenis, tulisKonfigurasi);
+        });
+    });
+
+    // Pulihkan data pesanan dari localStorage sebelum menyimpan ulang state.
+    tulisPesanan(tersimpan);
 
     // Terapkan state file aktif (termasuk paket) lalu hitung sub totalnya.
     if (fileAktif) {
@@ -489,8 +550,21 @@ const perbaruiBatasWaktu = () => {
     }
 };
 
+function toIsoWithOffset(tanggal, pukul) {
+    // tanggal: "2026-10-29", pukul: "14:04"
+    const dt = new Date(`${tanggal}T${pukul}:00`);
+    const pad = (n) => String(n).padStart(2, '0');
+    const offset = -dt.getTimezoneOffset(); // menit, positif untuk WIB
+    const sign = offset >= 0 ? '+' : '-';
+    const abs = Math.abs(offset);
+    const tz = `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
+    return `${tanggal}T${pukul}:00${tz}`;
+}
+
+
 if (inputWhatsapp && inputTanggal && inputPukul && inputHalaman) {
     perbaruiBatasWaktu();
+
 
     inputWhatsapp.addEventListener('change', periksaWhatsapp);
 
@@ -504,9 +578,11 @@ if (inputWhatsapp && inputTanggal && inputPukul && inputHalaman) {
     inputHalaman.addEventListener('change', periksaHalaman);
 
     const tombolBayar = document.getElementById('btn-pembayaran');
+    const cetakForm = document.getElementById('form-cetak');
 
     if (tombolBayar) {
-        tombolBayar.addEventListener('click', () => {
+        tombolBayar.addEventListener('click', (event) => {
+
             const kolom = [inputWhatsapp, inputTanggal, inputPukul, inputHalaman];
             const hasil = [periksaWhatsapp(), periksaTanggal(), periksaPukul(), periksaHalaman()];
             const pertamaSalah = hasil.indexOf(false);
@@ -515,16 +591,71 @@ if (inputWhatsapp && inputTanggal && inputPukul && inputHalaman) {
                 kolom[pertamaSalah].scrollIntoView({ block: 'center', behavior: 'smooth' });
                 kolom[pertamaSalah].focus();
             }
+
+            if (cetakForm) {
+                // event.preventDefault();
+                // cetakForm.requestSubmit();
+
+                Array.from(cetakForm.elements).forEach(el => {
+                    if (el.name && el.name !== '_token' && el.name !== '_method') {
+                        el.remove();
+                    }
+                });
+                const localStorageSaved = JSON.parse(localStorage.getItem(FORM_STORAGE_KEY))
+                const urlParams = new URLSearchParams(window.location.search);
+                const dataBaru = {
+                    orderid: urlParams.get('order'),
+                    nama: localStorageSaved.nama,
+                    no_wa: localStorageSaved.whatsapp,
+                    tanggal_ambil: toIsoWithOffset(localStorageSaved.tanggal, localStorageSaved.pukul),
+                    files: localStorageSaved.files
+                };
+
+                console.log(dataBaru)
+                for (const [key, value] of Object.entries(dataBaru)) {
+                    if (key === 'files' && Array.isArray(value)) {
+                        // Handle array of objects khusus untuk 'files'
+                        value.forEach((fileObj, index) => {
+                            for (const [fileKey, fileValue] of Object.entries(fileObj)) {
+                                // Array (mis. paket) harus dikirim sebagai array sungguhan:
+                                // files[0][paket][] = id layanan.
+                                if (Array.isArray(fileValue)) {
+                                    fileValue.forEach((item) => {
+                                        const input = document.createElement('input');
+                                        input.type = 'hidden';
+                                        input.name = `files[${index}][${fileKey}][]`;
+                                        input.value = item;
+                                        cetakForm.appendChild(input);
+                                    });
+                                    continue;
+                                }
+
+                                const input = document.createElement('input');
+                                input.type = 'hidden';
+                                // Format name wajib: files[0][orientasi], files[0][ukuran], dst.
+                                input.name = `files[${index}][${fileKey}]`;
+                                input.value = fileValue;
+
+                                cetakForm.appendChild(input);
+                            }
+                        });
+                    } else {
+                        // Untuk field biasa (nama, no_wa, dll)
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = key;
+                        input.value = value;
+                        cetakForm.appendChild(input);
+                    }
+                }
+                cetakForm.requestSubmit();
+                // console.log(dataBaru);
+            }
         });
     }
 }
 
 /* ---------- Formulir belum dikirim ke mana pun ---------- */
 
-const cetakForm = document.getElementById('form-cetak');
 
-if (cetakForm) {
-    cetakForm.addEventListener('submit', (event) => {
-        event.preventDefault();
-    });
-}
+
