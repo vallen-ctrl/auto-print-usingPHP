@@ -88,7 +88,8 @@ class UploadTerjadwalController extends Controller
         $request->session()->put(self::SESSION_KEY, [
             "orderid" => $orderHex,
             "sessionid" => strtolower(bin2hex(random_bytes(16))),
-            "files" => $files
+            "files" => $files,
+            "where" => "formulir.terjadwal"
         ]);
 
         // Data ringkas untuk browser: id file (hex), nama, dan jumlah halaman.
