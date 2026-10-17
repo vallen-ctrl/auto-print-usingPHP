@@ -35,7 +35,7 @@ class OrderController extends Controller
             'nama' => 'required|min:1|max:255',
             'no_wa' => 'required|min:10|max:14',
             'tanggal_ambil' => 'required|date_format:Y-m-d\TH:i:sP',
-            'metode_pembayaran' => "required|string",
+            // 'metode_pembayaran' => "required|string",
             'files' => 'required|array|min:1|max:10',
 
             'files.*.id' => 'required|string',
@@ -44,10 +44,10 @@ class OrderController extends Controller
             'files.*.kualitas' => ['required', Rule::in(["rendah", "standar", "tinggi"])],
             //ingat bagian skala harus di hapus, rechek lagi bagian migration untuk skala dapat di hapus
             'files.*.jumlah' => 'required|numeric|min:1',
-            'files.*.halaman' => ['required', new CustomHalamanRule()],
-            'files.*.catatan' => 'required',
-            'files.*.paper_id' => 'required',
-            'files.*.paket' => 'required|array|min:0',
+            'files.*.halaman' => ['nullable' , new CustomHalamanRule()],
+            'files.*.catatan' => 'nullable',
+            'files.*.id_paper' => 'required',
+            'files.*.paket' => 'nullable|array|min:0',
             'files.*.paket.*' => 'numeric',
 
             ...$changeValidation
@@ -109,14 +109,14 @@ class OrderController extends Controller
             "orderid" => "required"
         ])["orderid"];
 
-        $orderSession = $request->session()->get(UploadTerjadwalController::SESSION_KEY);
-        if ($orderSession === null) return response()->json([
-            "message" => "your session is expierd, please reupload the file again",
-            "eror" => true
-        ], 401);
+        // return redirect()->route("dashboard");
 
-        if ($orderid != $orderSession["orderid"]) {
-            // return redirect()->back()->
+        $orderSession = $request->session()->get(UploadTerjadwalController::SESSION_KEY);
+        
+        if ($orderSession === null) return redirect()->back()->with("error", "hehe");
+        // return redirect()->back()->with("error", json_encode($orderSession));
+        if ($orderid !== $orderSession["orderid"]) {
+            return redirect()->back()->with("error", "hehe");
         }
 
         $files = $orderSession["files"] ?? null;
@@ -138,23 +138,23 @@ class OrderController extends Controller
                 foreach ($filesOnRequest as $index => $value) {
                     $subTotal = 0;
                     $filesId = $value["id"];
-                    $filesOnSession = $orderSession[$filesId] ?? null;
+                    $filesOnSession = $orderSession["files"][$filesId] ?? null;
 
-                    if ($filesOnSession == null) {
+                    if ($filesOnSession["id"] == null) {
                         return redirect()->back()->with("error", "Id di filessession yang tersimpan tidak sama");
                     }
 
                     $totalPages = $filesOnSession["total_pages"];
 
-                    $totalPagesToPrint = count($this->parseHalaman($value["halaman"]));
+                    $totalPagesToPrint = count($this->parseHalaman($value["halaman"] ?? "1-$totalPages"));
 
                     if ($totalPagesToPrint > $totalPages) {
                         return redirect()->back()->with("error", "Jumlah pages yang anda isi di costume halaman tidak sesuai dengan total pages yang akan anda kirim");
                     }
 
-                    $paper = Paper::findOrFail($value["paper_id"]);
+                    $paper = Paper::findOrFail($value["id_paper"]);
 
-                    $banyakHalaman = $totalPagesToPrint * $validated["jumlah"];
+                    $banyakHalaman = $totalPagesToPrint * $value["jumlah"];
 
                     switch ($value["warna"]) {
                         case "berwarna":
@@ -165,7 +165,7 @@ class OrderController extends Controller
                             break;
                     }
 
-                    foreach ($value["paket"] as $idLayanan) {
+                    foreach (($value["paket"] ?? []) as $idLayanan) {
                         $layanan = Layanan::findOrFail($idLayanan);
                         $namaLayanan = $layanan->nama;
                         $subTotal += $layanan->harga;
@@ -176,9 +176,8 @@ class OrderController extends Controller
                         ]);
                     }
 
-                    Configuration::findOrFail(hex2bin($orderSession["orderid"]))
-                        ->update([
-                            'file_id' => $value["id"],
+                    Configuration::create([
+                            'file_id' => hex2bin($value["id"]),
                             'orientasi' => $value["orientasi"],
                             'warna' => $value["warna"],
                             'ukuran' => $paper->name,
@@ -186,9 +185,10 @@ class OrderController extends Controller
                             'jumlah_cetak' => $value["jumlah"],
                             'custom_halaman' => $value["halaman"],
                             'catatan_tambahan' => $value["catatan"],
-                            'paper_id' => $value["paper_id"],
+                            'paper_id' => $value["id_paper"],
                             'pages_toprint' => $totalPagesToPrint,
                         ]);
+                        
 
                     // Order::findOrFail()
 
@@ -209,6 +209,7 @@ class OrderController extends Controller
                     "data" => $validated
                 ]);
             }
+            return redirect()->back()->with("success", "hehe");
         } catch (\Exception $e) {
             return redirect()->back()->with("error", $e->getMessage());
         }

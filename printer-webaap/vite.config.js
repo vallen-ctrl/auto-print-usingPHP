@@ -20,6 +20,7 @@ export default defineConfig({
                 'resources/js/dashboard/chart-layanan-kertas.js',
                 'resources/js/dashboard/tabel-order.js',
                 'resources/js/dashboard/tipe-file.js',
+                'resources/js/shared/modal.js',
             ],
             refresh: true,
             fonts: [

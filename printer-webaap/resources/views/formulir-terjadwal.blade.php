@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,8 +11,31 @@
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Patrick+Hand&display=swap" rel="stylesheet">
 
     @vite(['resources/css/formulir-terjadwal.css', 'resources/js/pages/formulir-terjadwal.js'])
+    
 </head>
+
 <body>
+    
+    <!-- <x-modal id="modal-info" type="success" title="Berhasil"
+                 message="Cetakan siap diambil besok." open /> -->
+    @if(session('success'))
+    <x-modal id="modal-info" type="success" title="Berhasil" open
+        message="Cetakan siap diambil besok." />
+    @endif
+    @if ($errors->any())
+    <x-modal 
+        id="modal-info" 
+        type="error" 
+        title="Terjadi Kesalahan" 
+        message="{{ $errors->first() }}" 
+        open
+    />
+  
+    @endif
+    @if(session('error'))
+    <x-modal id="modal-info" type="error" title="Berhasil" open
+        message="{{session('error')}}" />
+    @endif
     <header class="site-header">
         <div class="site-header-brand">
             <div class="logo-placeholder" role="img" aria-label="Logo jasa">logo jasa</div>
@@ -31,7 +55,7 @@
             <h1 class="page-title">Formulir Cetak Terjadwal</h1>
 
             <wired-card roughness="1.2" class="panel">
-                <form class="cetak-form" id="form-cetak" novalidate>
+                <form action="{{ route('create.order') }}" method="POST" class="cetak-form" id="form-cetak" novalidate>
                     <div class="field">
                         <label class="field-label" for="nama">Nama lengkap</label>
                         <wired-input roughness="1.2" id="nama" name="nama" autocomplete="name"></wired-input>
@@ -78,12 +102,12 @@
                         <legend class="field-label">Ukuran</legend>
                         <wired-radio-group roughness="1.2" id="grup-ukuran" selected="{{ $paper->first()->name }}">
                             @foreach ($paper as $pp)
-                                <wired-radio roughness="1.2" id="{{$pp->id}}" name="{{$pp->name}}" data-harga-color="{{ $pp->harga_color }}" data-harga-grayscale="{{ $pp->harga_grayscale }}">{{$pp->name}} ({{$pp->width}} mm x {{$pp->height}} mm)</wired-radio>
+                            <wired-radio roughness="1.2" id="{{$pp->id}}" name="{{$pp->name}}" data-harga-color="{{ $pp->harga_color }}" data-harga-grayscale="{{ $pp->harga_grayscale }}">{{$pp->name}} ({{$pp->width}} mm x {{$pp->height}} mm)</wired-radio>
                             @endforeach
                         </wired-radio-group>
                     </fieldset>
                     @endif
-                    
+
                     <fieldset class="fieldset">
                         <legend class="field-label">Warna</legend>
                         <wired-radio-group roughness="1.2" id="grup-warna" selected="hitam putih">
@@ -156,5 +180,7 @@
             </wired-card>
         </div>
     </main>
+    @stack('scripts')
 </body>
+
 </html>
