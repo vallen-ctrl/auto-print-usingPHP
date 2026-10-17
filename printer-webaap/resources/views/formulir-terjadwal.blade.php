@@ -33,7 +33,7 @@
   
     @endif
     @if(session('error'))
-    <x-modal id="modal-info" type="error" title="Berhasil" open
+    <x-modal id="modal-info" type="error" title="Gagal" open
         message="{{session('error')}}" />
     @endif
     <header class="site-header">

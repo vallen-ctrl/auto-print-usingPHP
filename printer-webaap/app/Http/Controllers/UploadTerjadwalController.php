@@ -87,6 +87,7 @@ class UploadTerjadwalController extends Controller
         // tidak membuka halaman upload lagi.
         $request->session()->put(self::SESSION_KEY, [
             "orderid" => $orderHex,
+            "sessionid" => strtolower(bin2hex(random_bytes(16))),
             "files" => $files
         ]);
 

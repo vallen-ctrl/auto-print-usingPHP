@@ -130,11 +130,11 @@ return new class extends Migration
         Schema::create('configuration', function (Blueprint $table) {
             $table->id();
             $table->binary('file_id', 16);
-            $table->enum('orientasi', ['potrait', 'landscape']);
+            $table->enum('orientasi', ['portrait', 'landscape']);
             $table->enum('warna', ['berwarna', 'hitam putih']);
             $table->string('ukuran');
             $table->enum('kualitas', ['rendah', 'standar', 'tinggi']);
-            $table->string('skala');
+            // $table->string('skala');
             $table->smallInteger('jumlah_cetak');
             $table->text('custom_halaman')->nullable();
             $table->text('catatan_tambahan')->nullable();
