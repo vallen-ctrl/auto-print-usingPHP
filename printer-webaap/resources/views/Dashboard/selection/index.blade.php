@@ -1,6 +1,6 @@
 @extends('Dashboard.layout')
 
-@section('title', 'login')
+@section('title', 'Dashboard')
 
 @push('scripts')
 @vite([
@@ -19,7 +19,7 @@
         <div class="flex min-h-28 flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <h5 class="text-sm font-medium text-gray-500">Order selesai</h5>
             <div class="mt-4 flex items-end justify-between gap-2">
-                <span class="text-3xl font-semibold leading-none text-gray-900">4/18</span>
+                <span class="text-3xl font-semibold leading-none text-gray-900">{{ $orderSelesaiHariIni }}/{{ $orderHariIni }}</span>
                 <span class="text-xs text-gray-500">Hari ini</span>
             </div>
         </div>
@@ -28,9 +28,13 @@
         <div class="flex min-h-28 flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <h5 class="text-sm font-medium text-gray-500">Pendapatan</h5>
             <div class="mt-4 flex items-end justify-between gap-2">
-                <span class="text-3xl font-semibold leading-none text-gray-900">Rp. 12.000</span>
+                <span class="text-3xl font-semibold leading-none text-gray-900">Rp. {{ number_format($pendapatanHariIni, 0, ',', '.') }}</span>
                 <div class="text-right text-xs leading-tight text-gray-500">
-                    <p class="font-medium text-green-600">+20%</p>
+                    @if (is_null($persenPendapatan))
+                    <p class="font-medium text-gray-400">&mdash;</p>
+                    @else
+                    <p class="font-medium {{ $persenPendapatan >= 0 ? 'text-green-600' : 'text-red-600' }}">{{ $persenPendapatan > 0 ? '+' : '' }}{{ $persenPendapatan }}%</p>
+                    @endif
                     <p>dari 1 hari lalu</p>
                 </div>
             </div>
@@ -40,7 +44,7 @@
         <div class="flex min-h-28 flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <h5 class="text-sm font-medium text-gray-500">Komputer</h5>
             <div class="mt-4 flex items-end justify-between gap-2">
-                <span class="text-3xl font-semibold leading-none text-gray-900">3/2</span>
+                <span class="text-3xl font-semibold leading-none text-gray-900">{{ $komputerAktif }}/{{ $komputerTotal }}</span>
                 <span class="text-xs text-gray-500">Sedang aktif</span>
             </div>
         </div>
@@ -49,9 +53,13 @@
         <div class="flex min-h-28 flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <h5 class="text-sm font-medium text-gray-500">File tersimpan</h5>
             <div class="mt-4 flex items-end justify-between gap-2">
-                <span class="text-3xl font-semibold leading-none text-gray-900">89</span>
+                <span class="text-3xl font-semibold leading-none text-gray-900">{{ number_format($fileTersimpan, 0, ',', '.') }}</span>
                 <div class="text-right text-xs leading-tight text-gray-500">
-                    <p class="font-medium text-green-600">+20%</p>
+                    @if (is_null($persenFile))
+                    <p class="font-medium text-gray-400">&mdash;</p>
+                    @else
+                    <p class="font-medium {{ $persenFile >= 0 ? 'text-green-600' : 'text-red-600' }}">{{ $persenFile > 0 ? '+' : '' }}{{ $persenFile }}%</p>
+                    @endif
                     <p>dari bulan lalu</p>
                 </div>
             </div>
@@ -162,7 +170,7 @@
                     </tbody>
                 </table>
 
-                <a href="{{ url('/files') }}" class="mt-auto self-end pt-4 text-sm text-gray-900 underline hover:text-gray-600">
+                <a href="{{ route('files.index') }}" class="mt-auto self-end pt-4 text-sm text-gray-900 underline hover:text-gray-600">
                     Lihat selengkapnya
                 </a>
             </div>

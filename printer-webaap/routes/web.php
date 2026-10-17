@@ -9,7 +9,11 @@ Route::get('/', function (\Illuminate\Http\Request $request) {
     // User sudah punya order terjadwal yang belum selesai: lanjutkan ke
     // formulir dengan order id tersebut, bukan memulai dari awal.
     if ($order) {
-        return redirect()->route('formulir.terjadwal', ['order' => $order]);
+        switch($order["where"]){
+            case "formulir.terjadwal":
+                return redirect()->route('formulir.terjadwal', ['order' => $order["orderid"]]);
+
+        }
     }
 
     return view('beranda');
@@ -55,11 +59,15 @@ Route::prefix('dashboard')->middleware([\App\Http\Middleware\VerifyTokenMiddlewa
 
     //files
     Route::get('/files', [\App\Http\Controllers\FilesController::class, "get"])->name("files.index");
+    Route::get('/files/{id}/download', [\App\Http\Controllers\FilesController::class, "download"])->name("files.download");
+    Route::delete('/files/{id}', [\App\Http\Controllers\FilesController::class, "destroy"])->name("files.destroy");
 
     //order
     Route::get('/order', [\App\Http\Controllers\OrderController::class, "get"])->name("order.index");
     Route::get('/orders/files/{id}', [\App\Http\Controllers\OrderController::class, "detail"])->name("order.detail");
     Route::get('/order/all', [\App\Http\Controllers\OrderController::class, "getorderData"])->name("get.all");
+    Route::delete('/order/{id}', [\App\Http\Controllers\OrderController::class, "destroy"])->name("order.destroy");
+
     //Layanan
     Route::get('/layanan', [\App\Http\Controllers\LayananController::class, "get"])->name("layanan.index");
     Route::post('/layanan/add', [\App\Http\Controllers\LayananController::class, "store"])->name("layanan.post");

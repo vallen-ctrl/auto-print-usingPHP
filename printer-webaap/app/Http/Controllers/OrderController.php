@@ -4,11 +4,12 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 use App\Http\Controllers\Controller;
 use App\Models\Configuration;
 use App\Models\File;
-
+use App\Models\FileQueue;
 use App\Models\Order;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -24,9 +25,80 @@ use App\Models\PengaturanToko;
 
 class OrderController extends Controller
 {
-    public function get()
+    public function get(Request $request)
     {
-        return view("Dashboard.selection.order");
+        $search = trim((string) $request->query('search', ''));
+
+        $query = Order::query()
+            ->leftJoin('files', 'files.order_id', '=', 'orders.id')
+            ->leftJoin('file_queue', 'file_queue.file_id', '=', 'files.id')
+            ->select([
+                'orders.id',
+                'orders.tanggal_pesan',
+                'orders.tanggal_ambil',
+                'orders.total_pembayaran',
+                'orders.total_dibayar',
+                'orders.status_pembayaran',
+                'orders.metode_pembayaran',
+                DB::raw('LOWER(HEX(orders.id)) as id_hex'),
+                DB::raw('GROUP_CONCAT(DISTINCT files.layanan) as layanan'),
+                DB::raw('GROUP_CONCAT(DISTINCT file_queue.status) as status_file'),
+                DB::raw('COUNT(DISTINCT files.id) as jumlah_file'),
+            ])
+            ->groupBy(
+                'orders.id',
+                'orders.tanggal_pesan',
+                'orders.tanggal_ambil',
+                'orders.total_pembayaran',
+                'orders.total_dibayar',
+                'orders.status_pembayaran',
+                'orders.metode_pembayaran'
+            );
+
+        // Pencarian: order id (hex), status bayar, metode bayar, atau nama file.
+        if ($search !== '') {
+            $like = '%' . $search . '%';
+
+            $query->where(function ($q) use ($like, $search) {
+                $q->where('orders.status_pembayaran', 'like', $like)
+                    ->orWhere('orders.metode_pembayaran', 'like', $like)
+                    ->orWhereRaw('LOWER(HEX(orders.id)) LIKE ?', ['%' . strtolower($search) . '%'])
+                    ->orWhere('files.name', 'like', $like);
+            });
+        }
+
+        $orders = $query->orderByDesc('orders.tanggal_pesan')
+            ->paginate(10)
+            ->withQueryString();
+
+        return view("Dashboard.selection.order", compact('orders', 'search'));
+    }
+
+    public function destroy(string $id)
+    {
+        $order = Order::findOrFail(hex2bin($id));
+
+        DB::transaction(function () use ($order) {
+            // Hapus antrean milik order ini lebih dulu.
+            FileQueue::where('order_id', $order->id)->delete();
+
+            foreach (File::where('order_id', $order->id)->get() as $file) {
+                if ($file->path) {
+                    Storage::disk('local')->delete($file->path);
+                }
+
+                // Layanan terpilih memakai onDelete set null; hapus eksplisit.
+                LayananTerpilih::where('files_id', $file->id)->delete();
+
+                // Menghapus file ikut menghapus configuration (cascade).
+                $file->delete();
+            }
+
+            // Baris order dihapus setelah file-nya (files.order_id = restrict).
+            $order->delete();
+        });
+
+        return redirect()->route('order.index')->with('success', 'Order berhasil dihapus.');
     }
 
     public function setValidation(array $unsetArrayKey = [], array $changeValidation = [])
@@ -86,7 +158,51 @@ class OrderController extends Controller
 
     public function detail(string $id)
     {
-        return view("Dashboard.selection.order-detail", compact("id"));
+        $orderId = @hex2bin($id);
+        abort_if($orderId === false, 404);
+
+        $order = Order::findOrFail($orderId);
+
+        $files = File::where('order_id', $orderId)
+            ->orderBy('tanggal_dibuat')
+            ->get()
+            ->map(function ($file) {
+                $config = Configuration::where('file_id', $file->id)->first();
+
+                $layanan = LayananTerpilih::where('files_id', $file->id)
+                    ->get()
+                    ->map(function ($item) {
+                        $harga = $item->layanan_id
+                            ? optional(Layanan::find($item->layanan_id))->harga
+                            : null;
+
+                        return [
+                            'nama'  => $item->nama_layanan,
+                            'harga' => (int) $harga,
+                        ];
+                    });
+
+                $paper = ($config && $config->paper_id) ? Paper::find($config->paper_id) : null;
+
+                $hargaPerHalaman = null;
+
+                if ($paper) {
+                    $hargaPerHalaman = $config->warna === 'berwarna'
+                        ? $paper->harga_color
+                        : $paper->harga_grayscale;
+                }
+
+                return [
+                    'file'              => $file,
+                    'config'            => $config,
+                    'layanan'           => $layanan,
+                    'paper'             => $paper,
+                    'harga_per_halaman' => $hargaPerHalaman,
+                    'id_hex'            => bin2hex($file->id),
+                ];
+            });
+
+        return view("Dashboard.selection.order-detail", compact('id', 'order', 'files'));
     }
 
     private function parseHalaman(string $input): array
@@ -113,10 +229,10 @@ class OrderController extends Controller
 
         $orderSession = $request->session()->get(UploadTerjadwalController::SESSION_KEY);
 
-        if ($orderSession === null) return redirect()->back()->with("error", "hehe");
-        // return redirect()->back()->with("error", json_encode($orderSession));
+        if ($orderSession === null) return redirect()->back()->with("error", "Order sudah kadaluarsa, mohon dapat berpindah ke halaman upload kembali");
+    
         if ($orderid !== $orderSession["orderid"]) {
-            return redirect()->back()->with("error", "hehe");
+            return redirect()->back()->with("error", "cant find order id");
         }
 
         $files = $orderSession["files"] ?? null;
@@ -175,6 +291,11 @@ class OrderController extends Controller
                             "nama_layanan" => $namaLayanan
                         ]);
                     }
+
+                    File::findOrFail(hex2bin($value["id"]))
+                    ->update([
+                        "subtotal" => $subTotal,
+                    ]);
     
                     Configuration::create([
                         'file_id' => hex2bin($value["id"]),

@@ -2,26 +2,110 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Computer;
+use App\Models\File;
+use App\Models\Order;
 use App\Models\Toko;
-use Illuminate\Http\Middleware\TrustProxies;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class dashboardControler extends Controller
 {
     public function get()
     {
-        return view("Dashboard.selection.index");
+        $hariIni = now()->toDateString();
+        $kemarin = now()->copy()->subDay()->toDateString();
+
+        $orderHariIni = Order::whereDate('tanggal_pesan', $hariIni)->count();
+        $orderSelesaiHariIni = Order::whereDate('tanggal_pesan', $hariIni)
+            ->where('status_pembayaran', 'success')
+            ->count();
+
+        $pendapatanHariIni = (int) Order::whereDate('tanggal_pesan', $hariIni)
+            ->sum('total_pembayaran');
+        $pendapatanKemarin = (int) Order::whereDate('tanggal_pesan', $kemarin)
+            ->sum('total_pembayaran');
+        $persenPendapatan = $this->persentase($pendapatanHariIni, $pendapatanKemarin);
+
+        $komputerTotal = Computer::count();
+        $komputerAktif = Computer::where('status', 'connected')->count();
+
+        $fileTersimpan = File::where('dihapus', false)->count();
+
+        $bulanLalu = now()->copy()->subMonthNoOverflow();
+        $fileBulanIni = File::where('dihapus', false)
+            ->whereYear('tanggal_dibuat', now()->year)
+            ->whereMonth('tanggal_dibuat', now()->month)
+            ->count();
+        $fileBulanLalu = File::where('dihapus', false)
+            ->whereYear('tanggal_dibuat', $bulanLalu->year)
+            ->whereMonth('tanggal_dibuat', $bulanLalu->month)
+            ->count();
+        $persenFile = $this->persentase($fileBulanIni, $fileBulanLalu);
+
+        return view('Dashboard.selection.index', compact(
+            'orderHariIni',
+            'orderSelesaiHariIni',
+            'pendapatanHariIni',
+            'persenPendapatan',
+            'komputerTotal',
+            'komputerAktif',
+            'fileTersimpan',
+            'persenFile'
+        ));
+    }
+
+    private function persentase(int $sekarang, int $sebelumnya): ?float
+    {
+        if ($sebelumnya === 0) {
+            return $sekarang === 0 ? 0.0 : null;
+        }
+
+        return round((($sekarang - $sebelumnya) / $sebelumnya) * 100, 1);
+    }
+
+    private function labelLayanan(?string $layanan): string
+    {
+        if (! $layanan) {
+            return '-';
+        }
+
+        return match ($layanan) {
+            'kilat-edit' => 'Kilat Edit',
+            'kilat-langsung' => 'Kilat Langsung',
+            'terjadwal' => 'Terjadwal',
+            default => ucwords(str_replace('-', ' ', $layanan)),
+        };
+    }
+
+    private function labelMime(?string $mime): string
+    {
+        if (! $mime) {
+            return 'Lainnya';
+        }
+
+        return match ($mime) {
+            'application/pdf' => 'PDF',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'Word',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'Excel',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation' => 'PowerPoint',
+            'image/jpeg', 'image/png' => 'Gambar',
+            default => strtoupper(substr($mime, strrpos($mime, '/') + 1)),
+        };
     }
 
     public function logout(Request $request)
     {
         try {
-            $sessionData = $request->session()->get("session", null);
+            $sessionData = $request->session()->get('session', null);
 
-            if ($sessionData && isset($sessionData["tokoid"])) {
-                $hexId = $sessionData["tokoid"];
+            if ($sessionData && isset($sessionData['tokoid'])) {
+                $hexId = $sessionData['tokoid'];
 
                 // Cek apakah string hex valid sebelum dikonversi
                 if (ctype_xdigit($hexId) && strlen($hexId) % 2 === 0) {
@@ -32,7 +116,7 @@ class dashboardControler extends Controller
 
                     if ($toko) {
                         $toko->update([
-                            "token" => null
+                            'token' => null,
                         ]);
                     } else {
                         Log::warning("Logout: Toko dengan ID hex {$hexId} tidak ditemukan di database.");
@@ -44,111 +128,128 @@ class dashboardControler extends Controller
 
             // Hapus session & redirect
             $request->session()->flush();
-            return redirect()->route("admin.login")->with([
-                "success" => true,
-                "message" => "sukses keluar dari dashboard"
+
+            return redirect()->route('admin.login')->with([
+                'success' => true,
+                'message' => 'sukses keluar dari dashboard',
             ]);
         } catch (\Throwable $th) {
-            Log::error("Error saat logout: " . $th->getMessage(), [
-                'trace' => $th->getTraceAsString()
+            Log::error('Error saat logout: '.$th->getMessage(), [
+                'trace' => $th->getTraceAsString(),
             ]);
 
-            return redirect()->route("admin.login")->with('error', 'Terjadi kesalahan saat logout.');
+            return redirect()->route('admin.login')->with('error', 'Terjadi kesalahan saat logout.');
         }
     }
 
     public function pendapatan(Request $request)
     {
-        $bulan = (int) $request->query('bulan', now()->month);
-        $tahun = now()->year;
+        $bulan = max(1, min(12, (int) $request->query('bulan', now()->month)));
+        $tahun = (int) $request->query('tahun', now()->year);
         $jumlahHari = Carbon::create($tahun, $bulan, 1)->daysInMonth;
 
-        // DUMMY, ganti dengan query asli, contoh:
-        // $per_hari = Order::whereYear('created_at', $tahun)
-        //     ->whereMonth('created_at', $bulan)
-        //     ->selectRaw('DAY(created_at) as hari, SUM(total) as total')
-        //     ->groupBy('hari')
-        //     ->pluck('total', 'hari');
-        // $data = collect(range(1, $jumlahHari))->map(fn ($h) => (int) ($per_hari[$h] ?? 0));
+        $perHari = Order::whereYear('tanggal_pesan', $tahun)
+            ->whereMonth('tanggal_pesan', $bulan)
+            ->selectRaw('DAY(tanggal_pesan) as hari, SUM(total_pembayaran) as total')
+            ->groupBy('hari')
+            ->pluck('total', 'hari');
 
-        $data = collect(range(1, $jumlahHari))->map(fn() => random_int(100_000, 600_000));
+        $data = collect(range(1, $jumlahHari))
+            ->map(fn ($hari) => (int) ($perHari[$hari] ?? 0));
 
         return response()->json($data);
     }
 
     public function tipeFile()
     {
-        // DUMMY, ganti dengan query asli, contoh:
-        // return response()->json(
-        //     File::selectRaw('tipe, COUNT(*) as jumlah')
-        //         ->groupBy('tipe')->orderByDesc('jumlah')->limit(3)->get()
-        // );
+        $data = File::where('dihapus', false)
+            ->selectRaw('mime, COUNT(*) as jumlah')
+            ->groupBy('mime')
+            ->orderByDesc('jumlah')
+            ->limit(3)
+            ->get()
+            ->map(fn ($file) => [
+                'tipe' => $this->labelMime($file->mime),
+                'jumlah' => (int) $file->jumlah,
+            ]);
 
-        return response()->json([
-            ['tipe' => 'PDF',  'jumlah' => 22],
-            ['tipe' => 'Word', 'jumlah' => 3],
-            ['tipe' => 'PPT',  'jumlah' => 10],
-        ]);
+        return response()->json($data);
     }
 
     public function layananKertas(Request $request)
     {
-        $bulan = (int) $request->query('bulan', now()->month);
-        $tahun = now()->year;
+        $bulan = max(1, min(12, (int) $request->query('bulan', now()->month)));
+        $tahun = (int) $request->query('tahun', now()->year);
 
-        // DUMMY, ganti dengan query asli, contoh:
-        // $layanan = Order::whereYear('created_at', $tahun)->whereMonth('created_at', $bulan)
-        //     ->join('layanan', 'layanan.id', '=', 'orders.layanan_id')
-        //     ->selectRaw('layanan.nama, COUNT(*) as total')->groupBy('layanan.nama')
-        //     ->pluck('total', 'nama');
+        $layanan = DB::table('files')
+            ->join('orders', 'orders.id', '=', 'files.order_id')
+            ->leftJoin('layanan_terpilih', 'layanan_terpilih.files_id', '=', 'files.id')
+            ->whereYear('orders.tanggal_pesan', $tahun)
+            ->whereMonth('orders.tanggal_pesan', $bulan)
+            ->selectRaw('COALESCE(layanan_terpilih.nama_layanan, files.layanan) as nama, COUNT(DISTINCT orders.id) as total')
+            ->groupBy(DB::raw('COALESCE(layanan_terpilih.nama_layanan, files.layanan)'))
+            ->orderByDesc('total')
+            ->get();
+
+        $kertas = DB::table('configuration')
+            ->join('files', 'files.id', '=', 'configuration.file_id')
+            ->join('orders', 'orders.id', '=', 'files.order_id')
+            ->whereYear('orders.tanggal_pesan', $tahun)
+            ->whereMonth('orders.tanggal_pesan', $bulan)
+            ->selectRaw('COALESCE(configuration.ukuran, "Lainnya") as nama, SUM(configuration.pages_toprint * configuration.jumlah_cetak) as total')
+            ->groupBy('configuration.ukuran')
+            ->orderByDesc('total')
+            ->get();
 
         return response()->json([
             'layanan' => [
-                'labels' => ['Layanan A', 'Layanan B', 'Layanan C'],
-                'series' => [60, 20, 20],
+                'labels' => $layanan->pluck('nama')->map(fn ($nama) => $this->labelLayanan($nama))->values(),
+                'series' => $layanan->pluck('total')->map(fn ($total) => (int) $total)->values(),
             ],
             'kertas' => [
-                'labels' => ['Layanan A', 'Layanan B', 'Layanan C'],
-                'series' => [304, 223, 123],
+                'labels' => $kertas->pluck('nama')->values(),
+                'series' => $kertas->pluck('total')->map(fn ($total) => (int) $total)->values(),
             ],
         ]);
     }
+
     public function order(Request $request)
     {
         $perHalaman = 5;
         $halaman = max(1, (int) $request->query('page', 1));
 
-        // DUMMY, ganti dengan query asli, contoh:
-        // $paginator = Order::with('layanan')->latest()->paginate($perHalaman);
-        // $data = $paginator->getCollection()->map(fn ($o) => [
-        //     'tanggal'  => $o->created_at->format('d/m/Y'),
-        //     'layanan'  => $o->layanan->pluck('nama')->join(', '),
-        //     'ukuran'   => $o->ukuran_kertas,        // contoh: "A4, F4"
-        //     'files'    => $o->files_count,
-        //     'halaman'  => $o->total_halaman,
-        //     'status'   => $o->status_pembayaran,    // pending | lunas | batal
-        //     'total'    => $o->total,
-        // ]);
-        // return response()->json([
-        //     'data' => $data,
-        //     'current_page' => $paginator->currentPage(),
-        //     'last_page' => $paginator->lastPage(),
-        // ]);
+        $paginator = DB::table('orders')
+            ->select([
+                'orders.id',
+                'orders.tanggal_pesan',
+                'orders.status_pembayaran',
+                'orders.total_pembayaran',
+                DB::raw('(SELECT COUNT(*) FROM files WHERE files.order_id = orders.id) as jumlah_file'),
+                DB::raw('(SELECT COALESCE(SUM(COALESCE(configuration.pages_toprint, files.total_pages) * COALESCE(configuration.jumlah_cetak, 1)), 0) FROM files LEFT JOIN configuration ON configuration.file_id = files.id WHERE files.order_id = orders.id) as total_halaman'),
+                DB::raw('(SELECT GROUP_CONCAT(DISTINCT COALESCE(layanan_terpilih.nama_layanan, files.layanan)) FROM files LEFT JOIN layanan_terpilih ON layanan_terpilih.files_id = files.id WHERE files.order_id = orders.id) as layanan'),
+                DB::raw('(SELECT GROUP_CONCAT(DISTINCT configuration.ukuran) FROM files INNER JOIN configuration ON configuration.file_id = files.id WHERE files.order_id = orders.id) as ukuran'),
+            ])
+            ->orderByDesc('orders.tanggal_pesan')
+            ->paginate($perHalaman, ['*'], 'page', $halaman);
 
-        $semua = collect(range(1, 23))->map(fn($i) => [
-            'tanggal' => now()->subDays($i)->format('d/m/Y'),
-            'layanan' => 'Laminating, Jilid',
-            'ukuran'  => 'A4, F4',
-            'files'   => 2,
-            'halaman' => 40,
-            'status'  => $i % 3 === 0 ? 'lunas' : 'pending',
-            'total'   => 30000,
+        $data = $paginator->getCollection()->map(fn ($order) => [
+            'tanggal' => Carbon::parse($order->tanggal_pesan)->format('d/m/Y'),
+            'layanan' => $order->layanan
+                ? collect(explode(',', $order->layanan))
+                    ->map(fn ($nama) => $this->labelLayanan($nama))
+                    ->join(', ')
+                : '-',
+            'ukuran' => $order->ukuran ?: '-',
+            'files' => (int) $order->jumlah_file,
+            'halaman' => (int) $order->total_halaman,
+            'status' => $order->status_pembayaran,
+            'total' => (int) $order->total_pembayaran,
         ]);
 
         return response()->json([
-            'data' => $semua->forPage($halaman, $perHalaman)->values(),
-            'current_page' => $halaman,
-            'last_page' => (int) ceil($semua->count() / $perHalaman),
+            'data' => $data,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
         ]);
     }
 }
