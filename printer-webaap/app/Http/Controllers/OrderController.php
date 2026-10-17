@@ -44,7 +44,7 @@ class OrderController extends Controller
             'files.*.kualitas' => ['required', Rule::in(["rendah", "standar", "tinggi"])],
             //ingat bagian skala harus di hapus, rechek lagi bagian migration untuk skala dapat di hapus
             'files.*.jumlah' => 'required|numeric|min:1',
-            'files.*.halaman' => ['nullable' , new CustomHalamanRule()],
+            'files.*.halaman' => ['nullable', new CustomHalamanRule()],
             'files.*.catatan' => 'nullable',
             'files.*.id_paper' => 'required',
             'files.*.paket' => 'nullable|array|min:0',
@@ -112,7 +112,7 @@ class OrderController extends Controller
         // return redirect()->route("dashboard");
 
         $orderSession = $request->session()->get(UploadTerjadwalController::SESSION_KEY);
-        
+
         if ($orderSession === null) return redirect()->back()->with("error", "hehe");
         // return redirect()->back()->with("error", json_encode($orderSession));
         if ($orderid !== $orderSession["orderid"]) {
@@ -127,35 +127,35 @@ class OrderController extends Controller
         try {
             DB::transaction(function () use (&$TotalSemua, &$validated, $files, $request, $orderSession) {
                 $filesOnRequest = $validated["files"];
-
+    
                 $getBiaya = PengaturanToko::findOrFail(1);
-                $TotalSemua = 0 + $getBiaya->biaya_admin + $getBiaya->biaya_layanan;
-
+                $TotalSemua = 0 + $getBiaya->biaya_admin;
+    
                 if (!is_array($files) || count($files) !== count($filesOnRequest)) {
                     throw new \Exception("Jumlah file yang di upload dengan yang tersimpan berbeda");
                 }
-
+    
                 foreach ($filesOnRequest as $index => $value) {
                     $subTotal = 0;
                     $filesId = $value["id"];
                     $filesOnSession = $orderSession["files"][$filesId] ?? null;
-
+    
                     if ($filesOnSession["id"] == null) {
                         return redirect()->back()->with("error", "Id di filessession yang tersimpan tidak sama");
                     }
-
+    
                     $totalPages = $filesOnSession["total_pages"];
-
+    
                     $totalPagesToPrint = count($this->parseHalaman($value["halaman"] ?? "1-$totalPages"));
-
+    
                     if ($totalPagesToPrint > $totalPages) {
                         return redirect()->back()->with("error", "Jumlah pages yang anda isi di costume halaman tidak sesuai dengan total pages yang akan anda kirim");
                     }
-
+    
                     $paper = Paper::findOrFail($value["id_paper"]);
-
+    
                     $banyakHalaman = $totalPagesToPrint * $value["jumlah"];
-
+    
                     switch ($value["warna"]) {
                         case "berwarna":
                             $subTotal += ($paper->harga_color * $banyakHalaman);
@@ -164,7 +164,7 @@ class OrderController extends Controller
                             $subTotal += ($paper->harga_grayscale * $banyakHalaman);
                             break;
                     }
-
+    
                     foreach (($value["paket"] ?? []) as $idLayanan) {
                         $layanan = Layanan::findOrFail($idLayanan);
                         $namaLayanan = $layanan->nama;
@@ -175,40 +175,38 @@ class OrderController extends Controller
                             "nama_layanan" => $namaLayanan
                         ]);
                     }
-
+    
                     Configuration::create([
-                            'file_id' => hex2bin($value["id"]),
-                            'orientasi' => $value["orientasi"],
-                            'warna' => $value["warna"],
-                            'ukuran' => $paper->name,
-                            'kualitas' => $value["kualitas"],
-                            'jumlah_cetak' => $value["jumlah"],
-                            'custom_halaman' => $value["halaman"],
-                            'catatan_tambahan' => $value["catatan"],
-                            'paper_id' => $value["id_paper"],
-                            'pages_toprint' => $totalPagesToPrint,
-                        ]);
-                        
-
-                    // Order::findOrFail()
-
+                        'file_id' => hex2bin($value["id"]),
+                        'orientasi' => $value["orientasi"],
+                        'warna' => $value["warna"],
+                        'ukuran' => $paper->name,
+                        'kualitas' => $value["kualitas"],
+                        'jumlah_cetak' => $value["jumlah"],
+                        'custom_halaman' => $value["halaman"],
+                        'catatan_tambahan' => $value["catatan"],
+                        'paper_id' => $value["id_paper"],
+                        'pages_toprint' => $totalPagesToPrint,
+                    ]);
+    
                     $TotalSemua += $subTotal;
                     $validated["files"][$index]["subtotal"] = $subTotal;
                 }
-
+    
                 User::create([
-                    "sessionid" => $request->session()->getId(),
+                    "sessionid" => $orderSession["sessionid"],
                     "name" => $validated["nama"],
                     "no_wa" => $validated["no_wa"]
                 ]);
+    
+                Order::findOrFail(hex2bin($orderSession["orderid"]))
+                    ->update([
+                        "biaya_admin" => $getBiaya->biaya_admin,
+                        "total_pembayaran" => $TotalSemua,
+                        "total_dibayar" => 0,
+                        "session_id" => $orderSession["sessionid"]
+                    ]);
             });
-
-            if ($request->expectsJson()) {
-                return response()->json([
-                    "message" => "succed create new order",
-                    "data" => $validated
-                ]);
-            }
             return redirect()->back()->with("success", "hehe");
         } catch (\Exception $e) {
             return redirect()->back()->with("error", $e->getMessage());
