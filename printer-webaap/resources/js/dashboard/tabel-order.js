@@ -7,8 +7,16 @@ if (tabel && nav) {
 
   const badge = {
     pending: "bg-yellow-100 text-yellow-800",
-    lunas: "bg-green-100 text-green-800",
-    batal: "bg-red-100 text-red-800",
+    processing: "bg-blue-100 text-blue-800",
+    success: "bg-green-100 text-green-800",
+    fail: "bg-red-100 text-red-800",
+  };
+
+  const labelStatus = {
+    pending: "Pending",
+    processing: "Diproses",
+    success: "Berhasil",
+    fail: "Gagal",
   };
 
   const td = (teks, kelas = "") => {
@@ -25,7 +33,7 @@ if (tabel && nav) {
     status.className = "py-3 pr-4";
     const span = document.createElement("span");
     span.className = `rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${badge[o.status] ?? "bg-gray-100 text-gray-800"}`;
-    span.textContent = o.status;
+    span.textContent = labelStatus[o.status] ?? o.status;
     status.append(span);
 
     tr.append(
