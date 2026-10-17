@@ -17,11 +17,11 @@ Route::get('/', function (\Illuminate\Http\Request $request) {
 
 Route::view('/formulir/kilat', 'formulir-kilat')->name('formulir.kilat');
 
-Route::get('/dashboard/admin/login', [\App\http\Controllers\loginControler::class, "get"])->name('admin.login');
-Route::post('/dashboard/admin/login', [\App\http\Controllers\loginControler::class, "login"]);
+Route::get('/dashboard/admin/login', [\App\Http\Controllers\loginControler::class, "get"])->name('admin.login');
+Route::post('/dashboard/admin/login', [\App\Http\Controllers\loginControler::class, "login"]);
 
-Route::get('/dashboard/admin/signup', [\App\http\Controllers\signupControler::class, "get"])->name('admin.signup');
-Route::post('/dashboard/admin/signup', [\App\http\Controllers\signupControler::class, "store"]);
+Route::get('/dashboard/admin/signup', [\App\Http\Controllers\signupControler::class, "get"])->name('admin.signup');
+Route::post('/dashboard/admin/signup', [\App\Http\Controllers\signupControler::class, "store"]);
 
 
 // alur cetak terjadwal
@@ -40,26 +40,26 @@ Route::get('/terjadwal/keluar', function (\Illuminate\Http\Request $request) {
 Route::post("/order/create", [\App\Http\Controllers\OrderController::class, 'createorder_terjadwal'])->name("create.order");
 
 //-------------------------------------------------------------------------------------------------------------------------------------
-Route::prefix('dashboard')->middleware([\App\http\Middleware\VerifyTokenMiddleware::class])->group(function () {
+Route::prefix('dashboard')->middleware([\App\Http\Middleware\VerifyTokenMiddleware::class])->group(function () {
     // Mengakses URL: /dashboard
-    Route::get('/pendapatan/data', [\App\http\Controllers\dashboardControler::class, 'pendapatan'])
+    Route::get('/pendapatan/data', [\App\Http\Controllers\dashboardControler::class, 'pendapatan'])
         ->name('pendapatan.data');
-    Route::get('/layanan-kertas/data', [\App\http\Controllers\dashboardControler::class, 'layananKertas'])
+    Route::get('/layanan-kertas/data', [\App\Http\Controllers\dashboardControler::class, 'layananKertas'])
         ->name('layanan-kertas.data');
-    Route::get('/tipe-file/data', [\App\http\Controllers\dashboardControler::class, 'tipeFile'])
+    Route::get('/tipe-file/data', [\App\Http\Controllers\dashboardControler::class, 'tipeFile'])
         ->name('tipe-file.data');
-    Route::get('/order/data', [\App\http\Controllers\dashboardControler::class, 'order'])
+    Route::get('/order/data', [\App\Http\Controllers\dashboardControler::class, 'order'])
         ->name('order.data');
-    Route::get("/", [\App\http\Controllers\dashboardControler::class, "get"])->name("dashboard");
-    Route::post("/logout", [\App\http\Controllers\dashboardControler::class, "logout"])->name("logout");
+    Route::get("/", [\App\Http\Controllers\dashboardControler::class, "get"])->name("dashboard");
+    Route::post("/logout", [\App\Http\Controllers\dashboardControler::class, "logout"])->name("logout");
 
     //files
-    Route::get('/files', [\App\http\Controllers\FilesController::class, "get"])->name("files.index");
+    Route::get('/files', [\App\Http\Controllers\FilesController::class, "get"])->name("files.index");
 
     //order
     Route::get('/order', [\App\Http\Controllers\OrderController::class, "get"])->name("order.index");
     Route::get('/orders/files/{id}', [\App\Http\Controllers\OrderController::class, "detail"])->name("order.detail");
-    Route::get('/order/all', [\App\http\Controllers\OrderController::class, "getorderData"])->name("get.all");
+    Route::get('/order/all', [\App\Http\Controllers\OrderController::class, "getorderData"])->name("get.all");
     //Layanan
     Route::get('/layanan', [\App\Http\Controllers\LayananController::class, "get"])->name("layanan.index");
     Route::post('/layanan/add', [\App\Http\Controllers\LayananController::class, "store"])->name("layanan.post");
@@ -67,13 +67,13 @@ Route::prefix('dashboard')->middleware([\App\http\Middleware\VerifyTokenMiddlewa
 
     //kertas
     Route::get('/kertas', [\App\Http\Controllers\KertasController::class, "get"])->name("kertas.index");
-    Route::post('/kertas/add', [\App\http\Controllers\KertasController::class,"store"])->name("kertas.store");
+    Route::post('/kertas/add', [\App\Http\Controllers\KertasController::class,"store"])->name("kertas.store");
     Route::put('/kertas/{id}', [\App\Http\Controllers\KertasController::class, "update"])->name("kertas.perbarui");
     //komputer
     Route::get('/komputer', [\App\Http\Controllers\KomputerController::class, "get"])->name("komputer.index");
-    Route::post('/komputer/add', [\App\http\Controllers\KomputerController::class, "store"])->name("komputer.post");
-    Route::get('/komputer/isActive', [\App\http\Controllers\KomputerController::class, "getStatucisActivebyId"])->name("komputer.status");
-    Route::get('/komputer/destroy/{id}', [\App\http\Controllers\KomputerController::class, "destroy"])->name("komputer.destroy");
+    Route::post('/komputer/add', [\App\Http\Controllers\KomputerController::class, "store"])->name("komputer.post");
+    Route::get('/komputer/isActive', [\App\Http\Controllers\KomputerController::class, "getStatucisActivebyId"])->name("komputer.status");
+    Route::get('/komputer/destroy/{id}', [\App\Http\Controllers\KomputerController::class, "destroy"])->name("komputer.destroy");
     //pengaturan
     Route::get('/pengaturan', [\App\Http\Controllers\PengaturanController::class, "get"])->name("pengaturan.index");
     Route::post('/pengaturan', [\App\Http\Controllers\PengaturanController::class, "store"])->name("pengaturan.store");

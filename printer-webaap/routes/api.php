@@ -44,6 +44,7 @@ use App\Http\Middleware\VerifyTokenMiddleware;
 Route::middleware('api')->group(function () {
     // Computer
     Route::post('/computer/SSE', [\App\Http\Controllers\Api\ComputerController::class, 'serverSendEvent']);
+    Route::post('/files/getid', [\App\Http\Controllers\FilesController::class, 'getFileById']);
     // Route::get('/computer/token', [\App\Http\Controllers\Api\ComputerController::class, 'getByToken']);
     // Route::get('/computer/{id}', [\App\Http\Controllers\Api\ComputerController::class, 'getById']);
     // User
