@@ -338,11 +338,24 @@ wired-button.pay-button {
     border-top: 1px solid var(--color-line);
 }
 
+.form-totals {
+    margin-left: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
 .form-subtotal {
-    margin: 0 0 0 auto;
+    margin: 0;
     font-size: var(--fs-caption);
     letter-spacing: 0.02em;
     white-space: nowrap;
+    text-align: right;
+}
+
+/* Sub total file yang sedang diatur: ditampilkan di atas sub total semua file. */
+.form-subtotal-file {
+    opacity: 0.75;
 }
 
 /* Wired elements menyembunyikan diri sampai sketsanya selesai digambar.

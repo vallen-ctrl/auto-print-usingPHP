@@ -42,6 +42,11 @@ Route::get('/terjadwal/keluar', function (\Illuminate\Http\Request $request) {
 
 //alur order
 Route::post("/order/create", [\App\Http\Controllers\OrderController::class, 'createorder_terjadwal'])->name("create.order");
+Route::post('/order/token', [\App\Http\Controllers\OrderController::class, "bayarSekarang"])->name("create.snap.token");
+
+Route::get("/test", function (){
+    return view('snap');
+});
 
 //-------------------------------------------------------------------------------------------------------------------------------------
 Route::prefix('dashboard')->middleware([\App\Http\Middleware\VerifyTokenMiddleware::class])->group(function () {

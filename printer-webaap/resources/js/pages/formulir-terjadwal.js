@@ -39,6 +39,7 @@ const fieldPesanan = {
 if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
     const paketChecks = Array.from(document.querySelectorAll('.paket-check'));
     const subTotal = document.getElementById('sub-total');
+    const subTotalFile = document.getElementById('sub-total-file');
 
     // Data pesanan (tidak per file): nama, whatsapp, tanggal & pukul ambil.
 
@@ -253,7 +254,40 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         return hargaKertasTerpilih() * halaman * jumlah;
     };
 
-    // Sub total = biaya kertas file aktif + paket yang dicentang (file aktif).
+    // Sub total satu file dari state tersimpannya: biaya kertas (harga halaman
+    // × jumlah halaman cetak × jumlah cetak) + paket yang dipilih file itu.
+    const hitungSubTotalFile = (state) => {
+        if (!state) {
+            return 0;
+        }
+
+        const radio = cariRadioUkuran(state.ukuran);
+
+        if (!radio) {
+            return 0;
+        }
+
+        const harga = state.warna === 'berwarna'
+            ? Number(radio.dataset.hargaColor) || 0
+            : Number(radio.dataset.hargaGrayscale) || 0;
+
+        const halaman = hitungJumlahHalaman(state.total_pages, state.halaman);
+        const jumlah = Number(state.jumlah) || 1;
+
+        const hargaPaket = new Map(
+            paketChecks.map((box) => [box.dataset.id, Number(box.dataset.harga) || 0])
+        );
+
+        const paketTotal = (state.paket || []).reduce(
+            (total, id) => total + (hargaPaket.get(String(id)) || 0),
+            0
+        );
+
+        return harga * halaman * jumlah + paketTotal;
+    };
+
+    // Sub total file aktif ditampilkan di baris atas; sub total semua file di
+    // baris bawahnya (jumlahan sub total tiap file yang diisi user).
     const hitungSubTotal = () => {
         perbaruiHargaWarna();
 
@@ -265,10 +299,21 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
             }
         });
 
-        const total = hitungBiayaKertas() + paketTotal;
+        // File aktif memakai nilai form terbaru, file lain memakai state tersimpan.
+        const totalFileAktif = hitungBiayaKertas() + paketTotal;
+
+        let totalSemua = 0;
+
+        pengaturanPerFile.forEach((state, nama) => {
+            totalSemua += nama === fileAktif ? totalFileAktif : hitungSubTotalFile(state);
+        });
+
+        if (subTotalFile) {
+            subTotalFile.textContent = totalFileAktif.toLocaleString('id-ID');
+        }
 
         if (subTotal) {
-            subTotal.textContent = total.toLocaleString('id-ID');
+            subTotal.textContent = totalSemua.toLocaleString('id-ID');
         }
     };
 

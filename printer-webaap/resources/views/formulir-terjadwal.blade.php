@@ -174,7 +174,10 @@
 
                     <div class="form-footer">
                         <wired-button roughness="1.2" elevation="1" id="btn-pembayaran" class="pay-button">Lanjut proses pembayaran</wired-button>
-                        <p class="form-subtotal">SUB TOTAL: Rp. <span id="sub-total">0</span></p>
+                        <div class="form-totals">
+                            <p class="form-subtotal form-subtotal-file">SUB TOTAL FILE: Rp. <span id="sub-total-file">0</span></p>
+                            <p class="form-subtotal">SUB TOTAL: Rp. <span id="sub-total">0</span></p>
+                        </div>
                     </div>
                 </form>
             </wired-card>

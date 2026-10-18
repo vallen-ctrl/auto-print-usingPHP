@@ -132,16 +132,31 @@
                 {{-- Waktu ambil + unduh file + total --}}
                 <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <div class="lg:col-span-2">
-                        <h2 class="text-lg font-semibold text-ink">Waktu ambil</h2>
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <h2 class="text-lg font-semibold text-ink">Waktu ambil</h2>
 
-                        <div class="mt-3 inline-flex flex-col gap-3 rounded-xl border border-line bg-surface p-5 text-sm shadow-sm">
-                            <div class="flex items-center gap-3">
-                                <span class="text-ink-muted">Tanggal Ambil</span>
-                                <span class="font-semibold text-ink">{{ $order->tanggal_ambil ? $order->tanggal_ambil->format('d/m/Y') : '-' }}</span>
+                                <div class="mt-3 inline-flex flex-col gap-3 rounded-xl border border-line bg-surface p-5 text-sm shadow-sm">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-ink-muted">Tanggal Ambil</span>
+                                        <span class="font-semibold text-ink">{{ $order->tanggal_ambil ? $order->tanggal_ambil->format('d/m/Y') : '-' }}</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-ink-muted">Jam</span>
+                                        <span class="font-semibold text-ink">{{ $order->tanggal_ambil ? $order->tanggal_ambil->format('H:i') : '-' }}</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="flex items-center gap-3">
-                                <span class="text-ink-muted">Jam</span>
-                                <span class="font-semibold text-ink">{{ $order->tanggal_ambil ? $order->tanggal_ambil->format('H:i') : '-' }}</span>
+
+                            <div>
+                                <h2 class="text-lg font-semibold text-ink">Metode pembayaran</h2>
+
+                                <div class="mt-3 inline-flex flex-col gap-3 rounded-xl border border-line bg-surface p-5 text-sm shadow-sm">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-ink-muted">Metode</span>
+                                        <span class="font-semibold text-ink">{{ $order->metode_pembayaran ?: '-' }}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

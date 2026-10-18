@@ -11,17 +11,17 @@ use App\Models\Configuration;
 use App\Models\File;
 use App\Models\FileQueue;
 use App\Models\Order;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use App\Rules\SkalaRule;
 use App\Models\Paper;
 use App\Models\Layanan;
 use App\Models\LayananTerpilih;
-use App\Models\MetodePembayaran;
 use App\Rules\CustomHalamanRule;
 use App\Models\User;
 use App\Models\PengaturanToko;
+
+\Midtrans\Config::$serverKey    = config('midtrans.server_key');
+\Midtrans\Config::$isProduction = config('midtrans.is_production');
+\Midtrans\Config::$isSanitized  = config('midtrans.is_sanitized');
 
 class OrderController extends Controller
 {
@@ -225,12 +225,10 @@ class OrderController extends Controller
             "orderid" => "required"
         ])["orderid"];
 
-        // return redirect()->route("dashboard");
-
         $orderSession = $request->session()->get(UploadTerjadwalController::SESSION_KEY);
 
         if ($orderSession === null) return redirect()->back()->with("error", "Order sudah kadaluarsa, mohon dapat berpindah ke halaman upload kembali");
-    
+
         if ($orderid !== $orderSession["orderid"]) {
             return redirect()->back()->with("error", "cant find order id");
         }
@@ -243,35 +241,35 @@ class OrderController extends Controller
         try {
             DB::transaction(function () use (&$TotalSemua, &$validated, $files, $request, $orderSession) {
                 $filesOnRequest = $validated["files"];
-    
+
                 $getBiaya = PengaturanToko::findOrFail(1);
                 $TotalSemua = 0 + $getBiaya->biaya_admin;
-    
+
                 if (!is_array($files) || count($files) !== count($filesOnRequest)) {
                     throw new \Exception("Jumlah file yang di upload dengan yang tersimpan berbeda");
                 }
-    
+
                 foreach ($filesOnRequest as $index => $value) {
                     $subTotal = 0;
                     $filesId = $value["id"];
                     $filesOnSession = $orderSession["files"][$filesId] ?? null;
-    
+
                     if ($filesOnSession["id"] == null) {
                         return redirect()->back()->with("error", "Id di filessession yang tersimpan tidak sama");
                     }
-    
+
                     $totalPages = $filesOnSession["total_pages"];
-    
+
                     $totalPagesToPrint = count($this->parseHalaman($value["halaman"] ?? "1-$totalPages"));
-    
+
                     if ($totalPagesToPrint > $totalPages) {
                         return redirect()->back()->with("error", "Jumlah pages yang anda isi di costume halaman tidak sesuai dengan total pages yang akan anda kirim");
                     }
-    
+
                     $paper = Paper::findOrFail($value["id_paper"]);
-    
+
                     $banyakHalaman = $totalPagesToPrint * $value["jumlah"];
-    
+
                     switch ($value["warna"]) {
                         case "berwarna":
                             $subTotal += ($paper->harga_color * $banyakHalaman);
@@ -280,7 +278,7 @@ class OrderController extends Controller
                             $subTotal += ($paper->harga_grayscale * $banyakHalaman);
                             break;
                     }
-    
+
                     foreach (($value["paket"] ?? []) as $idLayanan) {
                         $layanan = Layanan::findOrFail($idLayanan);
                         $namaLayanan = $layanan->nama;
@@ -293,10 +291,10 @@ class OrderController extends Controller
                     }
 
                     File::findOrFail(hex2bin($value["id"]))
-                    ->update([
-                        "subtotal" => $subTotal,
-                    ]);
-    
+                        ->update([
+                            "subtotal" => $subTotal,
+                        ]);
+
                     Configuration::create([
                         'file_id' => hex2bin($value["id"]),
                         'orientasi' => $value["orientasi"],
@@ -309,17 +307,17 @@ class OrderController extends Controller
                         'paper_id' => $value["id_paper"],
                         'pages_toprint' => $totalPagesToPrint,
                     ]);
-    
+
                     $TotalSemua += $subTotal;
                     $validated["files"][$index]["subtotal"] = $subTotal;
                 }
-    
+
                 User::create([
                     "sessionid" => $orderSession["sessionid"],
                     "name" => $validated["nama"],
                     "no_wa" => $validated["no_wa"]
                 ]);
-    
+
                 Order::findOrFail(hex2bin($orderSession["orderid"]))
                     ->update([
                         "biaya_admin" => $getBiaya->biaya_admin,
@@ -332,5 +330,38 @@ class OrderController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()->with("error", $e->getMessage());
         }
+    }
+
+    public function bayarSekarang(Request $request)
+    {
+        $validated = $request->validate([
+            "orderid" => 'required',
+            // "id_metode_pembayaran" => "required"
+        ]);
+
+        $session = $request->session()->get(UploadTerjadwalController::SESSION_KEY, null);
+
+        if ($session === null) {
+            return redirect()->back()->with("error", "Sesi anda sudah habis.");
+        }
+
+        if ($session["orderid"] !== $validated["orderid"]) {
+            return redirect()->back()->with("error", "tidak dapat mencari order id yang sesuai");
+        }
+
+        $order = Order::whereKey(hex2bin($validated["orderid"]))->first();
+
+        $params = array(
+            'transaction_details' => array(
+                'order_id' => bin2hex($order->id),
+                'gross_amount' => $order->total_pembayaran,
+            ),
+        );
+
+        $snapToken = \Midtrans\Snap::getSnapToken($params);
+        return response()->json([
+            "token" => $snapToken,
+            "messgae" => "sukes generated snap token"
+        ]);
     }
 }
