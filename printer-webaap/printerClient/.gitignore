@@ -1,2 +1,5 @@
 node_modules/
+printerClient-relase
+/tauri-qr/src-tauri/target/release
 node-printer.exe
+printerClient-relase.zip

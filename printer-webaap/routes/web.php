@@ -48,6 +48,7 @@ Route::get("/test", function (){
     return view('snap');
 });
 
+
 //-------------------------------------------------------------------------------------------------------------------------------------
 Route::prefix('dashboard')->middleware([\App\Http\Middleware\VerifyTokenMiddleware::class])->group(function () {
     // Mengakses URL: /dashboard

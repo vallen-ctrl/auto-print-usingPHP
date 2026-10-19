@@ -40,10 +40,11 @@ use App\Http\Middleware\VerifyTokenMiddleware;
 // });
 
 // Route::get('/trial', [\App\Http\Controllers\Api\UserController::class, 'tiral']);
-
 Route::middleware('api')->group(function () {
     // Computer
     Route::post('/computer/SSE', [\App\Http\Controllers\Api\ComputerController::class, 'serverSendEvent']);
+    Route::post("/computer/scanqr", [\App\Http\Controllers\Api\ComputerController::class, "computerScreen"])->name("computer.scan");
+    Route::post("/computer/gettoken", [\App\Http\Controllers\Api\ComputerController::class, "gettokenQr"])->name("computer.token");
 
     Route::post('/files/update/status', [\App\Http\Controllers\Api\ComputerController::class, 'updateFileQueue'])->name('file.update');
     Route::post('/files/getid', [\App\Http\Controllers\FilesController::class, 'getFileById']);
@@ -97,7 +98,7 @@ Route::middleware('api')->group(function () {
     // Route::put('/order/{id}/status-pembayaran', [\App\Http\Controllers\Api\OrderController::class, 'updateStatusPembayaran']);
 
 
-    
+
     // Configuration
     // bagian ini tidak diperlukan dikarenakan natninya akan diupload bersama dengan order
     // karena tabel oreder akan terbuat setelah user mengisi semua formulir

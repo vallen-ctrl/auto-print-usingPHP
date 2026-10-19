@@ -3,6 +3,7 @@
 //   node-printer.exe              -> pastikan daemon jalan (tray), lalu buka TUI setup
 //   node-printer.exe --setup      -> TUI setup saja
 //   node-printer.exe --daemon     -> background + system tray
+//   node-printer.exe qr           -> ambil QR dari server & tampilkan di window Tauri
 //   node-printer.exe autostart on|off  -> jalan otomatis saat login Windows
 //   node-printer.exe uninstall    -> hapus daemon, auto-start, config & file aplikasi
 import { isDaemonRunning, startDaemonDetached, runDaemon, setAutostart, IS_COMPILED } from "./daemon";
@@ -17,6 +18,17 @@ switch (arg) {
   case "--setup": {
     const { main } = await import("./setup");
     await main();
+    break;
+  }
+
+  case "qr": {
+    const { prepareQr, showQr } = await import("./qr");
+    try {
+      await showQr(await prepareQr());
+    } catch (e) {
+      console.error("✗ " + (e instanceof Error ? e.message : String(e)));
+      process.exit(1);
+    }
     break;
   }
 

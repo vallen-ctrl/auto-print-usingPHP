@@ -172,7 +172,7 @@ function decrypt(b64: string): string {
   return Buffer.concat([d.update(data), d.final()]).toString("utf8");
 }
 
-async function loadConfig() {
+export async function loadConfig() {
   if (!existsSync(SERVER_CONF) || !existsSync(TOKEN_FILE)) return null;
   const server = JSON.parse(await readFile(SERVER_CONF, "utf8")) as { host: string };
   const token = decrypt(await readFile(TOKEN_FILE, "utf8"));

@@ -5,13 +5,17 @@
   "scripts": {
     "dev": "bun run index.ts",
     "daemon": "bun run index.ts --daemon",
-    "build": "bun build index.ts --compile --outfile node-printer.exe"
+    "build": "bun build index.ts --compile --outfile node-printer.exe",
+    "build:all": "bun run build:qr && bun run build && bun run release",
+    "build:qr": "cargo build --release --manifest-path tauri-qr/src-tauri/Cargo.toml",
+    "release": "cp node-printer.exe printerClient-relase && cp tauri-qr/src-tauri/target/release/tauri-qr.exe printerClient-relase/tauri-qr.exe",
+    "create:zip": "tar -a -c -f printerClient-relase.zip -C printerClient-relase ."
   },
   "dependencies": {
-    "@clack/prompts": "^1.8.1",
+    "@clack/prompts": "^0.11.0",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.2"
+    "@types/bun": "latest"
   }
 }

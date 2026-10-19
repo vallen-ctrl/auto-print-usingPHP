@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { createCipheriv, randomBytes, scryptSync } from "node:crypto";
 import { uninstallAll, IS_COMPILED, isDaemonRunning } from "./daemon";
 import { openSSE, readSSE } from "./see";
+import { prepareQr, showQr } from "./qr";
 
 /* ───────────────────────── Config & Paths ───────────────────────── */
 
@@ -440,6 +441,27 @@ async function managePrinters() {
   }
 }
 
+/* ───────────────────────── Scan QR (Tauri) ───────────────────────── */
+
+async function qrFlow() {
+  while (true) {
+    const s = spinner();
+    s.start("Mengambil QR dari server");
+    try {
+      const job = await prepareQr(); // request ke server dulu, baru Tauri dijalankan
+      s.stop(pc.green("✓ QR diterima"));
+      log.info("Window QR terbuka. Tutup window untuk kembali ke menu.");
+      await showQr(job);
+      return;
+    } catch (err) {
+      s.stop(pc.red("✗ Gagal"));
+      log.error(pc.red((err instanceof Error ? err.message : String(err)).split("\n")[0]!));
+      const retry = await confirm({ message: "Ulangi?", initialValue: true });
+      if (cancelled(retry) || !retry) return;
+    }
+  }
+}
+
 /* ───────────────────────── Uninstall ───────────────────────── */
 
 export async function uninstallFlow() {
@@ -529,6 +551,7 @@ export async function main() {
       options: [
         { value: "server", label: "🔗  Konek ke server", hint: "pairing pakai token dari admin panel" },
         { value: "printer", label: "🖨️   Printer", hint: "lihat status & atur prioritas" },
+        { value: "qr", label: "🔳  Scan QR", hint: "buka window QR (Tauri)" },
         { value: "uninstall", label: "🗑️   Uninstall", hint: "hapus daemon, config & semua file" },
         { value: "exit", label: "🚪  Keluar" },
       ],
@@ -540,6 +563,7 @@ export async function main() {
 
     if (choice === "server") await connectServer();
     if (choice === "printer") await managePrinters();
+    if (choice === "qr") await qrFlow();
     if (choice === "uninstall") await uninstallFlow();
   }
 }
