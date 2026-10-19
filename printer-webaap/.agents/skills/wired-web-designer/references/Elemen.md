@@ -2,8 +2,10 @@
 
 All elements are custom elements: give them `display: block` and a flexible width via CSS. All elements accept `roughness`; in this skill it is always `roughness="1.2"` per element.
 
-If an attribute has no effect in the browser, or an element is not listed here, open the official docs:
-`https://github.com/rough-stuff/wired-elements/blob/master/docs/<element-name>.md`
+If an attribute has no effect in the browser, or you need more detail about an element, do NOT fetch anything from GitHub or the internet. Read the local doc file for that element instead:
+`references/Elements/<element-name>.md` (relative to this skill's folder, e.g. `references/Elements/wired-button.md`).
+
+The file names match the element names exactly. If an element is not listed in this quick reference, check that folder first and read the matching file before using it. All the rules above stay the same: `roughness="1.2"` on every element, `display: block` plus flexible width via CSS, and the responsive patterns below.
 
 Available elements: wired-button, wired-calendar, wired-card, wired-checkbox, wired-combo, wired-dialog, wired-divider, wired-fab, wired-icon-button, wired-image, wired-input, wired-item, wired-link, wired-listbox, wired-progress-ring, wired-progress, wired-radio-group, wired-radio, wired-search-input, wired-slider, wired-spinner, wired-tabs, wired-textarea, wired-toggle, wired-video.
 
