@@ -18,6 +18,7 @@ use App\Models\LayananTerpilih;
 use App\Rules\CustomHalamanRule;
 use App\Models\User;
 use App\Models\PengaturanToko;
+use Illuminate\Support\Facades\Cache;
 
 \Midtrans\Config::$serverKey    = config('midtrans.server_key');
 \Midtrans\Config::$isProduction = config('midtrans.is_production');
@@ -363,5 +364,12 @@ class OrderController extends Controller
             "token" => $snapToken,
             "messgae" => "sukes generated snap token"
         ]);
+    }
+
+    public function strukOrder(string $orderId){
+        if(empty($orderId)){
+            // redirect()->route()
+            logger("Eror while get order");
+        }
     }
 }
