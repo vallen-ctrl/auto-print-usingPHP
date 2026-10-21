@@ -430,7 +430,8 @@ class OrderController extends Controller
                     ]);
 
                     try {
-                        $res = Transaction::status($orderId);
+                      
+                        $res = (object)  Transaction::status($orderId);
                     } catch (\Exception $e) {
                         return response()->json(['message' => 'Transaksi belum ditemukan di Midtrans'], 404);
                     }
