@@ -22,8 +22,8 @@ export const commands: Record<string, Handler> = {
   ping: async (_data, ctx) => {
     await ctx.log("ping diterima");
   },
-  notification: async(data)=>{
-
+  notification: async(data, ctx:CommandContext)=>{
+    await ctx.log(data);
   },
 
   print: async (data, ctx) => {

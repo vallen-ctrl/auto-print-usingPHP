@@ -90,7 +90,7 @@ return new class extends Migration
             $table->bigInteger('biaya_admin')->default(0);
             $table->bigInteger('total_pembayaran')->default(0);
             $table->bigInteger('total_dibayar')->default(0);
-            $table->enum('status_pembayaran', ['pending', 'processing', 'success', 'fail'])->default('pending');
+            $table->enum('status_pembayaran', ['paid', 'pending', 'failed', 'refunded', 'processing'])->default('pending');
             $table->string('metode_pembayaran')->nullable();
             $table->binary('id_metode_pembayaran', 16)->nullable();
             $table->string('session_id')->nullable();

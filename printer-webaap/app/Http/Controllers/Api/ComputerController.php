@@ -87,6 +87,11 @@ class ComputerController extends Controller
             ->update([
                 "status" => $validated['status']
             ]);
+
+        return response()->json([
+            "message" => "Succed to update your status",
+            "error" => false
+        ], 200);
     }
 
     public function serverSendEvent(Request $request)
@@ -132,17 +137,21 @@ class ComputerController extends Controller
             ]);
 
             while (true) {
-                $pending = FileQueue::where('computer_id', $computer->id)
-                    ->where('status', 'pending')
-                    ->get();
+                $pending = FileQueue::where('file_queue.computer_id', $computer->id)
+                    ->where('file_queue.status', 'pending')
+                    ->join('files', 'files.id', '=', 'file_queue.file_id')
+                    ->whereIn('files.layanan', ['kilat-langsung', 'terjadwal'])
+                    ->where('files.dihapus', false)
+                    ->pluck('file_queue.file_id');
                 if ($pending->isEmpty()) {
                     yield new StreamedEvent('heartbeat', [
                         'waktu' => now()->toTimeString(),
                     ]);
                 } else {
+                    $ids = $pending->map(fn ($id) => bin2hex($id));
                     yield new StreamedEvent('notification', [
                         'waktu' => now()->toTimeString(),
-                        'data'  => $pending,
+                        'data'  => $ids,
                     ]);
 
                     FileQueue::whereIn('id', $pending->pluck('id'))

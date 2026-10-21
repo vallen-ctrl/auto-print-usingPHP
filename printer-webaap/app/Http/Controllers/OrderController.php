@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 use App\Http\Controllers\Controller;
+use App\Models\Computer;
 use App\Models\Configuration;
 use App\Models\File;
 use App\Models\FileQueue;
@@ -19,6 +20,9 @@ use App\Rules\CustomHalamanRule;
 use App\Models\User;
 use App\Models\PengaturanToko;
 use Illuminate\Support\Facades\Cache;
+use Midtrans\Transaction;
+
+use function Laravel\Prompts\select;
 
 \Midtrans\Config::$serverKey    = config('midtrans.server_key');
 \Midtrans\Config::$isProduction = config('midtrans.is_production');
@@ -107,7 +111,11 @@ class OrderController extends Controller
         $validation = [
             'nama' => 'required|min:1|max:255',
             'no_wa' => 'required|min:10|max:14',
-            'tanggal_ambil' => 'required|date_format:Y-m-d\TH:i:sP',
+            'tanggal_ambil' => [
+                'required',
+                'date_format:Y-m-d\TH:i:sP',
+                'after_or_equal:' . now()->addHours(5)->toIso8601String(),
+            ],
             // 'metode_pembayaran' => "required|string",
             'files' => 'required|array|min:1|max:10',
 
@@ -337,7 +345,6 @@ class OrderController extends Controller
     {
         $validated = $request->validate([
             "orderid" => 'required',
-            // "id_metode_pembayaran" => "required"
         ]);
 
         $session = $request->session()->get(UploadTerjadwalController::SESSION_KEY, null);
@@ -366,10 +373,85 @@ class OrderController extends Controller
         ]);
     }
 
-    public function strukOrder(string $orderId){
-        if(empty($orderId)){
+    private function addFileQueue(string $orderid, string $fileid)
+    {
+        $computer = Computer::from('computer as c')
+            ->leftJoin('file_queue as f', function ($j) {
+                $j->on('f.computer_id', '=', 'c.id')
+                    ->whereIn('f.status', ['pending', 'processing']);
+            })
+            ->select('c.id', 'c.name')
+            ->groupBy('c.id', 'c.name', 'c.tanggal_dibuat')
+            ->orderByRaw('COUNT(f.id)')
+            ->orderBy('c.tanggal_dibuat')
+            ->first();
+
+        if (!$computer) {
+            throw new \RuntimeException('Tidak ada komputer yang tersedia.');
+        }
+
+        $filesBinId = hex2bin($fileid);
+        $file = File::select('path')->findOrFail($filesBinId);
+
+        FileQueue::create([
+            'status'      => 'processing',
+            'path'        => $file->path,
+            'order_id'    => hex2bin($orderid),
+            'file_id'     => $filesBinId,
+            'computer_id' => $computer->id,
+        ]);
+
+        return [
+            'computer_id'   => bin2hex($computer->id),
+            'computer_name' => $computer->name,
+        ];
+    }
+
+    public function strukOrder(string $orderId)
+    {
+        if (empty($orderId)) {
             // redirect()->route()
             logger("Eror while get order");
+            return redirect("/");
         }
+
+        $key  = "order:$orderId";
+        $cache = Cache::get($key, null);
+        DB::transaction(function () use ($orderId, $cache, $key) {
+            $order = Order::findOrFail(hex2bin($orderId));
+
+            if ($cache == null) {
+                if ($order->first()->status_pembayaran === "pending") {
+                    Cache::set($key, [
+                        "status" => "processing"
+                    ], 10);
+                    $order->update([
+                        "status_pembayaran" =>  "processing"
+                    ]);
+
+                    try {
+                        $res = Transaction::status($orderId);
+                    } catch (\Exception $e) {
+                        return response()->json(['message' => 'Transaksi belum ditemukan di Midtrans'], 404);
+                    }
+
+                    $status = match ($res->transaction_status) {
+                        'settlement' => 'paid',
+                        'capture'    => ($res->fraud_status ?? 'accept') === 'accept' ? 'paid' : 'pending',
+                        'pending'    => 'pending',
+                        'deny', 'cancel', 'expire', 'failure' => 'failed',
+                        'refund', 'partial_refund' => 'refunded',
+                        default      => 'pending',
+                    };
+
+                    $order->update(['status' => $status]);
+                }
+            }
+
+            $file = File::select('id')->where("order_id", "=", hex2bin($orderId))->first();
+            $this->addFileQueue($orderId, bin2hex($file->id));
+
+            // return si order intinya
+        });
     }
 }

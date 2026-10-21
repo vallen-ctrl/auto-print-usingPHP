@@ -46,7 +46,7 @@ Route::post('/order/token', [\App\Http\Controllers\OrderController::class, "baya
 
 Route::get("/test", function (){
     return view('snap');
-});
+})->name("test");
 
 
 //-------------------------------------------------------------------------------------------------------------------------------------
