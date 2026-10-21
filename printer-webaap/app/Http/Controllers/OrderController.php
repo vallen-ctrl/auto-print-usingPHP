@@ -113,7 +113,8 @@ class OrderController extends Controller
             'no_wa' => 'required|min:10|max:14',
             'tanggal_ambil' => [
                 'required',
-                'date_format:Y-m-d\TH:i:sP'
+                'date_format:Y-m-d\TH:i:sP',
+                'after_or_equal:' . now()->addHours(5)->toIso8601String(),
             ],
             // 'metode_pembayaran' => "required|string",
             'files' => 'required|array|min:1|max:10',
