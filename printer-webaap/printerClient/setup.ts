@@ -12,6 +12,7 @@ import { createCipheriv, randomBytes, scryptSync } from "node:crypto";
 import { uninstallAll, IS_COMPILED, isDaemonRunning } from "./daemon";
 import { openSSE, readSSE } from "./see";
 import { prepareQr, showQr } from "./qr";
+import { log as writeLog } from "./logger";
 
 /* ───────────────────────── Config & Paths ───────────────────────── */
 
@@ -214,6 +215,7 @@ async function connectServer() {
       await writeSecure(TOKEN_FILE, encrypt((token as string).trim()));
       await sleep(400);
       s2.stop(pc.green("✓ Tersimpan"));
+      await writeLog(`Pairing berhasil -> ${hostUrl}`);
       log.success(`Config : ${pc.dim(CONF_DIR)}`);
       await sleep(800);
       return;
@@ -276,6 +278,7 @@ async function loadPrinterConf(): Promise<PrinterConf[]> {
 }
 
 async function savePrinterConf(names: string[]) {
+  await writeLog(`Printer disimpan (urutan prioritas): ${names.join(" > ")}`);
   const printers: PrinterConf[] = names.map((name, i) => ({ name, priority: i + 1 }));
   await writeSecure(
     PRINTER_CONF,

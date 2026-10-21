@@ -1,18 +1,18 @@
 // daemon.ts — background process + system tray (Windows)
 import net from "node:net";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { mkdir, writeFile, readFile, appendFile, rm } from "node:fs/promises";
+import { mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { watch, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createDecipheriv, scryptSync } from "node:crypto";
+import { log as writeLog, loggedFetch, disableLogging, LOG_FILE } from "./logger";
 
 export const CONF_DIR = join(homedir(), ".node-printer");
 const SERVER_CONF = join(CONF_DIR, "server.conf");
 const TOKEN_FILE = join(CONF_DIR, "token.enc");
 const PRINTER_CONF = join(CONF_DIR, "printers.conf");
 const TRAY_SCRIPT = join(CONF_DIR, "tray.ps1");
-const LOG_FILE = join(CONF_DIR, "daemon.log");
 
 // Samakan dengan ENC_SECRET di setup.ts
 const ENC_SECRET = process.env.NODE_PRINTER_SECRET ?? "CHANGE_ME_LATER";
@@ -137,6 +137,15 @@ export async function uninstallAll(opts: { removeExe: boolean }): Promise<Uninst
   }
   res.push({ step: `Hapus config (${CONF_DIR})`, ok, note: ok ? undefined : err });
 
+  // 3b. hapus file log (ada di folder aplikasi, bukan di folder config)
+  disableLogging();
+  try {
+    await rm(LOG_FILE, { force: true });
+    res.push({ step: `Hapus log (${LOG_FILE})`, ok: true });
+  } catch (e) {
+    res.push({ step: `Hapus log (${LOG_FILE})`, ok: false, note: e instanceof Error ? e.message : String(e) });
+  }
+
   // 4. hapus file .exe (tidak bisa saat masih jalan -> dijadwalkan setelah proses ini selesai)
   if (opts.removeExe && COMPILED) {
     spawn("cmd.exe", ["/c", `ping 127.0.0.1 -n 4 >nul & del /f /q "${process.execPath}"`], {
@@ -154,8 +163,7 @@ export async function uninstallAll(opts: { removeExe: boolean }): Promise<Uninst
 /* ───────────── Logging ───────────── */
 
 async function log(msg: string) {
-  const line = `[${new Date().toISOString()}] ${msg}\n`;
-  try { await appendFile(LOG_FILE, line); } catch {}
+  await writeLog(msg); // ditulis ke node-printer.log di folder root (lihat logger.ts)
 }
 
 /* ───────────── Config & token ───────────── */
@@ -211,6 +219,8 @@ async function dispatch(ev: SSEEvent, ctx: CommandContext) {
     name = String(d.command ?? d.type ?? "message");
   }
 
+  await writeLog(`event "${name}" (${ev.data.length} byte)`, "SSE");
+
   const handler = custom.commands[name];
   if (!handler) return custom.onUnknown(ev, data, ctx);
   await handler(data, ctx, ev);
@@ -242,7 +252,7 @@ async function startWorker() {
     printers: cfg.printers,
     log,
     post: (path, body = {}) =>
-      fetch(cfg!.host + path, {
+      loggedFetch(cfg!.host + path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: cfg!.token, ...body }),
@@ -387,7 +397,7 @@ export async function runDaemon() {
   // auto-reload kalau config diubah dari TUI
   let t: ReturnType<typeof setTimeout> | undefined;
   watch(CONF_DIR, (_e, file) => {
-    if (!file || file === "daemon.log" || file === "tray.ps1" || file === "status.json") return;
+    if (!file || file === "tray.ps1" || file === "status.json") return;
     clearTimeout(t);
     t = setTimeout(async () => {
       await log(`Config berubah (${file}), reload`);

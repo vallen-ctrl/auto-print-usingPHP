@@ -1,6 +1,8 @@
 // sse.ts — SSE client: request, parser, auto-reconnect + watchdog
 // File ini jarang perlu diubah. Logika command ada di commands.ts
 
+import { loggedFetch } from "./logger";
+
 /* ───────────── Konfigurasi ───────────── */
 
 export const SSE_PATH = "/api/computer/SSE"; // alamat yang sama dengan sebelumnya
@@ -51,7 +53,7 @@ export async function openSSE(
   signal: AbortSignal,
   lastId?: string
 ): Promise<Response> {
-  const res = await fetch(host + SSE_PATH, { ...buildRequest(token, lastId), signal });
+  const res = await loggedFetch(host + SSE_PATH, { ...buildRequest(token, lastId), signal }, "SSE");
 
   if (!res.ok) {
     const t = (await res.text().catch(() => "")).slice(0, 200);

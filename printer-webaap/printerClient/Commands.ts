@@ -7,6 +7,7 @@
 //   3. Tidak ada yang cocok                 -> onUnknown()
 //
 // `data` sudah di-parse JSON kalau valid, kalau tidak berupa string mentah.
+
 import type { CommandContext, SSEEvent } from "./see";
 
 type Handler = (data: any, ctx: CommandContext, ev: SSEEvent) => void | Promise<void>;
@@ -20,6 +21,9 @@ export const commands: Record<string, Handler> = {
 
   ping: async (_data, ctx) => {
     await ctx.log("ping diterima");
+  },
+  notification: async(data)=>{
+
   },
 
   print: async (data, ctx) => {

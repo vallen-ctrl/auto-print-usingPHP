@@ -7,6 +7,7 @@ import { writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { loadConfig } from "./daemon";
+import { loggedFetch } from "./logger";
 
 /* ───────────── Konfigurasi ───────────── */
 
@@ -36,10 +37,11 @@ export function findQrBinary(): string | null {
 }
 
 async function fetchQrHtml(host: string, token: string): Promise<string> {
-  const res = await fetch(host + QR_PATH, {
-    ...buildRequest(token),
-    signal: AbortSignal.timeout(10_000),
-  });
+  const res = await loggedFetch(
+    host + QR_PATH,
+    { ...buildRequest(token), signal: AbortSignal.timeout(10_000) },
+    "scanqr"
+  );
   const body = await res.text();
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`);
   if (!body.trim()) throw new Error("Response kosong dari server");
