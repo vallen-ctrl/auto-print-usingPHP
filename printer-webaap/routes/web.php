@@ -78,11 +78,14 @@ Route::prefix('dashboard')->middleware([\App\Http\Middleware\VerifyTokenMiddlewa
     Route::get('/layanan', [\App\Http\Controllers\LayananController::class, "get"])->name("layanan.index");
     Route::post('/layanan/add', [\App\Http\Controllers\LayananController::class, "store"])->name("layanan.post");
     Route::put('/layanan/{id}', [\App\Http\Controllers\LayananController::class, "update"])->name("layanan.perbarui");
+    Route::delete("/layanan/delete", [\App\Http\Controllers\LayananController::class, "DeleteLayanan"])->name("layanan.delete");
 
     //kertas
     Route::get('/kertas', [\App\Http\Controllers\KertasController::class, "get"])->name("kertas.index");
     Route::post('/kertas/add', [\App\Http\Controllers\KertasController::class,"store"])->name("kertas.store");
     Route::put('/kertas/{id}', [\App\Http\Controllers\KertasController::class, "update"])->name("kertas.perbarui");
+    Route::delete("/kertas/delete", [\App\Http\Controllers\KertasController::class, "DeleteKertas"])->name("kertas.delete");
+
     //komputer
     Route::get('/komputer', [\App\Http\Controllers\KomputerController::class, "get"])->name("komputer.index");
     Route::post('/komputer/add', [\App\Http\Controllers\KomputerController::class, "store"])->name("komputer.post");

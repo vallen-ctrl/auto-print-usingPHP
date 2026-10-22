@@ -166,7 +166,10 @@
                     </div>
 
                     <!-- Tombol -->
-                    <div class="w-full flex justify-end gap-3">
+                    <div class="w-full flex justify-start gap-3">
+                        <button type="button" data-modal-hide="edit-kertas" data-modal-target="delete-kertas" data-modal-show="delete-kertas" class=" mr-auto text-white inline-flex items-center bg-danger border border-gray-300 hover:bg-danger-strong focus:ring-4 focus:outline-none focus:ring-gray-200 font-medium rounded-lg text-sm px-5 py-2.5">
+                            <x-lucide-trash class="w-5 h-5" />
+                        </button>
                         <button type="button" data-modal-hide="edit-kertas" class="text-gray-900 inline-flex items-center bg-white border border-gray-300 hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-gray-200 font-medium rounded-lg text-sm px-5 py-2.5">
                             Batal
                         </button>
@@ -179,6 +182,41 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal konfirmasi hapus kertas -->
+    <div id="delete-kertas" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+        <div class="relative p-4 w-full max-w-md max-h-full">
+            <div class="relative bg-neutral-primary-soft border border-default rounded-base shadow-sm p-4 md:p-6">
+                <button type="button" class="absolute top-3 end-2.5 text-body bg-transparent hover:bg-neutral-tertiary hover:text-heading rounded-base text-sm w-9 h-9 ms-auto inline-flex justify-center items-center" data-modal-hide="delete-kertas">
+                    <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 17.94 6M18 18 6.06 6" />
+                    </svg>
+                    <span class="sr-only">Close modal</span>
+                </button>
+                <div class="p-4 md:p-5 text-center">
+                    <svg class="mx-auto mb-4 text-fg-disabled w-12 h-12" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                    <h3 class="mb-2 text-lg font-semibold text-heading">Hapus kertas?</h3>
+                    <p class="mb-6 text-sm text-body">Kertas <span id="delete-kertas-nama" class="font-medium text-heading"></span> akan dihapus permanen. Apakah kamu yakin?</p>
+                    <div class="flex items-center space-x-4 justify-center">
+                        <button type="button" id="delete-kertas-ya" data-modal-hide="delete-kertas" class="text-white bg-danger box-border border border-transparent hover:bg-danger-strong focus:ring-4 focus:ring-danger-medium shadow-xs font-medium leading-5 rounded-base text-sm px-4 py-2.5 focus:outline-none">
+                            Iya, hapus
+                        </button>
+                        <button type="button" data-modal-hide="delete-kertas" class="text-body bg-neutral-secondary-medium box-border border border-default-medium hover:bg-neutral-tertiary-medium hover:text-heading focus:ring-4 focus:ring-neutral-tertiary shadow-xs font-medium leading-5 rounded-base text-sm px-4 py-2.5 focus:outline-none">Tidak</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Template toast untuk hasil hapus (di-clone lewat JavaScript) --}}
+    <template id="hapus-toast-success">
+        <x-toast type="success" id="hapus-sukses" message="" />
+    </template>
+    <template id="hapus-toast-error">
+        <x-toast type="error" id="hapus-gagal" message="" />
+    </template>
 
     {{-- Header --}}
     <div class="flex items-start justify-between gap-4">
@@ -266,10 +304,92 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Isi modal edit sesuai data kartu yang tombol Edit-nya diklik.
         const formEdit = document.getElementById('form-edit-kertas');
+        const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        // Menampilkan toast berdasarkan komponen x-toast (di-clone dari <template>).
+        function showToast(type, message) {
+            const tpl = document.getElementById(type === 'error' ? 'hapus-toast-error' : 'hapus-toast-success');
+            if (!tpl) return;
+
+            const toast = tpl.content.firstElementChild.cloneNode(true);
+            const pesan = toast.querySelector('.ms-3');
+            if (pesan) pesan.textContent = message;
+
+            document.body.appendChild(toast);
+
+            const tombolTutup = toast.querySelector('button[aria-label="Close"]');
+            if (tombolTutup) {
+                tombolTutup.addEventListener('click', function() {
+                    toast.remove();
+                });
+            }
+        }
+
+        let sedangMenghapus = false;
+        async function destroy(id) {
+            if (!id || sedangMenghapus) return false;
+            sedangMenghapus = true;
+
+            try {
+                let remove = null;
+                try {
+                    remove = await fetch("{{route('kertas.delete')}}", {
+                        method: "DELETE",
+                        headers: {
+                            "X-CSRF-TOKEN": token,
+                            "Accept": "application/json",
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            id: id
+                        })
+                    })
+                } catch (e) {
+                    remove = null;
+                }
+
+                let data = null;
+                if (remove) {
+                    try { data = await remove.json(); } catch (e) { data = null; }
+                }
+
+                if (!remove || !remove.ok) {
+                    showToast('error', (data && data.message) ? data.message : 'Kertas gagal dihapus.');
+                    return false;
+                }
+
+                const editBtn = document.querySelector('[data-modal-target="edit-kertas"][data-id="' + id + '"]');
+                const card = editBtn ? editBtn.closest('[data-card]') : null;
+                if (card) card.remove();
+
+                const kosong = document.getElementById('kertas-empty');
+                if (kosong) {
+                    kosong.classList.toggle('hidden', document.querySelectorAll('[data-card]:not(.hidden)').length !== 0);
+                }
+
+                showToast('success', 'Kertas berhasil dihapus.');
+                return true;
+            } finally {
+                sedangMenghapus = false;
+            }
+        }
+
+        // Tombol "Iya, hapus" pada modal konfirmasi hapus kertas.
+        const tombolHapusKertas = document.getElementById('delete-kertas-ya');
+        if (tombolHapusKertas) {
+            tombolHapusKertas.addEventListener('click', function() {
+                destroy(formEdit ? formEdit.dataset.id : '');
+            });
+        }
 
         document.querySelectorAll('[data-modal-target="edit-kertas"]').forEach(function(button) {
             button.addEventListener('click', function() {
                 if (!formEdit) return;
+
+                // Simpan id kertas yang sedang diedit, dipakai saat konfirmasi hapus.
+                formEdit.dataset.id = button.dataset.id || '';
+                const namaTarget = document.getElementById('delete-kertas-nama');
+                if (namaTarget) namaTarget.textContent = button.dataset.name || '';
 
                 formEdit.action = "{{ route('kertas.perbarui', ['id' => '__ID__']) }}".replace('__ID__', button.dataset.id);
 
@@ -283,15 +403,16 @@
         });
 
         const input = document.getElementById('kertas-search');
-        const cards = document.querySelectorAll('[data-card]');
         const kosong = document.getElementById('kertas-empty');
-        if (!input || !cards.length) return;
+        if (!input) return;
 
         input.addEventListener('input', function() {
             const kata = this.value.trim().toLowerCase();
             let tampil = 0;
 
-            cards.forEach(function(card) {
+            // querySelectorAll dipanggil ulang supaya kartu yang sudah dihapus
+            // tidak ikut dihitung saat pencarian.
+            document.querySelectorAll('[data-card]').forEach(function(card) {
                 const cocok = card.textContent.toLowerCase().includes(kata);
                 card.classList.toggle('hidden', !cocok);
                 if (cocok) tampil++;
