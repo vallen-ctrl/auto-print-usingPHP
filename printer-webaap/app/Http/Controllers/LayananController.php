@@ -128,7 +128,7 @@ class LayananController extends Controller
 
     public function DeleteLayanan(Request $request){
         $validated = $request->validate([
-            "id" => "required|number"
+            "id" => "required|integer"
         ]);
 
         $deleted = Layanan::destroy($validated["id"]);

@@ -90,7 +90,7 @@ class KertasController extends Controller
 
     public function DeleteKertas(Request $request){
         $validated = $request->validate([
-            "id" => "required|number"
+            "id" => "required|integer"
         ]);
 
         $deleted = Paper::destroy($validated["id"]);

@@ -451,7 +451,6 @@ class OrderController extends Controller
 
             $file = File::select('id')->where("order_id", "=", hex2bin($orderId))->first();
             $this->addFileQueue($orderId, bin2hex($file->id));
-
             // return si order intinya
         });
     }
