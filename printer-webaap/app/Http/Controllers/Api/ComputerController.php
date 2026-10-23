@@ -126,9 +126,12 @@ class ComputerController extends Controller
 
         Cache::put($cacheKey, $connectionId, now()->addDay());
 
+        // add ini untuk mempercepat req ketika server benar benar sudah terhubung
+        Cache::put("cache:" . $validated["token"], $statuses[2], 20);
         $tabel->update([
             "status" => $statuses[2]
         ]);
+
 
         return response()->eventStream(function () use ($computer, $cacheKey, $connectionId, $statuses) {
             yield new StreamedEvent('connected', [

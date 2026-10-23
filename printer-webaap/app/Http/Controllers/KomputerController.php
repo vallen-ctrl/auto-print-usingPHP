@@ -4,11 +4,18 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Computer;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class KomputerController extends Controller
 {
+    public function computerStatus(int $StatusCode): string
+    {
+        $data = ['not connected', 'shutdown', 'pending', 'connected', 'warning'];
+        return $data[$StatusCode];
+    }
+
     public function get()
     {
         // $computers = [
@@ -35,13 +42,26 @@ class KomputerController extends Controller
         $validated = $request->validate([
             "comid" => "required"
         ]);
-        $binId = hex2bin($validated["comid"]);
-        $data = Computer::where("id", $binId)
-            ->select("status")
-            ->first();
-        return response()->json([
-            "status" =>  $data->status
-        ]);
+
+        $getStatus = Cache::get("cache:" . $validated["comid"], null);
+
+        if ($getStatus == null) {
+            return response()->json([
+                "status" =>  $this->computerStatus(0)
+            ]);
+        }else{
+            return response()->json([
+                "status" =>  $getStatus
+            ]);
+        }
+        // bagian ini diubah untuk mempercepat saja
+        // $binId = hex2bin($validated["comid"]);
+        // $data = Computer::where("id", $binId)
+        //     ->select("status")
+        //     ->first();
+        // return response()->json([
+        //     "status" =>  $data->status
+        // ]);
     }
 
     public function store(Request $request)
@@ -75,10 +95,11 @@ class KomputerController extends Controller
         ], 201);
     }
 
-    public function destroy(string $id){
+    public function destroy(string $id)
+    {
         $data = Computer::find(hex2bin($id));
 
-        if(!$data){
+        if (!$data) {
             return redirect()->back()->with("warning", "Tidak ada computer dengan id tersebut");
         }
         $data->delete();

@@ -43,6 +43,7 @@ Route::get('/terjadwal/keluar', function (\Illuminate\Http\Request $request) {
 //alur order
 Route::post("/order/create", [\App\Http\Controllers\OrderController::class, 'createorder_terjadwal'])->name("create.order");
 Route::post('/order/token', [\App\Http\Controllers\OrderController::class, "bayarSekarang"])->name("create.snap.token");
+Route::get("/struk/order/{id}", [\App\Http\Controllers\OrderController::class, "strukOrder"])->name("order.struk");
 
 Route::get("/test", function (){
     return view('snap');
@@ -62,6 +63,7 @@ Route::prefix('dashboard')->middleware([\App\Http\Middleware\VerifyTokenMiddlewa
         ->name('order.data');
     Route::get("/", [\App\Http\Controllers\dashboardControler::class, "get"])->name("dashboard");
     Route::post("/logout", [\App\Http\Controllers\dashboardControler::class, "logout"])->name("logout");
+
 
     //files
     Route::get('/files', [\App\Http\Controllers\FilesController::class, "get"])->name("files.index");

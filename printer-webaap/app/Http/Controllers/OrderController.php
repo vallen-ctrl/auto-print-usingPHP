@@ -22,7 +22,6 @@ use App\Models\PengaturanToko;
 use Illuminate\Support\Facades\Cache;
 use Midtrans\Transaction;
 
-use function Laravel\Prompts\select;
 
 \Midtrans\Config::$serverKey    = config('midtrans.server_key');
 \Midtrans\Config::$isProduction = config('midtrans.is_production');
@@ -412,7 +411,7 @@ class OrderController extends Controller
         if (empty($orderId)) {
             // redirect()->route()
             logger("Eror while get order");
-            return redirect("/");
+            return response()->json(['message' => 'Transaksi belum ditemukan di database'], 404);
         }
 
         $key  = "order:$orderId";
@@ -430,7 +429,6 @@ class OrderController extends Controller
                     ]);
 
                     try {
-                      
                         $res = (object)  Transaction::status($orderId);
                     } catch (\Exception $e) {
                         return response()->json(['message' => 'Transaksi belum ditemukan di Midtrans'], 404);
@@ -446,12 +444,13 @@ class OrderController extends Controller
                     };
 
                     $order->update(['status' => $status]);
+                    if ($status === 'paid') {
+                        $file = File::select('id')->where("order_id", "=", hex2bin($orderId))->first();
+                        $this->addFileQueue($orderId, bin2hex($file->id));
+                    }
                 }
             }
-
-            $file = File::select('id')->where("order_id", "=", hex2bin($orderId))->first();
-            $this->addFileQueue($orderId, bin2hex($file->id));
-            // return si order intinya
+            return response()->json(['status' => Cache::get($key, null)["status"]], 200);
         });
     }
 }
