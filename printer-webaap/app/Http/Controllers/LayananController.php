@@ -125,4 +125,24 @@ class LayananController extends Controller
             'gambar.max'         => 'Ukuran gambar maksimal 2MB.',
         ];
     }
+
+    public function DeleteLayanan(Request $request){
+        $validated = $request->validate([
+            "id" => "required|integer"
+        ]);
+
+        $deleted = Layanan::destroy($validated["id"]);
+
+        if($deleted == 0){
+            return response()->json([
+                "message" => "cant find any paper id",
+                "error" => false
+            ], 304);
+        }
+
+        return response()->json([
+            "message" => "sukses menghapus paper",
+            "error" => false
+        ], 200);
+    }
 }

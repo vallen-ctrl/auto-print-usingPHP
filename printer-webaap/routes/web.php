@@ -43,6 +43,7 @@ Route::get('/terjadwal/keluar', function (\Illuminate\Http\Request $request) {
 //alur order
 Route::post("/order/create", [\App\Http\Controllers\OrderController::class, 'createorder_terjadwal'])->name("create.order");
 Route::post('/order/token', [\App\Http\Controllers\OrderController::class, "bayarSekarang"])->name("create.snap.token");
+Route::get("/struk/order/{id}", [\App\Http\Controllers\OrderController::class, "strukOrder"])->name("order.struk");
 
 Route::get("/test", function (){
     return view('snap');
@@ -63,6 +64,7 @@ Route::prefix('dashboard')->middleware([\App\Http\Middleware\VerifyTokenMiddlewa
     Route::get("/", [\App\Http\Controllers\dashboardControler::class, "get"])->name("dashboard");
     Route::post("/logout", [\App\Http\Controllers\dashboardControler::class, "logout"])->name("logout");
 
+
     //files
     Route::get('/files', [\App\Http\Controllers\FilesController::class, "get"])->name("files.index");
     Route::get('/files/{id}/download', [\App\Http\Controllers\FilesController::class, "download"])->name("files.download");
@@ -78,11 +80,14 @@ Route::prefix('dashboard')->middleware([\App\Http\Middleware\VerifyTokenMiddlewa
     Route::get('/layanan', [\App\Http\Controllers\LayananController::class, "get"])->name("layanan.index");
     Route::post('/layanan/add', [\App\Http\Controllers\LayananController::class, "store"])->name("layanan.post");
     Route::put('/layanan/{id}', [\App\Http\Controllers\LayananController::class, "update"])->name("layanan.perbarui");
+    Route::delete("/layanan/delete", [\App\Http\Controllers\LayananController::class, "DeleteLayanan"])->name("layanan.delete");
 
     //kertas
     Route::get('/kertas', [\App\Http\Controllers\KertasController::class, "get"])->name("kertas.index");
     Route::post('/kertas/add', [\App\Http\Controllers\KertasController::class,"store"])->name("kertas.store");
     Route::put('/kertas/{id}', [\App\Http\Controllers\KertasController::class, "update"])->name("kertas.perbarui");
+    Route::delete("/kertas/delete", [\App\Http\Controllers\KertasController::class, "DeleteKertas"])->name("kertas.delete");
+
     //komputer
     Route::get('/komputer', [\App\Http\Controllers\KomputerController::class, "get"])->name("komputer.index");
     Route::post('/komputer/add', [\App\Http\Controllers\KomputerController::class, "store"])->name("komputer.post");

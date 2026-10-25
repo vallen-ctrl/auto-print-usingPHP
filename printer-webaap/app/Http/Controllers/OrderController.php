@@ -22,7 +22,7 @@ use App\Models\PengaturanToko;
 use Illuminate\Support\Facades\Cache;
 use Midtrans\Transaction;
 
-use function Laravel\Prompts\select;
+use function Illuminate\Log\log;
 
 \Midtrans\Config::$serverKey    = config('midtrans.server_key');
 \Midtrans\Config::$isProduction = config('midtrans.is_production');
@@ -412,47 +412,41 @@ class OrderController extends Controller
         if (empty($orderId)) {
             // redirect()->route()
             logger("Eror while get order");
-            return redirect("/");
+            return response()->json(['message' => 'Transaksi belum ditemukan di database'], 404);
         }
 
-        $key  = "order:$orderId";
-        $cache = Cache::get($key, null);
-        DB::transaction(function () use ($orderId, $cache, $key) {
-            $order = Order::findOrFail(hex2bin($orderId));
-
-            if ($cache == null) {
-                if ($order->first()->status_pembayaran === "pending") {
-                    Cache::set($key, [
-                        "status" => "processing"
-                    ], 10);
-                    $order->update([
-                        "status_pembayaran" =>  "processing"
-                    ]);
-
-                    try {
-                      
-                        $res = (object)  Transaction::status($orderId);
-                    } catch (\Exception $e) {
-                        return response()->json(['message' => 'Transaksi belum ditemukan di Midtrans'], 404);
-                    }
-
-                    $status = match ($res->transaction_status) {
-                        'settlement' => 'paid',
-                        'capture'    => ($res->fraud_status ?? 'accept') === 'accept' ? 'paid' : 'pending',
-                        'pending'    => 'pending',
-                        'deny', 'cancel', 'expire', 'failure' => 'failed',
-                        'refund', 'partial_refund' => 'refunded',
-                        default      => 'pending',
-                    };
-
-                    $order->update(['status' => $status]);
+        $order = Order::findOrFail(hex2bin($orderId));
+        
+        DB::transaction(function () use ($orderId, $order) {
+            if ($order->status_pembayaran === "pending") {
+    
+                $order->update([
+                    "status_pembayaran" =>  "processing"
+                ]);
+    
+                try {
+                    $res = (object)  Transaction::status($orderId);
+                } catch (\Exception $e) {
+                    return response()->json(['message' => 'Transaksi belum ditemukan di Midtrans'], 404);
+                }
+    
+                $status = match ($res->transaction_status) {
+                    'settlement' => 'paid',
+                    'capture'    => ($res->fraud_status ?? 'accept') === 'accept' ? 'paid' : 'pending',
+                    'pending'    => 'pending',
+                    'deny', 'cancel', 'expire', 'failure' => 'failed',
+                    'refund', 'partial_refund' => 'refunded',
+                    default      => 'pending',
+                };
+    
+                $order->update(['status' => $status]);
+                if ($status === 'paid') {
+                    $file = File::select('id')->where("order_id", "=", hex2bin($orderId))->first();
+                    // $this->addFileQueue($orderId, bin2hex($file->id));
                 }
             }
 
-            $file = File::select('id')->where("order_id", "=", hex2bin($orderId))->first();
-            $this->addFileQueue($orderId, bin2hex($file->id));
-
-            // return si order intinya
         });
+        return response()->json(['status' => $order->fresh()->status_pembayaran], 200);
     }
 }

@@ -88,6 +88,26 @@ class KertasController extends Controller
         ];
     }
 
+    public function DeleteKertas(Request $request){
+        $validated = $request->validate([
+            "id" => "required|integer"
+        ]);
+
+        $deleted = Paper::destroy($validated["id"]);
+
+        if($deleted == 0){
+            return response()->json([
+                "message" => "cant find any paper id",
+                "error" => false
+            ], 304);
+        }
+
+        return response()->json([
+            "message" => "sukses menghapus paper",
+            "error" => false
+        ], 200);
+    }
+
     private function messages(): array
     {
         return [
