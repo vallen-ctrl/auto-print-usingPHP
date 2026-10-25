@@ -44,6 +44,7 @@ Route::get('/terjadwal/keluar', function (\Illuminate\Http\Request $request) {
 Route::post("/order/create", [\App\Http\Controllers\OrderController::class, 'createorder_terjadwal'])->name("create.order");
 Route::post('/order/token', [\App\Http\Controllers\OrderController::class, "bayarSekarang"])->name("create.snap.token");
 Route::get("/struk/order/{id}", [\App\Http\Controllers\OrderController::class, "strukOrder"])->name("order.struk");
+Route::get("/struk/{id}", [\App\Http\Controllers\strukController::class, "get"])->name("struk.render");
 
 Route::get("/test", function (){
     return view('snap');

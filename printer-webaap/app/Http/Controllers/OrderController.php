@@ -394,7 +394,6 @@ class OrderController extends Controller
         $file = File::select('path')->findOrFail($filesBinId);
 
         FileQueue::create([
-            'status'      => 'processing',
             'path'        => $file->path,
             'order_id'    => hex2bin($orderid),
             'file_id'     => $filesBinId,
@@ -443,7 +442,7 @@ class OrderController extends Controller
 
                 if ($status === 'paid') {
                     $file = File::select('id')->where('order_id', $binId)->first();
-                    // if ($file) $this->addFileQueue($orderId, bin2hex($file->id));
+                    if ($file) $this->addFileQueue($orderId, bin2hex($file->id));
                 }
             }
         }

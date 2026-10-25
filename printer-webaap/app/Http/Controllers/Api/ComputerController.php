@@ -171,7 +171,6 @@ class ComputerController extends Controller
                     }
                     break;
                 }
-
                 sleep(2);
             }
         }, [], null);

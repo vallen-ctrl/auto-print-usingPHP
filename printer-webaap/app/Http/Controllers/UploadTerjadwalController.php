@@ -100,8 +100,6 @@ class UploadTerjadwalController extends Controller
             'total_pages' => $f['total_pages'],
         ], $files));
 
-        // Upload lewat fetch(): balas JSON supaya daftar file bisa disimpan di
-        // browser (localStorage) sebelum pindah halaman.
         if ($request->expectsJson()) {
             return response()->json([
                 'redirect' => route('formulir.terjadwal', ['order' => $orderHex]),
