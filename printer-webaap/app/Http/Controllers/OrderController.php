@@ -409,44 +409,45 @@ class OrderController extends Controller
 
     public function strukOrder(string $orderId)
     {
-        if (empty($orderId)) {
-            // redirect()->route()
-            logger("Eror while get order");
-            return response()->json(['message' => 'Transaksi belum ditemukan di database'], 404);
+        if (!ctype_xdigit($orderId) || strlen($orderId) % 2 !== 0) {
+            return response()->json(['message' => 'Order ID tidak valid'], 404);
         }
 
-        $order = Order::findOrFail(hex2bin($orderId));
-        
-        DB::transaction(function () use ($orderId, $order) {
-            if ($order->status_pembayaran === "pending") {
-    
-                $order->update([
-                    "status_pembayaran" =>  "processing"
-                ]);
-    
+        $binId = hex2bin($orderId);
+        $order = Order::findOrFail($binId);
+
+        if ($order->status_pembayaran === 'pending') {
+            // klaim atomik: hanya satu request yang berhasil
+            $claimed = Order::where('id', $binId)
+                ->where('status_pembayaran', 'pending')
+                ->update(['status_pembayaran' => 'processing']);
+
+            if ($claimed) {
                 try {
-                    $res = (object)  Transaction::status($orderId);
+                    $res = (object) Transaction::status($orderId);
                 } catch (\Exception $e) {
+                    logger()->error('Midtrans status error', ['order' => $orderId, 'e' => $e->getMessage()]);
+                    Order::where('id', $binId)->update(['status_pembayaran' => 'pending']); // rollback klaim
                     return response()->json(['message' => 'Transaksi belum ditemukan di Midtrans'], 404);
                 }
-    
+
                 $status = match ($res->transaction_status) {
                     'settlement' => 'paid',
                     'capture'    => ($res->fraud_status ?? 'accept') === 'accept' ? 'paid' : 'pending',
-                    'pending'    => 'pending',
                     'deny', 'cancel', 'expire', 'failure' => 'failed',
                     'refund', 'partial_refund' => 'refunded',
                     default      => 'pending',
                 };
-    
-                $order->update(['status' => $status]);
+
+                Order::where('id', $binId)->update(['status_pembayaran' => $status]);
+
                 if ($status === 'paid') {
-                    $file = File::select('id')->where("order_id", "=", hex2bin($orderId))->first();
-                    // $this->addFileQueue($orderId, bin2hex($file->id));
+                    $file = File::select('id')->where('order_id', $binId)->first();
+                    // if ($file) $this->addFileQueue($orderId, bin2hex($file->id));
                 }
             }
+        }
 
-        });
         return response()->json(['status' => $order->fresh()->status_pembayaran], 200);
     }
 }
