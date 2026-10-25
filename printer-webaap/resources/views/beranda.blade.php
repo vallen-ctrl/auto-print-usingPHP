@@ -13,9 +13,11 @@
 </head>
 <body>
     <header class="site-header">
-        {{-- Kotak placeholder logo: ganti dengan gambar logo asli kalau sudah tersedia. --}}
-        <div class="logo-placeholder" role="img" aria-label="Logo jasa">logo jasa</div>
-        <p class="brand-name">nama print</p>
+        <div class="site-header-brand">
+            {{-- Kotak placeholder logo: ganti dengan gambar logo asli kalau sudah tersedia. --}}
+            <div class="logo-placeholder" role="img" aria-label="Logo jasa">logo jasa</div>
+            <p class="brand-name">nama print</p>
+        </div>
     </header>
 
     <main class="page-main">
