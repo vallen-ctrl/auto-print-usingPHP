@@ -14,7 +14,7 @@ import { dirname, join, parse, resolve, sep } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { CommandContext, SSEEvent } from "./see";
-import { printFile } from "./printpdf";
+import { isPrinterDown, printFile, probePrinter } from "./printpdf";
 
 type Handler = (data: any, ctx: CommandContext, ev: SSEEvent) => void | Promise<void>;
 
@@ -169,13 +169,13 @@ async function downloadFile(fileid: string, ctx: CommandContext): Promise<string
 
 /* ── Status file → server (/api/files/update/status) ── */
 
-/** Nilai persis seperti enum di server (termasuk ejaan "complited"). Ubah di sini kalau server berubah. */
+/** Nilai persis seperti enum `file_queue.status` di server: pending, processing, completed, failed, downloading. */
 const STATUS = {
   pending: "pending", //         masuk antrean, belum mulai
   downloading: "downloading", // sedang diunduh
   processing: "processing", //   sudah diunduh, sedang dicetak / menunggu giliran cetak
-  done: "complited", //          selesai (dicetak)
-  failed: "failed", //           error (unduh / config / cetak)
+  done: "completed", //          selesai (dicetak)
+  failed: "failed", //           error (unduh / config / cetak / printer down)
 } as const;
 type FileStatus = (typeof STATUS)[keyof typeof STATUS];
 
@@ -203,15 +203,33 @@ async function setStatus(ctx: CommandContext, fileid: string, status: FileStatus
 }
 
 /**
- * mode "download": unduh, lalu cetak (kalau AUTO_PRINT). Id yang filenya sudah ada dilewati.
+ * mode "download": unduh, lalu cetak (kalau AUTO_PRINT).
+ *                 File yang sudah ada dipakai ulang (tidak diunduh lagi) dan tetap dicetak,
+ *                 supaya "retry" dari dashboard benar-benar mencetak ulang file yang gagal.
  * mode "print"   : cetak ulang file yang sudah diunduh (kalau belum ada, diunduh dulu).
  */
 async function processFiles(ids: string[], ctx: CommandContext, mode: "download" | "print") {
   const all = await loadRecs();
-  let downloaded = 0, printed = 0, skipped = 0, fail = 0;
+  let downloaded = 0, printed = 0, skipped = 0, fail = 0, down = 0;
 
   const alreadyHave = (id: string) => !!all[id] && existsSync(all[id]!.path);
-  const todo = ids.filter((id) => !(mode === "download" && SKIP_IF_DOWNLOADED && alreadyHave(id)));
+  const willPrint = mode === "print" || AUTO_PRINT;
+  /** file lama di Downloads dipakai ulang (tidak diunduh lagi) */
+  const useLocal = (id: string) => mode === "download" && SKIP_IF_DOWNLOADED && alreadyHave(id);
+  // tanpa AUTO_PRINT tidak ada yang dicetak: file yang sudah ada memang tidak perlu diproses
+  const todo = ids.filter((id) => !(useLocal(id) && !willPrint));
+
+  // printer dicek sekali di awal: kalau down, file langsung "failed" tanpa diunduh / dicetak
+  if (willPrint && todo.length) {
+    const downErr = await probePrinter(ctx);
+    if (downErr) {
+      await ctx.log(`printer down: ${downErr.message}`);
+      await Promise.all(todo.map((id) => setStatus(ctx, id, STATUS.failed)));
+      return void (await ctx.log(
+        `selesai: 0 diunduh, 0 dicetak, ${skipped} dilewati, ${todo.length} gagal (printer down)`
+      ));
+    }
+  }
 
   // semua yang akan diproses: masuk antrean dulu (pending)
   await Promise.all(todo.map((id) => setStatus(ctx, id, STATUS.pending)));
@@ -220,13 +238,17 @@ async function processFiles(ids: string[], ctx: CommandContext, mode: "download"
     const rec = all[id];
     const have = alreadyHave(id);
 
-    if (mode === "download" && SKIP_IF_DOWNLOADED && have) {
-      skipped++;
-      return void (await ctx.log(`  ↷ ${id} sudah ada: ${rec!.path} (dilewati, tidak dicetak ulang)`));
+    if (useLocal(id)) {
+      if (!willPrint) {
+        skipped++;
+        return void (await ctx.log(`  ↷ ${id} sudah ada: ${rec!.path} (dilewati, AUTO_PRINT mati)`));
+      }
+      // mis. setelah retry dari dashboard: jangan unduh ulang, pakai file yang ada lalu cetak
+      await ctx.log(`  ↷ ${id} sudah ada: ${rec!.path} (pakai file lokal, cetak ulang)`);
     }
 
     let path = rec?.path ?? "";
-    if (mode === "download" || !have) {
+    if (!have) {
       await setStatus(ctx, id, STATUS.downloading);
       try {
         path = await downloadFile(id, ctx);
@@ -239,7 +261,7 @@ async function processFiles(ids: string[], ctx: CommandContext, mode: "download"
       }
     }
 
-    if (mode === "print" || AUTO_PRINT) {
+    if (willPrint) {
       await setStatus(ctx, id, STATUS.processing);
       try {
         await printFile(path, id, ctx);
@@ -247,14 +269,23 @@ async function processFiles(ids: string[], ctx: CommandContext, mode: "download"
         await setStatus(ctx, id, STATUS.done); // sudah selesai dicetak
       } catch (e) {
         fail++;
-        await ctx.log(`  ✗ ${id} gagal dicetak: ${errMsg(e)} (file tetap tersimpan)`);
+        if (isPrinterDown(e)) {
+          // printer mati / kabel putus / tidak terpasang: jangan biarkan nyangkut di "processing"
+          down++;
+          await ctx.log(`  ✗ ${id} gagal dicetak: ${errMsg(e)} -> status failed`);
+        } else {
+          await ctx.log(`  ✗ ${id} gagal dicetak: ${errMsg(e)} (file tetap tersimpan)`);
+        }
         await setStatus(ctx, id, STATUS.failed);
       }
     } else {
       await setStatus(ctx, id, STATUS.done); // AUTO_PRINT mati: selesai = selesai diunduh
     }
   });
-  await ctx.log(`selesai: ${downloaded} diunduh, ${printed} dicetak, ${skipped} dilewati, ${fail} gagal`);
+  await ctx.log(
+    `selesai: ${downloaded} diunduh, ${printed} dicetak, ${skipped} dilewati, ${fail} gagal` +
+      (down ? ` (${down} karena printer down)` : "")
+  );
 }
 
 /* ── Delete (pakai id file) ── */

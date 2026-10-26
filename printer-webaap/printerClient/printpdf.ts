@@ -10,7 +10,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { listPrinters } from "./printers";
+import { findPrinterByName, listPrinters } from "./printers";
 import type { CommandContext } from "./see";
 
 /* ───────────── Konfigurasi ───────────── */
@@ -119,6 +119,27 @@ export function findSumatra(): string | null {
   return null;
 }
 
+/* ───────────── Printer down (offline / tidak terdeteksi) ───────────── */
+
+/**
+ * Printer tidak siap dipakai: tidak terdaftar di Windows, atau statusnya offline.
+ * Dipakai Commands.ts untuk membedakan "printer down" (status file -> failed)
+ * dari error cetak lain, walaupun keduanya tetap ditandai gagal.
+ */
+export class PrinterDownError extends Error {
+  readonly printer: string;
+  readonly reason: string;
+
+  constructor(printer: string, reason: string) {
+    super(`printer "${printer}" sedang down (${reason})`);
+    this.name = "PrinterDownError";
+    this.printer = printer;
+    this.reason = reason;
+  }
+}
+
+export const isPrinterDown = (e: unknown): e is PrinterDownError => e instanceof PrinterDownError;
+
 /* ───────────── Config dari server & pilih printer ───────────── */
 
 async function fetchConf(fileid: string, ctx: CommandContext): Promise<PrintConf> {
@@ -143,20 +164,46 @@ async function fetchConf(fileid: string, ctx: CommandContext): Promise<PrintConf
   return c as PrintConf;
 }
 
+const errMsgLocal = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** Printer prioritas 1 (yang akan dipakai cetak). */
+function topPrinter(ctx: CommandContext) {
+  return [...ctx.printers].sort((a, b) => a.priority - b.priority)[0];
+}
+
+/**
+ * Cek kesiapan printer prioritas 1 tanpa mencetak apa pun.
+ * return PrinterDownError kalau printer down; null kalau siap / status tidak bisa dipastikan.
+ */
+export async function probePrinter(ctx: CommandContext): Promise<PrinterDownError | null> {
+  const top = topPrinter(ctx);
+  if (!top) return null; // biar pickPrinter yang memberi pesan "belum ada printer dipilih"
+
+  try {
+    const found = findPrinterByName(await listPrinters(), top.name);
+    if (!found) return new PrinterDownError(top.name, "tidak terdeteksi di Windows");
+    if (!found.online) return new PrinterDownError(top.name, found.detail);
+    return null;
+  } catch (e) {
+    if (e instanceof PrinterDownError) return e;
+    // pengecekan gagal (mis. PowerShell bermasalah): jangan blokir cetak, cukup catat
+    await ctx.log(`peringatan: status printer "${top.name}" tidak bisa diperiksa: ${errMsgLocal(e)}`);
+    return null;
+  }
+}
+
 /** Printer terpilih dengan prioritas tertinggi (priority 1). Tidak ada fallback ke printer lain. */
 async function pickPrinter(ctx: CommandContext): Promise<string> {
-  const top = [...ctx.printers].sort((a, b) => a.priority - b.priority)[0];
+  const top = topPrinter(ctx);
   if (!top) {
     throw new Error('belum ada printer yang dipilih. Buka menu Printer > "Select printer" lalu atur prioritas');
   }
 
-  // hanya peringatan di log; cetak tetap dikirim ke printer ini
-  try {
-    const f = (await listPrinters()).find((x) => x.name === top.name);
-    if (!f) await ctx.log(`peringatan: printer "${top.name}" tidak terdeteksi di Windows`);
-    else if (!f.online) await ctx.log(`peringatan: printer "${top.name}" offline, job menunggu di antrean Windows`);
-  } catch {}
+  // printer offline / tidak terpasang: cetak jangan dikirim, status file harus "failed"
+  const down = await probePrinter(ctx);
+  if (down) throw down;
 
+  await ctx.log(`printer: "${top.name}" siap`);
   return top.name;
 }
 

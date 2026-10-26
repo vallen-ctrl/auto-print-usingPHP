@@ -21,7 +21,7 @@ class FileQueueFactory extends Factory
     public function definition(): array
     {
         return [
-            'status' => fake()->randomElement(['pending', 'processing', 'complited', 'failed', 'downloading']),
+            'status' => fake()->randomElement(['pending', 'processing', 'completed', 'failed', 'downloading']),
             'path' => '/storage/print/' . fake()->uuid() . '.pdf',
             'order_id' => Order::factory(),
             'file_id' => File::factory(),
