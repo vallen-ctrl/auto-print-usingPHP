@@ -317,22 +317,32 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         }
     };
 
-    const bacaPengaturan = () => ({
-        orientasi: kolomPengaturan.orientasi.selected,
-        ukuran: kolomPengaturan.ukuran.selected,
-        warna: kolomPengaturan.warna.selected,
-        kualitas: kolomPengaturan.kualitas.selected,
-        jumlah: kolomPengaturan.jumlah.value,
-        halaman: kolomPengaturan.halaman.value,
-        catatan: kolomPengaturan.catatan.value,
-        id_paper: cariRadioUkuran(kolomPengaturan.ukuran.selected).id,
-        paket: paketChecks.filter((box) => box.checked).map((box) => box.dataset.id)
-    });
+    const bacaPengaturan = () => {
+        const radioUkuran = cariRadioUkuran(kolomPengaturan.ukuran ? kolomPengaturan.ukuran.selected : '');
+
+        return {
+            orientasi: kolomPengaturan.orientasi.selected,
+            ukuran: kolomPengaturan.ukuran ? kolomPengaturan.ukuran.selected : '',
+            warna: kolomPengaturan.warna.selected,
+            kualitas: kolomPengaturan.kualitas.selected,
+            jumlah: kolomPengaturan.jumlah.value,
+            halaman: kolomPengaturan.halaman.value,
+            catatan: kolomPengaturan.catatan.value,
+            // Ukuran (paper) bisa tidak ada kalau tabel paper kosong; jangan sampai
+            // seluruh penyimpanan per file gagal karena itu.
+            id_paper: radioUkuran ? radioUkuran.id : null,
+            paket: paketChecks.filter((box) => box.checked).map((box) => box.dataset.id)
+        };
+    };
+
+    // Data lama di localStorage bisa berisi "hitam-putih" padahal nama radionya
+    // "hitam putih". Samakan dulu supaya pilihan warnanya benar-benar terpilih.
+    const warnaSah = (warna) => (String(warna || '').toLowerCase() === 'hitam-putih' ? 'hitam putih' : warna);
 
     const tulisPengaturan = (state) => {
         kolomPengaturan.orientasi.selected = state.orientasi;
         pilihUkuran(state.ukuran);
-        kolomPengaturan.warna.selected = state.warna;
+        kolomPengaturan.warna.selected = warnaSah(state.warna);
         kolomPengaturan.kualitas.selected = state.kualitas;
         kolomPengaturan.jumlah.value = state.jumlah;
         kolomPengaturan.halaman.value = state.halaman;
@@ -398,7 +408,14 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
 
     // Perubahan pengaturan disimpan ke file aktif & sub total dihitung ulang.
     ['orientasi', 'ukuran', 'warna', 'kualitas'].forEach((key) => {
-        kolomPengaturan[key].addEventListener('selected', () => {
+        const kolom = kolomPengaturan[key];
+
+        // Bagian ukuran tidak dirender kalau daftar paper kosong.
+        if (!kolom) {
+            return;
+        }
+
+        kolom.addEventListener('selected', () => {
             simpanFileAktif();
             hitungSubTotal();
         });
