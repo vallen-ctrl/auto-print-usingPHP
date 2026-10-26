@@ -14,7 +14,7 @@ import { dirname, join, parse, resolve, sep } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { CommandContext, SSEEvent } from "./see";
-import { printFile } from "./printpdf";
+import { isPrinterDown, printFile, probePrinter } from "./printpdf";
 
 type Handler = (data: any, ctx: CommandContext, ev: SSEEvent) => void | Promise<void>;
 
@@ -208,10 +208,22 @@ async function setStatus(ctx: CommandContext, fileid: string, status: FileStatus
  */
 async function processFiles(ids: string[], ctx: CommandContext, mode: "download" | "print") {
   const all = await loadRecs();
-  let downloaded = 0, printed = 0, skipped = 0, fail = 0;
+  let downloaded = 0, printed = 0, skipped = 0, fail = 0, down = 0;
 
   const alreadyHave = (id: string) => !!all[id] && existsSync(all[id]!.path);
   const todo = ids.filter((id) => !(mode === "download" && SKIP_IF_DOWNLOADED && alreadyHave(id)));
+
+  // printer dicek sekali di awal: kalau down, file langsung "failed" tanpa diunduh / dicetak
+  if ((mode === "print" || AUTO_PRINT) && todo.length) {
+    const downErr = await probePrinter(ctx);
+    if (downErr) {
+      await ctx.log(`printer down: ${downErr.message}`);
+      await Promise.all(todo.map((id) => setStatus(ctx, id, STATUS.failed)));
+      return void (await ctx.log(
+        `selesai: 0 diunduh, 0 dicetak, ${skipped} dilewati, ${todo.length} gagal (printer down)`
+      ));
+    }
+  }
 
   // semua yang akan diproses: masuk antrean dulu (pending)
   await Promise.all(todo.map((id) => setStatus(ctx, id, STATUS.pending)));
@@ -247,14 +259,23 @@ async function processFiles(ids: string[], ctx: CommandContext, mode: "download"
         await setStatus(ctx, id, STATUS.done); // sudah selesai dicetak
       } catch (e) {
         fail++;
-        await ctx.log(`  ✗ ${id} gagal dicetak: ${errMsg(e)} (file tetap tersimpan)`);
+        if (isPrinterDown(e)) {
+          // printer mati / kabel putus / tidak terpasang: jangan biarkan nyangkut di "processing"
+          down++;
+          await ctx.log(`  ✗ ${id} gagal dicetak: ${errMsg(e)} -> status failed`);
+        } else {
+          await ctx.log(`  ✗ ${id} gagal dicetak: ${errMsg(e)} (file tetap tersimpan)`);
+        }
         await setStatus(ctx, id, STATUS.failed);
       }
     } else {
       await setStatus(ctx, id, STATUS.done); // AUTO_PRINT mati: selesai = selesai diunduh
     }
   });
-  await ctx.log(`selesai: ${downloaded} diunduh, ${printed} dicetak, ${skipped} dilewati, ${fail} gagal`);
+  await ctx.log(
+    `selesai: ${downloaded} diunduh, ${printed} dicetak, ${skipped} dilewati, ${fail} gagal` +
+      (down ? ` (${down} karena printer down)` : "")
+  );
 }
 
 /* ── Delete (pakai id file) ── */
