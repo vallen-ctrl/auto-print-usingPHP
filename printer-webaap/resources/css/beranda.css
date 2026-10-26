@@ -59,8 +59,17 @@ body {
 .site-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: var(--space-3);
     padding: var(--space-4);
+}
+
+/* Logo jasa + nama print diletakkan di kanan atas. */
+.site-header-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-left: auto;
 }
 
 .logo-placeholder {

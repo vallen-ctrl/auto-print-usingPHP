@@ -59,16 +59,18 @@ body {
 
 .site-header {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    justify-content: space-between;
     gap: var(--space-3);
     padding: var(--space-4);
 }
 
+/* Logo jasa + nama print di kanan atas, tombol kembali di kiri. */
 .site-header-brand {
     display: flex;
     align-items: center;
     gap: var(--space-3);
+    margin-left: auto;
 }
 
 .logo-placeholder {
