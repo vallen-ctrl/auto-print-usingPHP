@@ -56,6 +56,7 @@
 
             <wired-card roughness="1.2" class="panel">
                 <form action="{{ route('create.order') }}" method="POST" class="cetak-form" id="form-cetak" novalidate>
+                    @csrf
                     <div class="field">
                         <label class="field-label" for="nama">Nama lengkap</label>
                         <wired-input roughness="1.2" id="nama" name="nama" autocomplete="name"></wired-input>
