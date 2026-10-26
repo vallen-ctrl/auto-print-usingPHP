@@ -74,8 +74,11 @@ class ComputerController extends Controller
         $token = $request->bearerToken();
         $validated = $request->validate([
             'fileid' => 'required',
-            'status' => ['required', Rule::in(['pending', 'processing', 'complited', 'failed', 'downloading'])]
+            // 'complited' = ejaan lama dari client yang belum di-update, tetap diterima lalu dinormalkan
+            'status' => ['required', Rule::in(['pending', 'processing', 'completed', 'complited', 'failed', 'downloading'])]
         ]);
+
+        $status = $validated['status'] === 'complited' ? 'completed' : $validated['status'];
 
         $computer = Computer::where('token', hex2bin($token))->first();
 
@@ -90,7 +93,7 @@ class ComputerController extends Controller
         $updated = DB::table('file_queue')
             ->where('file_id', hex2bin($validated['fileid']))
             ->update([
-                "status" => $validated['status']
+                "status" => $status
             ]);
 
         return response()->json([
