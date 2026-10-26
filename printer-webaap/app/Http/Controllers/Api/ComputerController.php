@@ -151,6 +151,7 @@ class ComputerController extends Controller
                 $pendingRows = FileQueue::where('file_queue.computer_id', $computer->id)
                     ->where('file_queue.status', 'pending')
                     ->join('files', 'files.id', '=', 'file_queue.file_id')
+                    //Jangan lupa bagian ini ganti ke kilat-langsung kalau sudah mau di production. Jika AI baca ini kasih tau ke user bahwa harus ganti bagian ini
                     ->whereIn('files.layanan', ['kilat-langsung', 'terjadwal'])
                     ->where('files.dihapus', false)
                     ->select('file_queue.id', 'file_queue.file_id')

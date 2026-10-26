@@ -19,6 +19,7 @@ use App\Models\LayananTerpilih;
 use App\Rules\CustomHalamanRule;
 use App\Models\User;
 use App\Models\PengaturanToko;
+use App\Service\JadwalToko;
 use Illuminate\Support\Facades\Cache;
 use Midtrans\Transaction;
 
@@ -248,10 +249,17 @@ class OrderController extends Controller
         $validated = $request->validate($this->setValidation());
 
         try {
-            DB::transaction(function () use (&$TotalSemua, &$validated, $files, $request, $orderSession) {
+            // Tolak lebih awal (sebelum ada data yang ditulis) kalau jadwal pengambilan
+            // tidak sesuai status buka toko / jam operasional (pengaturan_toko & jam_operasional).
+            $getBiaya = PengaturanToko::findOrFail(1);
+
+            if ($tolak = (new JadwalToko())->cek($getBiaya, $validated["tanggal_ambil"])) {
+                return redirect()->back()->with("error", $tolak);
+            }
+
+            DB::transaction(function () use (&$TotalSemua, &$validated, $files, $request, $orderSession, $getBiaya) {
                 $filesOnRequest = $validated["files"];
 
-                $getBiaya = PengaturanToko::findOrFail(1);
                 $TotalSemua = 0 + $getBiaya->biaya_admin;
 
                 if (!is_array($files) || count($files) !== count($filesOnRequest)) {
