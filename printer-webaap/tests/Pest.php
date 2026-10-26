@@ -48,3 +48,34 @@ function something()
 {
     // ..
 }
+
+/**
+ * Toko + jam operasional 7 hari (08:00-17:00, semua hari dibuka) untuk test jadwal.
+ * $ubah[nomor_hari] menimpa isi baris hari tertentu.
+ */
+function tokoDenganJadwal(array $ubah = [], ?bool $statusBuka = true): \App\Models\PengaturanToko
+{
+    $pengaturan = \App\Models\PengaturanToko::factory()->create([
+        'id' => 1,
+        'status_buka' => $statusBuka,
+    ]);
+
+    for ($nomor = 1; $nomor <= 7; $nomor++) {
+        \App\Models\JamOperasional::create(array_merge([
+            'nomor_hari' => $nomor,
+            'hari' => \App\Service\JadwalToko::NAMA_HARI[$nomor],
+            'waktu_buka' => '08:00:00',
+            'waktu_tutup' => '17:00:00',
+            'apakah_dibuka' => true,
+            'id_pengaturan' => $pengaturan->id,
+        ], $ubah[$nomor] ?? []));
+    }
+
+    return $pengaturan;
+}
+
+/** Tanggal contoh: Kamis, 29 Oktober 2026. */
+function hariKamis(): \Carbon\Carbon
+{
+    return \Carbon\Carbon::parse('2026-10-29 10:00:00', '+07:00');
+}
