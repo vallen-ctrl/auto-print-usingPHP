@@ -94,6 +94,7 @@ Route::prefix('dashboard')->middleware([\App\Http\Middleware\VerifyTokenMiddlewa
     Route::post('/komputer/add', [\App\Http\Controllers\KomputerController::class, "store"])->name("komputer.post");
     Route::get('/komputer/isActive', [\App\Http\Controllers\KomputerController::class, "getStatucisActivebyId"])->name("komputer.status");
     Route::get('/komputer/destroy/{id}', [\App\Http\Controllers\KomputerController::class, "destroy"])->name("komputer.destroy");
+    Route::put('/komputer/files/retry/{id}', [\App\Http\Controllers\KomputerController::class, "retry"])->name("komputer.file.retry");
     //pengaturan
     Route::get('/pengaturan', [\App\Http\Controllers\PengaturanController::class, "get"])->name("pengaturan.index");
     Route::post('/pengaturan', [\App\Http\Controllers\PengaturanController::class, "store"])->name("pengaturan.store");

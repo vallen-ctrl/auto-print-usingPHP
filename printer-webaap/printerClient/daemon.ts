@@ -249,6 +249,11 @@ async function startWorker() {
 
   const ctx: CommandContext = {
     host: cfg.host,
+    request: (path, init = {}) => {
+      const headers = new Headers(init.headers);
+      headers.set("Authorization", `Bearer ${cfg!.token}`);
+      return loggedFetch(cfg!.host + path, { ...init, headers }, "request");
+    },
     printers: cfg.printers,
     log,
     post: (path, body = {}) =>
@@ -397,7 +402,7 @@ export async function runDaemon() {
   // auto-reload kalau config diubah dari TUI
   let t: ReturnType<typeof setTimeout> | undefined;
   watch(CONF_DIR, (_e, file) => {
-    if (!file || file === "tray.ps1" || file === "status.json") return;
+    if (!file || file === "tray.ps1" || file === "status.json" || file === "downloaded.json") return;
     clearTimeout(t);
     t = setTimeout(async () => {
       await log(`Config berubah (${file}), reload`);

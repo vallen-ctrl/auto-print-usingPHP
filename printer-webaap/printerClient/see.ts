@@ -40,6 +40,8 @@ export interface CommandContext {
   log: (msg: string) => Promise<void>;
   /** POST JSON ke server (token otomatis ikut di body) */
   post: (path: string, body?: Record<string, unknown>) => Promise<Response>;
+  /** fetch ke server dengan header `Authorization: Bearer <token>` otomatis (tercatat di log) */
+  request: (path: string, init?: RequestInit) => Promise<Response>;
 }
 
 export type SSEState = "connecting" | "connected" | "disconnected";

@@ -13,6 +13,7 @@ import { uninstallAll, IS_COMPILED, isDaemonRunning } from "./daemon";
 import { openSSE, readSSE } from "./see";
 import { prepareQr, showQr } from "./qr";
 import { log as writeLog } from "./logger";
+import { listPrinters, type Printer } from "./printers";
 
 /* ───────────────────────── Config & Paths ───────────────────────── */
 
@@ -34,7 +35,6 @@ interface ApiResponse {
   responsesCode: number;
 }
 
-type Printer = { name: string; online: boolean; detail: string };
 type PrinterConf = { name: string; priority: number }; // 1 = dipakai pertama
 
 /* ───────────────────────── Helpers ───────────────────────── */
@@ -235,39 +235,6 @@ async function connectServer() {
 }
 
 /* ───────────────────────── 2. Printer ───────────────────────── */
-
-async function listPrinters(): Promise<Printer[]> {
-  const os = platform();
-
-  if (os === "win32") {
-    const out = await Bun.$`powershell -NoProfile -Command "Get-CimInstance Win32_Printer | Select-Object Name,WorkOffline,PrinterStatus | ConvertTo-Json -Compress"`
-      .nothrow().quiet().text();
-    if (!out.trim()) return [];
-    const parsed = JSON.parse(out);
-    const arr = Array.isArray(parsed) ? parsed : [parsed];
-    return arr.map((p: any) => ({
-      name: p.Name,
-      online: !p.WorkOffline,
-      detail: p.WorkOffline ? "offline" : "ready",
-    }));
-  }
-
-  // Linux / macOS (CUPS)
-  const out = await Bun.$`lpstat -p`.nothrow().quiet().text();
-  const printers: Printer[] = [];
-  for (const line of out.split("\n")) {
-    const m = line.match(/^printer\s+(\S+)\s+(.*)$/);
-    if (!m) continue;
-    const rest = m[2]!;
-    const disabled = /disabled/i.test(rest);
-    printers.push({
-      name: m[1]!,
-      online: !disabled,
-      detail: disabled ? "disabled" : /idle/i.test(rest) ? "idle" : "printing",
-    });
-  }
-  return printers;
-}
 
 /* ── Config printer: urutan array = urutan prioritas (priority 1 = dipakai pertama) ── */
 

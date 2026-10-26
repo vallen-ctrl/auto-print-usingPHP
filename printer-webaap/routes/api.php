@@ -46,8 +46,9 @@ Route::middleware('api')->group(function () {
     Route::post("/computer/scanqr", [\App\Http\Controllers\Api\ComputerController::class, "computerScreen"])->name("computer.scan");
     Route::post("/computer/gettoken", [\App\Http\Controllers\Api\ComputerController::class, "gettokenQr"])->name("computer.token");
 
-    Route::post('/files/update/status', [\App\Http\Controllers\Api\ComputerController::class, 'updateFileQueue'])->name('file.update');
+    Route::put('/files/update/status', [\App\Http\Controllers\Api\ComputerController::class, 'updateFileQueue'])->name('file.update');
     Route::post('/files/getid', [\App\Http\Controllers\FilesController::class, 'getFileById']);
+    Route::post('/files/conf/getid', [\App\Http\Controllers\FilesController::class, 'getConfigurationByFileId']);
     // Route::get('/computer/token', [\App\Http\Controllers\Api\ComputerController::class, 'getByToken']);
     // Route::get('/computer/{id}', [\App\Http\Controllers\Api\ComputerController::class, 'getById']);
     // User

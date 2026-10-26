@@ -6,7 +6,7 @@
     $badgeBayar = [
         'pending'    => 'bg-warning-soft text-warning-strong',
         'processing' => 'bg-blue-100 text-blue-800',
-        'success'    => 'bg-success-soft text-success-strong',
+        'paid'    => 'bg-success-soft text-success-strong',
         'fail'       => 'bg-danger-soft text-danger-strong',
     ];
 

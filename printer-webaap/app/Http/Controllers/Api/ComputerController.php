@@ -10,6 +10,7 @@ use App\Models\FileQueue;
 use App\Service\tokenComputer;
 use Illuminate\Http\StreamedEvent;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -70,20 +71,24 @@ class ComputerController extends Controller
 
     public function updateFileQueue(Request $request)
     {
+        $token = $request->bearerToken();
         $validated = $request->validate([
-            'token' => 'required',
             'fileid' => 'required',
-            'status' => ['requiired', Rule::in(['pending', 'processing', 'complited', 'failed', 'downloading'])]
+            'status' => ['required', Rule::in(['pending', 'processing', 'complited', 'failed', 'downloading'])]
         ]);
-        $computerToken =  Computer::where('token', hex2bin($validated["token"]));
-        if (!$computerToken->exists()) {
+
+        $computer = Computer::where('token', hex2bin($token))->first();
+
+        if (!$computer) {
             return response()->json([
-                "message" => "can't reconized your token please recreate again or copy the right value",
-                "error" => true
+                'message' => 'unable to find token',
+                'error' => true,
             ], 401);
         }
 
-        $updated = File::where('file_id', hex2bin($validated['fileid']))
+        // Gunakan DB facade untuk menghindari masalah serialisasi model
+        $updated = DB::table('file_queue')
+            ->where('file_id', hex2bin($validated['fileid']))
             ->update([
                 "status" => $validated['status']
             ]);
@@ -140,24 +145,25 @@ class ComputerController extends Controller
             ]);
 
             while (true) {
-                $pending = FileQueue::where('file_queue.computer_id', $computer->id)
+                $pendingRows = FileQueue::where('file_queue.computer_id', $computer->id)
                     ->where('file_queue.status', 'pending')
                     ->join('files', 'files.id', '=', 'file_queue.file_id')
                     ->whereIn('files.layanan', ['kilat-langsung', 'terjadwal'])
                     ->where('files.dihapus', false)
-                    ->pluck('file_queue.file_id');
-                if ($pending->isEmpty()) {
-                    yield new StreamedEvent('heartbeat', [
-                        'waktu' => now()->toTimeString(),
-                    ]);
+                    ->select('file_queue.id', 'file_queue.file_id')
+                    ->get();
+
+                if ($pendingRows->isEmpty()) {
+                    yield new StreamedEvent('heartbeat', ['waktu' => now()->toTimeString()]);
                 } else {
-                    $ids = $pending->map(fn ($id) => bin2hex($id));
-                    yield new StreamedEvent('notification', [
+                    $ids = $pendingRows->map(fn($row) => bin2hex($row->file_id));
+
+                    yield new StreamedEvent('download', [
                         'waktu' => now()->toTimeString(),
                         'data'  => $ids,
                     ]);
 
-                    FileQueue::whereIn('id', $pending->pluck('id'))
+                    FileQueue::whereIn('id', $pendingRows->pluck('id'))
                         ->update(['status' => 'processing']);
                 }
 

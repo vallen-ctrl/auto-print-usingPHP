@@ -3,16 +3,13 @@
 @section('title', 'Komputer')
 
 @php
-// Data contoh (statis). Integrasi API/database menyusul setelah izin Vallen.
 $statusMap = [
-'connected' => ['label' => 'Connected', 'class' => 'bg-success-soft text-success-strong', 'dot' => 'bg-success'],
-'pending' => ['label' => 'Pending', 'class' => 'bg-warning-soft text-warning-strong', 'dot' => 'bg-warning'],
-'warning' => ['label' => 'Warning', 'class' => 'bg-danger-soft text-danger-strong', 'dot' => 'bg-danger'],
-'shutdown' => ['label' => 'Shutdown', 'class' => 'bg-muted text-ink-muted', 'dot' => 'bg-ink-muted'],
-'not connected' => ['label' => 'Not connected', 'class' => 'bg-muted text-ink-muted', 'dot' => 'bg-ink-muted'],
+    'connected' => ['label' => 'Connected', 'class' => 'bg-success-soft text-success-strong', 'dot' => 'bg-success'],
+    'pending' => ['label' => 'Pending', 'class' => 'bg-warning-soft text-warning-strong', 'dot' => 'bg-warning'],
+    'warning' => ['label' => 'Warning', 'class' => 'bg-danger-soft text-danger-strong', 'dot' => 'bg-danger'],
+    'shutdown' => ['label' => 'Shutdown', 'class' => 'bg-muted text-ink-muted', 'dot' => 'bg-ink-muted'],
+    'not connected' => ['label' => 'Not connected', 'class' => 'bg-muted text-ink-muted', 'dot' => 'bg-ink-muted'],
 ];
-
-
 @endphp
 
 @section('content')
@@ -23,6 +20,9 @@ $statusMap = [
     @endif
     @if(session('error'))
     <x-toast type="error" :message="session('error')" />
+    @endif
+    @if(session('warning'))
+    <x-toast type="warning" :message="session('warning')" />
     @endif
 
     {{-- Header --}}
@@ -59,52 +59,33 @@ $statusMap = [
                         <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Token</th>
                         <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Dibuat</th>
                         <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Status</th>
+                        <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium text-center">Pending</th>
+                        <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium text-center">Processing</th>
+                        <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium text-center">Completed</th>
+                        <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium text-center">Failed</th>
                         <th scope="col" class="whitespace-nowrap px-4 py-3 text-right font-medium">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-line text-ink">
                     @foreach ($computers as $c)
-                    @php $st = $statusMap[$c['status']] ?? $statusMap['not connected']; @endphp
+                    @php
+                    $st = $statusMap[$c->status] ?? $statusMap['not connected'];
+                    $qc = $c->queue_counts ?? ['pending'=>0,'processing'=>0,'completed'=>0,'failed'=>0,'downloading'=>0];
+                    @endphp
                     <tr data-row class="transition-colors hover:bg-muted/50">
-                        <div id="{{ $c['id'] }}" tabindex="-1" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-                            <div class="relative p-4 w-full max-w-md max-h-full">
-                                <form action="{{route('komputer.destroy', $c['id'])}}">
-                                    <div class="relative bg-neutral-primary-soft border border-default rounded-base shadow-sm p-4 md:p-6">
-                                        <button type="button" class="absolute top-3 e-2.5 text-body bg-transparent hover:bg-neutral-tertiary hover:text-heading rounded-base text-sm w-9 h-9 ms-auto inline-flex justify-center items-center" data-modal-hide="{{$c['id'] }}">
-                                            <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 17.94 6M18 18 6.06 6" />
-                                            </svg>
-                                            <span class="sr-only">Close modal</span>
-                                        </button>
-                                        <div class="p-4 md:p-5 text-center">
-                                            <svg class="mx-auto mb-4 text-fg-disabled w-12 h-12" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 13V8m0 8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                            </svg>
-                                            <h3 class="mb-6 text-body">Apakah anda yakin akan menghapus {{$c['nama']}} dari data?</h3>
-                                            <div class="flex items-center space-x-4 justify-center">
-                                                <button type="submit" data-modal-hide="{{ $c['id'] }}" type="button" class="text-white bg-danger box-border border border-transparent hover:bg-danger-strong focus:ring-4 focus:ring-danger-medium shadow-xs font-medium leading-5 rounded-base text-sm px-4 py-2.5 focus:outline-none">
-                                                    Ya, hapus
-                                                </button>
-                                                <button data-modal-hide="{{$c['id'] }}" type="button" class="text-body bg-neutral-secondary-medium box-border border border-default-medium hover:bg-neutral-tertiary-medium hover:text-heading focus:ring-4 focus:ring-neutral-tertiary shadow-xs font-medium leading-5 rounded-base text-sm px-4 py-2.5 focus:outline-none">Tidak, batalkan</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
                         <td class="whitespace-nowrap px-4 py-3">
                             <span class="inline-flex items-center gap-2 font-medium">
                                 <x-lucide-monitor class="size-4 text-ink-muted" aria-hidden="true" />
-                                {{ $c['nama'] }}
+                                {{ $c->nama }}
                             </span>
                         </td>
                         <td class="whitespace-nowrap px-4 py-3">
                             <code class="rounded bg-muted/60 px-2 py-1 font-mono text-xs text-ink-muted">
-                                {{ substr($c['token'], 0, 4) . '****' . substr($c['token'], -4) }}
+                                {{ substr($c->token, 0, 4) . '****' . substr($c->token, -4) }}
                             </code>
                         </td>
                         <td class="whitespace-nowrap px-4 py-3 text-ink-muted">
-                            {{ \Carbon\Carbon::parse($c['dibuat'])->translatedFormat('d M Y, H:i') }}
+                            {{ \Carbon\Carbon::parse($c->dibuat)->translatedFormat('d M Y, H:i') }}
                         </td>
                         <td class="whitespace-nowrap px-4 py-3">
                             <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $st['class'] }}">
@@ -112,19 +93,69 @@ $statusMap = [
                                 {{ $st['label'] }}
                             </span>
                         </td>
+                        <td class="whitespace-nowrap px-4 py-3 text-center">
+                            <span class="inline-flex bg-amber-100 text-amber-800 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
+                                {{ $qc['pending'] }}
+                            </span>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-3 text-center">
+                            <span class="inline-flex bg-blue-100 text-blue-800 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
+                                {{ $qc['processing'] }}
+                            </span>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-3 text-center">
+                            <span class="inline-flex bg-emerald-100 text-emerald-800 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
+                                {{ $qc['completed'] }}
+                            </span>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-3 text-center">
+                            <span class="inline-flex bg-rose-100 text-rose-700 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
+                                {{ $qc['failed'] }}
+                            </span>
+                        </td>
 
+                        {{-- Kolom Aksi: Dropdown Titik Tiga --}}
                         <td class="whitespace-nowrap px-4 py-3 text-right">
-                            <button type="button" aria-label="Hapus {{ $c['nama'] }}" data-modal-target="{{ $c['id'] }}" data-modal-toggle="{{ $c['id'] }}"
-                                class="inline-flex size-9 items-center justify-center rounded-lg bg-danger text-white transition-colors hover:bg-danger-strong focus:ring-2 focus:ring-danger/40 focus:ring-offset-2 focus:outline-none">
-                                <x-lucide-trash-2 class="size-4" aria-hidden="true" />
+                            <button id="dropdownMenuIconButton-{{ $c->id }}" data-dropdown-toggle="dropdownDots-{{ $c->id }}"
+                                class="inline-flex size-9 items-center justify-center rounded-lg text-ink bg-transparent hover:bg-muted transition-colors focus:ring-2 focus:ring-primary/30 focus:outline-none"
+                                type="button">
+                                <x-lucide-more-vertical class="size-5" aria-hidden="true" />
                             </button>
+
+                            <!-- Dropdown Menu -->
+                            <div id="dropdownDots-{{ $c->id }}" class="z-10 hidden bg-surface border border-line rounded-lg shadow-lg w-44 text-left">
+                                <ul class="p-2 text-sm text-ink font-medium" aria-labelledby="dropdownMenuIconButton-{{ $c->id }}">
+                                    <li>
+                                        {{-- Form tersembunyi (di-trigger via JS saat modal Retry diklik) --}}
+                                        <form id="form-retry-{{ $c->id }}" action="{{ route('komputer.file.retry', $c->id) }}" method="POST" class="form-retry">
+                                            @csrf
+                                            @method('PUT')
+                                        </form>
+                                        
+                                        {{-- Tombol Retry memicu Modal --}}
+                                        <button type="button" data-modal-target="modal-retry-{{ $c->id }}" data-modal-toggle="modal-retry-{{ $c->id }}"
+                                            class="inline-flex items-center gap-2 w-full p-2 hover:bg-muted rounded transition-colors text-left">
+                                            <x-lucide-rotate-ccw class="size-4" aria-hidden="true" />
+                                            Retry
+                                        </button>
+                                    </li>
+                                    <li>
+                                        {{-- Tombol Delete memicu Modal --}}
+                                        <button type="button" data-modal-target="modal-hapus-{{ $c->id }}" data-modal-toggle="modal-hapus-{{ $c->id }}"
+                                            class="inline-flex items-center gap-2 w-full p-2 hover:bg-rose-50 text-rose-600 rounded transition-colors text-left">
+                                            <x-lucide-trash-2 class="size-4" aria-hidden="true" />
+                                            Delete
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
                         </td>
                     </tr>
                     @endforeach
 
                     {{-- Empty state hasil pencarian --}}
                     <tr id="komputer-empty" class="hidden">
-                        <td colspan="5" class="px-4 py-12">
+                        <td colspan="9" class="px-4 py-12">
                             <div class="flex flex-col items-center justify-center gap-2 text-center">
                                 <x-lucide-search-x class="size-8 text-ink-muted" aria-hidden="true" />
                                 <p class="text-sm font-medium text-ink">Komputer tidak ditemukan</p>
@@ -137,6 +168,66 @@ $statusMap = [
         </div>
     </div>
 </div>
+
+{{-- ========================================================= --}}
+{{-- KUMPULAN MODAL RETRY & HAPUS --}}
+{{-- ========================================================= --}}
+@foreach ($computers as $c)
+
+{{-- Modal: Konfirmasi Retry --}}
+<div id="modal-retry-{{ $c->id }}" tabindex="-1" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+    <div class="relative p-4 w-full max-w-md max-h-full">
+        <div class="relative bg-neutral-primary-soft border border-default rounded-base shadow-sm p-4 md:p-6">
+            <button type="button" class="absolute top-3 end-2.5 text-body bg-transparent hover:bg-neutral-tertiary hover:text-heading rounded-base text-sm w-9 h-9 ms-auto inline-flex justify-center items-center" data-modal-hide="modal-retry-{{ $c->id }}">
+                <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 17.94 6M18 18 6.06 6"/></svg>
+                <span class="sr-only">Close modal</span>
+            </button>
+            <div class="p-4 md:p-5 text-center">
+                <svg class="mx-auto mb-4 text-fg-disabled w-12 h-12" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 13V8m0 8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                <h3 class="mb-6 text-body">Apakah Anda yakin ingin mengulang (retry) semua file yang gagal di <strong class="text-ink">{{ $c->nama }}</strong>?</h3>
+                <div class="flex items-center space-x-4 justify-center">
+                    {{-- Tombol ini memicu JS untuk submit form tersembunyi --}}
+                    <button type="button" onclick="document.getElementById('form-retry-{{ $c->id }}').submit();" data-modal-hide="modal-retry-{{ $c->id }}" class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-base text-sm px-4 py-2.5 focus:outline-none">
+                        Ya, retry
+                    </button>
+                    <button type="button" data-modal-hide="modal-retry-{{ $c->id }}" class="text-body bg-neutral-secondary-medium box-border border border-default-medium hover:bg-neutral-tertiary-medium hover:text-heading focus:ring-4 focus:ring-neutral-tertiary shadow-xs font-medium leading-5 rounded-base text-sm px-4 py-2.5 focus:outline-none">
+                        Tidak, batalkan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Modal: Konfirmasi Hapus --}}
+<div id="modal-hapus-{{ $c->id }}" tabindex="-1" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+    <div class="relative p-4 w-full max-w-md max-h-full">
+        <div class="relative bg-neutral-primary-soft border border-default rounded-base shadow-sm p-4 md:p-6">
+                <button type="button" class="absolute top-3 end-2.5 text-body bg-transparent hover:bg-neutral-tertiary hover:text-heading rounded-base text-sm w-9 h-9 ms-auto inline-flex justify-center items-center" data-modal-hide="modal-hapus-{{ $c->id }}">
+                    <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 17.94 6M18 18 6.06 6"/></svg>
+                    <span class="sr-only">Close modal</span>
+                </button>
+            <div class="p-4 md:p-5 text-center">
+                <svg class="mx-auto mb-4 text-fg-disabled w-12 h-12" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 13V8m0 8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                <h3 class="mb-6 text-body">Apakah anda yakin akan menghapus <strong class="text-ink">{{ $c->nama }}</strong> dari data? File yang berstatus pending atau failed akan dipindahkan ke komputer lain.</h3>
+                
+                <form action="{{ route('komputer.destroy', $c->id) }}" method="DELETE">
+                    @csrf
+                    @method('DELETE')
+                    <div class="flex items-center space-x-4 justify-center">
+                        <button type="submit" class="text-white bg-danger box-border border border-transparent hover:bg-danger-strong focus:ring-4 focus:ring-danger-medium shadow-xs font-medium leading-5 rounded-base text-sm px-4 py-2.5 focus:outline-none">
+                            Ya, hapus
+                        </button>
+                        <button type="button" data-modal-hide="modal-hapus-{{ $c->id }}" class="text-body bg-neutral-secondary-medium box-border border border-default-medium hover:bg-neutral-tertiary-medium hover:text-heading focus:ring-4 focus:ring-neutral-tertiary shadow-xs font-medium leading-5 rounded-base text-sm px-4 py-2.5 focus:outline-none">
+                            Tidak, batalkan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@endforeach
 
 {{-- Trigger tersembunyi untuk membuka modal token via Flowbite --}}
 <button type="button" id="trigger-token" data-modal-target="modal-token-komputer" data-modal-toggle="modal-token-komputer"
@@ -394,7 +485,7 @@ $statusMap = [
                                 setConnected();
                                 clearInterval(intervalId);
                                 console.log('✅ Connected — polling dihentikan.');
-                                setTimeout(()=>{
+                                setTimeout(() => {
                                     location.reload();
                                 }, 5000);
                                 return;
