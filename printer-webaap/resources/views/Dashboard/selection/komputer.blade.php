@@ -94,22 +94,22 @@ $statusMap = [
                             </span>
                         </td>
                         <td class="whitespace-nowrap px-4 py-3 text-center">
-                            <span class="inline-flex bg-amber-100 text-amber-800 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
+                            <span id="file-status-pending-{{$c->id}}" class="inline-flex bg-amber-100 text-amber-800 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
                                 {{ $qc['pending'] }}
                             </span>
                         </td>
                         <td class="whitespace-nowrap px-4 py-3 text-center">
-                            <span class="inline-flex bg-blue-100 text-blue-800 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
+                            <span id="file-status-processing-{{$c->id}}" class="inline-flex bg-blue-100 text-blue-800 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
                                 {{ $qc['processing'] }}
                             </span>
                         </td>
                         <td class="whitespace-nowrap px-4 py-3 text-center">
-                            <span class="inline-flex bg-emerald-100 text-emerald-800 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
+                            <span id="file-status-complited-{{$c->id}}" class="inline-flex bg-emerald-100 text-emerald-800 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
                                 {{ $qc['completed'] }}
                             </span>
                         </td>
                         <td class="whitespace-nowrap px-4 py-3 text-center">
-                            <span class="inline-flex bg-rose-100 text-rose-700 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
+                            <span id="file-status-failed-{{$c->id}}" class="inline-flex bg-rose-100 text-rose-700 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
                                 {{ $qc['failed'] }}
                             </span>
                         </td>
@@ -338,7 +338,57 @@ $statusMap = [
 </div>
 
 <script>
+document.addEventListener('DOMContentLoaded', function () {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const endpoint  = "{{ route('komputer.get.filestatus') }}"; // otomatis jadi URL /komputer/files/status
+    const INTERVAL_MS = 5000; // 5 detik
+
+    async function checkFilesStatus() {
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            });
+
+            if (!response.ok) {
+                console.warn('Response tidak OK:', response.status);
+                return;
+            }
+
+            const data = await response.json();
+
+            const files = data.data;
+            const keys = Object.keys(files)
+
+            for(let i of keys){
+                document.getElementById(`file-status-pending-${keys}`).textContent = files[keys].pending ?? 0;
+                document.getElementById(`file-status-processing-${keys}`).textContent = files[keys].processing ?? 0;
+                document.getElementById(`file-status-complited-${keys}`).textContent = files[keys].complited ?? 0;
+                document.getElementById(`file-status-failed-${keys}`).textContent = files[keys].failed ?? 0;
+            }
+
+        } catch (err) {
+            console.error('Gagal request status:', err);
+        }
+    }
+
+    // jalankan langsung sekali, lalu tiap interval
+    checkFilesStatus();
+    const intervalId = setInterval(checkFilesStatus, INTERVAL_MS);
+
+    // opsional: bersihkan saat halaman ditutup
+    window.addEventListener('beforeunload', () => clearInterval(intervalId));
+});
+</script>
+
+<script>
     document.addEventListener('DOMContentLoaded', function() {
+
         // ===== Pencarian komputer =====
         const inputCari = document.getElementById('komputer-search');
         const tabel = document.getElementById('tabel-komputer');

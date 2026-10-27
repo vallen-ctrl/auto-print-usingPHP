@@ -17,17 +17,8 @@ class KomputerController extends Controller
         return $data[$StatusCode];
     }
 
-    public function get()
+    private function getFileStatus()
     {
-        $computers = Computer::select(
-            DB::raw("LOWER(HEX(id)) as id"),
-            'name as nama',
-            DB::raw("LOWER(HEX(token)) as token"),
-            'tanggal_dibuat as dibuat',
-            'status'
-        )->get();
-
-        // Hitung jumlah per status per komputer
         $queueStats = DB::table('file_queue')
             ->select(
                 DB::raw("LOWER(HEX(computer_id)) as computer_id"),
@@ -38,6 +29,21 @@ class KomputerController extends Controller
             ->groupBy(DB::raw("LOWER(HEX(computer_id))"), 'status')
             ->get()
             ->groupBy('computer_id'); // dikelompokkan per computer_id
+        return $queueStats;
+    }
+
+    private function getComputerFromMysql()
+    {
+        $computers = Computer::select(
+            DB::raw("LOWER(HEX(id)) as id"),
+            'name as nama',
+            DB::raw("LOWER(HEX(token)) as token"),
+            'tanggal_dibuat as dibuat',
+            'status'
+        )->get();
+
+        // Hitung jumlah per status per komputer
+        $queueStats = $this->getFileStatus();
 
         // Map hasil ke masing-masing komputer
         $computers->each(function ($computer) use ($queueStats) {
@@ -53,6 +59,37 @@ class KomputerController extends Controller
             ];
         });
 
+        return $computers;
+    }
+
+    public function getFileStat()
+    {
+        $fileStat = $this->getFileStatus()
+        ->map(function ($rows) {
+            $counts = $rows->pluck('total', 'status')
+                ->map(fn ($v) => (int) $v)
+                ->all();
+
+            return array_merge([
+                'pending'     => 0,
+                'processing'  => 0,
+                'completed'   => 0,
+                'failed'      => 0,
+                'downloading' => 0,
+            ], $counts);
+        })
+        ->all();
+
+        return response()->json([
+            "message" => "sukses mengambil data",
+            "data" => $fileStat
+        ]);
+    }
+
+
+    public function get()
+    {
+        $computers = $this->getComputerFromMysql();
         return view("Dashboard.selection.komputer", compact('computers'));
     }
 
@@ -164,17 +201,18 @@ class KomputerController extends Controller
         return redirect()->back()->with("success", "Berhasil menghapus komputer" . ($filesToMove->isNotEmpty() ? " dan memindahkan {$filesToMove->count()} antrean file ke {$targetComputer->name}" : ""));
     }
 
-    public function retry(string $id){
+    public function retry(string $id)
+    {
         $computerBinaryId = hex2bin($id);
         $computerName = Computer::findOrFail($computerBinaryId)->first()->name;
-        try{
+        try {
             FileQueue::where("computer_id", $computerBinaryId)
                 ->whereIn("status", ["processing", "failed"])
-                -> update([
+                ->update([
                     "status" => "pending"
                 ]);
             return redirect()->back()->with("success", "Mengulang semua file yang gagal pada komputer $computerName");
-        }catch(\Exception $e){
+        } catch (\Exception $e) {
             return redirect()->back()->with("error", "Ada masalah dengan komputer / File yang bermasalah.");
         }
     }

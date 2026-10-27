@@ -5,5 +5,5 @@ variables:
     value: 58ad98726b6633491fbf0a2675adcbf437dc7887ded3115bded2fd9caa998477
     description: ""
   - name: url
-    value: http://printer-webaap.test
+    value: http://127.0.0.1:8000
     description: ""
