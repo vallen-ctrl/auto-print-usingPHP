@@ -367,15 +367,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const data = await response.json();
 
-            const files = data.data;
-            const keys = Object.keys(files)
+            const files = data.data || {};
+            const kunciAntrean = ['pending', 'processing', 'completed', 'failed'];
 
-            for(let i of keys){
-                document.getElementById(`file-status-pending-${keys}`).textContent = files[keys].pending ?? 0;
-                document.getElementById(`file-status-processing-${keys}`).textContent = files[keys].processing ?? 0;
-                document.getElementById(`file-status-complited-${keys}`).textContent = files[keys].complited ?? 0;
-                document.getElementById(`file-status-failed-${keys}`).textContent = files[keys].failed ?? 0;
-            }
+            Object.keys(files).forEach(function (idKomputer) {
+                const baris = document.querySelector('tr[data-computer-id="' + idKomputer + '"]');
+                if (!baris) return;
+
+                const antrean = files[idKomputer] || {};
+                kunciAntrean.forEach(function (status) {
+                    const el = baris.querySelector('[data-queue="' + status + '"]');
+                    if (el) el.textContent = antrean[status] ?? 0;
+                });
+            });
 
         } catch (err) {
             console.error('Gagal request status:', err);
