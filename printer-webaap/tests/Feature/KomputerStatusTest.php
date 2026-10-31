@@ -160,3 +160,65 @@ test('endpoint status komputer butuh login admin', function () {
     $this->getJson(route('komputer.status.all'))->assertUnauthorized();
     $this->get(route('komputer.index'))->assertRedirect(route('admin.login'));
 });
+
+test('hapus komputer memindahkan antrean pending/failed ke komputer lain', function () {
+    $session = sesiDashboard();
+    $sumber = Computer::factory()->create();
+    $tujuan = Computer::factory()->create();
+
+    antrean($sumber, 'pending', 'a.pdf');
+    antrean($sumber, 'failed', 'b.pdf');
+    antrean($sumber, 'completed', 'c.pdf');
+
+    $this->withSession($session)
+        ->delete(route('komputer.destroy', bin2hex($sumber->id)))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect(Computer::find($sumber->id))->toBeNull();
+    expect(DB::table('file_queue')->where('computer_id', $sumber->id)->count())->toBe(0);
+    expect(DB::table('file_queue')->where('computer_id', $tujuan->id)->count())->toBe(2);
+});
+
+test('hapus komputer ditolak bila tidak ada komputer lain untuk memindahkan file', function () {
+    $session = sesiDashboard();
+    $satuSatunya = Computer::factory()->create();
+
+    antrean($satuSatunya, 'pending', 'a.pdf');
+
+    $this->withSession($session)
+        ->delete(route('komputer.destroy', bin2hex($satuSatunya->id)))
+        ->assertRedirect()
+        ->assertSessionHas('warning');
+
+    expect(Computer::find($satuSatunya->id))->not->toBeNull();
+});
+
+test('retry mengembalikan file failed dan macet ke antrean pending', function () {
+    $session = sesiDashboard();
+    $komputer = Computer::factory()->create(['name' => 'PC Kasir']);
+
+    antrean($komputer, 'failed', 'a.pdf');
+    antrean($komputer, 'processing', 'b.pdf');
+    antrean($komputer, 'completed', 'c.pdf');
+
+    $this->withSession($session)
+        ->put(route('komputer.file.retry', bin2hex($komputer->id)))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect(DB::table('file_queue')->where('computer_id', $komputer->id)->where('status', 'pending')->count())->toBe(2);
+    expect(DB::table('file_queue')->where('computer_id', $komputer->id)->where('status', 'completed')->count())->toBe(1);
+});
+
+test('id komputer yang bukan hex dijawab 404, bukan error 500', function () {
+    $session = sesiDashboard();
+
+    $this->withSession($session)
+        ->delete('/dashboard/komputer/bukan-hex')
+        ->assertNotFound();
+
+    $this->withSession($session)
+        ->put('/dashboard/komputer/files/retry/bukan-hex')
+        ->assertNotFound();
+});
