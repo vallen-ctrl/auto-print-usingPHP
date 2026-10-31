@@ -164,8 +164,64 @@ git push origin "${commit}:refs/heads/fitur/<deskripsi-singkat>"
 
 7. Report to the user: branch name, commit hash, and the pull request link, `https://github.com/vallen-ctrl/auto-print-usingPHP/pull/new/<branch>`.
 
-### Rules
+## Bot Notes (`catatanBot.md`)
 
+`catatanBot.md` (project root) is a temporary handoff file between agents. It exists ONLY while there is a planned feature that depends on work already done but is not finished yet. Example: the API service was built yesterday, and the frontend has not been built yet.
+
+### Reading
+
+- At the start of a task, if `catatanBot.md` exists, read ONLY the first 40 lines (`head -n 40 catatanBot.md`).
+- Decide from the Ringkasan whether the note is relevant to the current task.
+  - Not relevant: stop reading. Do NOT read the rest of the file, and do not touch it.
+  - Relevant but the first 40 lines are not enough: read further in small chunks, only as far as needed.
+- If the note conflicts with the actual code, trust the code.
+
+### When to write
+
+- Write a note ONLY when you leave behind a feature that does not exist yet but will be built in a later session, and the next agent needs your context to build it.
+- Do NOT write a note for finished work, small fixes, refactors, or anything with no pending follow-up feature. If there is nothing pending, do not create the file.
+- Never write secrets, credentials, or `.env` values.
+
+### When a note has been used
+
+- If you read the note and used it for your task, its content is now consumed. Delete the old content (delete the file).
+- Then write a new note ONLY if the "When to write" condition applies after your task. Otherwise leave no file behind.
+- If you read the note but it was not relevant to your task, leave it untouched.
+
+### Format
+
+Write the note before `git add .` in the "After Finishing the Todo" steps, so it is part of the feature commit.
+
+The top of the file must follow this exact format (update the values):
+
+```markdown
+Last updated: YYYY-MM-DD
+Working directory: `D:\laragon\www\printer-webaap`
+Branch at time of writing: `fitur/<deskripsi-singkat>` (commit `<short-hash>`)
+
+This file records what has been done, what the current business rules are, and what is
+still missing, so the next agent does not have to rediscover it.
+```
+
+- `Last updated`: today's date.
+- `Branch at time of writing`: the current feature branch and the latest existing commit hash (`git rev-parse --short HEAD`, taken before your new commit).
+- Keep the closing paragraph as is.
+
+After the header, write ONLY these two parts:
+
+1. **Ringkasan** (must fit within the first 40 lines of the file, including the header)
+   - Target feature: which upcoming feature this note is for (e.g. "frontend for the API service").
+   - A few lines on what you changed.
+   - Important changes the next AI must know (new business rules, behavior changes, breaking changes, what is still missing).
+
+2. **Detail Perubahan**
+   - For each change: what was replaced or added, and how to use it.
+   - Include the file path for every item. Relative paths only (e.g. `app/Models/Order.php`), never absolute paths.
+
+### Rules
+- Do NOT add a project snapshot, tech stack overview, folder tree, or any other general description.
+- Keep it short and factual. No filler.
+- Everything the next agent needs to decide "is this relevant to me?" must be inside the Ringkasan.
 - Never push to `main`, never force-push, never rename branches with `git branch -M`.
 - Never push `vendor/`, `node_modules/`, `public/build/`, `.env`, or `public/hot` (they are already in `.gitignore`).
 - Use a new `fitur/<deskripsi-singkat>` branch for each feature; if the branch already exists on the remote, add a new commit on top of it (`-p origin/fitur/<deskripsi-singkat>` in the `git commit-tree` step) so the push is still a fast-forward.
