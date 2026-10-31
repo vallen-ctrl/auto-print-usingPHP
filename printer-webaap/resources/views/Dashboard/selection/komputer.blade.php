@@ -49,8 +49,13 @@ $statusMap = [
         </div>
     </div>
 
+    {{-- Info status koneksi (diperbarui otomatis oleh polling di bawah) --}}
+    <p id="komputer-koneksi-info" class="mt-4 text-sm text-ink-muted" aria-live="polite">
+        Memeriksa status komputer…
+    </p>
+
     {{-- Tabel komputer --}}
-    <div class="mt-5 overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+    <div class="mt-2 overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
         <div class="overflow-x-auto">
             <table id="tabel-komputer" class="w-full min-w-176 text-left text-sm">
                 <thead class="border-b border-line bg-muted/60">
@@ -72,7 +77,7 @@ $statusMap = [
                     $st = $statusMap[$c->status] ?? $statusMap['not connected'];
                     $qc = $c->queue_counts ?? ['pending'=>0,'processing'=>0,'completed'=>0,'failed'=>0,'downloading'=>0];
                     @endphp
-                    <tr data-row class="transition-colors hover:bg-muted/50">
+                    <tr data-row data-computer-id="{{ $c->id }}" class="transition-colors hover:bg-muted/50">
                         <td class="whitespace-nowrap px-4 py-3">
                             <span class="inline-flex items-center gap-2 font-medium">
                                 <x-lucide-monitor class="size-4 text-ink-muted" aria-hidden="true" />
@@ -88,28 +93,28 @@ $statusMap = [
                             {{ \Carbon\Carbon::parse($c->dibuat)->translatedFormat('d M Y, H:i') }}
                         </td>
                         <td class="whitespace-nowrap px-4 py-3">
-                            <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $st['class'] }}">
-                                <span class="size-1.5 rounded-full {{ $st['dot'] }}" aria-hidden="true"></span>
-                                {{ $st['label'] }}
+                            <span data-status-badge class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $st['class'] }}">
+                                <span data-status-dot class="size-1.5 rounded-full {{ $st['dot'] }}" aria-hidden="true"></span>
+                                <span data-status-text>{{ $st['label'] }}</span>
                             </span>
                         </td>
                         <td class="whitespace-nowrap px-4 py-3 text-center">
-                            <span id="file-status-pending-{{$c->id}}" class="inline-flex bg-amber-100 text-amber-800 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
+                            <span data-queue="pending" class="inline-flex bg-amber-100 text-amber-800 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
                                 {{ $qc['pending'] }}
                             </span>
                         </td>
                         <td class="whitespace-nowrap px-4 py-3 text-center">
-                            <span id="file-status-processing-{{$c->id}}" class="inline-flex bg-blue-100 text-blue-800 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
+                            <span data-queue="processing" class="inline-flex bg-blue-100 text-blue-800 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
                                 {{ $qc['processing'] }}
                             </span>
                         </td>
                         <td class="whitespace-nowrap px-4 py-3 text-center">
-                            <span id="file-status-complited-{{$c->id}}" class="inline-flex bg-emerald-100 text-emerald-800 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
+                            <span data-queue="completed" class="inline-flex bg-emerald-100 text-emerald-800 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
                                 {{ $qc['completed'] }}
                             </span>
                         </td>
                         <td class="whitespace-nowrap px-4 py-3 text-center">
-                            <span id="file-status-failed-{{$c->id}}" class="inline-flex bg-rose-100 text-rose-700 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
+                            <span data-queue="failed" class="inline-flex bg-rose-100 text-rose-700 items-center justify-center min-w-[24px] rounded-full px-2.5 py-0.5 text-xs font-medium">
                                 {{ $qc['failed'] }}
                             </span>
                         </td>
@@ -578,5 +583,125 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
     });
+</script>
+
+{{-- Status koneksi realtime: polling ringan tiap 3 detik, tanpa reload halaman. --}}
+<script>
+    (function() {
+        const tabel = document.getElementById('tabel-komputer');
+        const info = document.getElementById('komputer-koneksi-info');
+        if (!tabel) return;
+
+        const endpoint = @json(route('komputer.status.all'));
+        const INTERVAL = 3000;
+
+        const gaya = {
+            'connected': { badge: 'bg-success-soft text-success-strong', dot: 'bg-success', label: 'Connected' },
+            'pending': { badge: 'bg-warning-soft text-warning-strong', dot: 'bg-warning', label: 'Pending' },
+            'warning': { badge: 'bg-danger-soft text-danger-strong', dot: 'bg-danger', label: 'Warning' },
+            'shutdown': { badge: 'bg-muted text-ink-muted', dot: 'bg-ink-muted', label: 'Shutdown' },
+            'not connected': { badge: 'bg-muted text-ink-muted', dot: 'bg-ink-muted', label: 'Not connected' },
+        };
+        const kelasBadge = 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ';
+
+        const barisPer = {};
+        tabel.querySelectorAll('tbody tr[data-computer-id]').forEach(function(tr) {
+            barisPer[tr.dataset.computerId] = tr;
+        });
+
+        function terapkanStatus(tr, status) {
+            const g = gaya[status] || gaya['not connected'];
+            const badge = tr.querySelector('[data-status-badge]');
+            const dot = tr.querySelector('[data-status-dot]');
+            const text = tr.querySelector('[data-status-text]');
+            if (badge) badge.className = kelasBadge + g.badge;
+            if (dot) dot.className = 'size-1.5 rounded-full ' + g.dot;
+            if (text) text.textContent = g.label;
+        }
+
+        function terapkanAntrean(tr, queue) {
+            ['pending', 'processing', 'completed', 'failed'].forEach(function(kunci) {
+                const el = tr.querySelector('[data-queue="' + kunci + '"]');
+                if (el && queue && queue[kunci] !== undefined) el.textContent = queue[kunci];
+            });
+        }
+
+        function jam(iso) {
+            const d = new Date(iso);
+            return isNaN(d) ? '-' : d.toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        async function tarikStatus() {
+            try {
+                const res = await fetch(endpoint, {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (res.status === 401) {
+                    if (info) {
+                        info.className = 'mt-4 text-sm font-medium text-danger-strong';
+                        info.textContent = 'Sesi login berakhir. Muat ulang halaman lalu login kembali untuk melihat status terbaru.';
+                    }
+                    return;
+                }
+
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+
+                const data = await res.json();
+                const daftar = data.computers || [];
+
+                daftar.forEach(function(c) {
+                    const tr = barisPer[c.id];
+                    if (!tr) return;
+                    terapkanStatus(tr, c.status);
+                    terapkanAntrean(tr, c.queue);
+                });
+
+                const tersambung = daftar.filter(c => c.status === 'connected').length;
+
+                if (info) {
+                    if (tersambung > 0) {
+                        info.className = 'mt-4 text-sm text-ink-muted';
+                        info.textContent = tersambung + ' dari ' + daftar.length +
+                            ' komputer terhubung ke server • diperbarui ' + jam(data.server_time);
+                    } else {
+                        info.className = 'mt-4 text-sm font-medium text-amber-700';
+                        info.textContent = 'Belum ada komputer yang terhubung. Jalankan PrinterClient di komputer target, ' +
+                            'status akan berubah otomatis di sini.';
+                    }
+                }
+            } catch (err) {
+                if (info) {
+                    info.className = 'mt-4 text-sm font-medium text-danger-strong';
+                    info.textContent = 'Gagal memperbarui status (server tidak merespons). Mencoba lagi…';
+                }
+                console.error('[status komputer]', err);
+            }
+        }
+
+        let timer = null;
+
+        function mulai() {
+            if (timer) return;
+            tarikStatus();
+            timer = setInterval(tarikStatus, INTERVAL);
+        }
+
+        function henti() {
+            clearInterval(timer);
+            timer = null;
+        }
+
+        // hemat request saat tab dashboard tidak sedang dilihat
+        document.addEventListener('visibilitychange', function() {
+            document.hidden ? henti() : mulai();
+        });
+
+        mulai();
+    })();
 </script>
 @endsection
