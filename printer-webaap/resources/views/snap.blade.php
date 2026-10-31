@@ -41,6 +41,7 @@
 
             if (!res.ok) {
                 console.error('Gagal bikin token', data);
+                alert(data.message || 'Gagal membuat token pembayaran.');
                 return;
             }
 

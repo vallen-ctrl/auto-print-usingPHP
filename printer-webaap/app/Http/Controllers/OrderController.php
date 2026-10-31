@@ -31,8 +31,18 @@ use function Illuminate\Log\log;
 
 class OrderController extends Controller
 {
+    /**
+     * Batas waktu pembayaran sebuah order (menit). Lewat dari ini order
+     * dianggap gagal dan file uploadnya dihapus dari server.
+     */
+    private const BATAS_WAKTU_PEMBAYARAN_MENIT = 15;
+
     public function get(Request $request)
     {
+        // Setiap kali halaman order dibuka, order yang sudah lewat batas waktu
+        // pembayaran ditandai gagal dan file uploadnya dibersihkan.
+        $this->kadaluarsakanPembayaran();
+
         $search = trim((string) $request->query('search', ''));
 
         $query = Order::query()
@@ -85,26 +95,97 @@ class OrderController extends Controller
         $order = Order::findOrFail(hex2bin($id));
 
         DB::transaction(function () use ($order) {
-            // Hapus antrean milik order ini lebih dulu.
-            FileQueue::where('order_id', $order->id)->delete();
-
-            foreach (File::where('order_id', $order->id)->get() as $file) {
-                if ($file->path) {
-                    Storage::disk('local')->delete($file->path);
-                }
-
-                // Layanan terpilih memakai onDelete set null; hapus eksplisit.
-                LayananTerpilih::where('files_id', $file->id)->delete();
-
-                // Menghapus file ikut menghapus configuration (cascade).
-                $file->delete();
-            }
+            $this->hapusFileOrder($order->id);
 
             // Baris order dihapus setelah file-nya (files.order_id = restrict).
             $order->delete();
         });
 
         return redirect()->route('order.index')->with('success', 'Order berhasil dihapus.');
+    }
+
+    /**
+     * Tandai semua order pending yang melewati batas waktu pembayaran sebagai
+     * "failed" lalu hapus file uploadnya. Dipanggil saat halaman order dibuka.
+     *
+     * @return int jumlah order yang dikadaluarsakan
+     */
+    private function kadaluarsakanPembayaran(): int
+    {
+        $orderIds = Order::query()
+            ->where('status_pembayaran', 'pending')
+            ->where('tanggal_pesan', '<=', now()->subMinutes(self::BATAS_WAKTU_PEMBAYARAN_MENIT))
+            ->pluck('id');
+
+        $jumlah = 0;
+
+        foreach ($orderIds as $orderId) {
+            if ($this->kadaluarsakanOrder($orderId)) {
+                $jumlah++;
+            }
+        }
+
+        return $jumlah;
+    }
+
+    /**
+     * Ubah satu order menjadi gagal dan bersihkan filenya dari server.
+     * Perubahan status diklaim secara atomik supaya file tidak terhapus dua kali.
+     */
+    private function kadaluarsakanOrder(string $orderId): bool
+    {
+        return DB::transaction(function () use ($orderId) {
+            $diklaim = Order::where('id', $orderId)
+                ->where('status_pembayaran', 'pending')
+                ->where('tanggal_pesan', '<=', now()->subMinutes(self::BATAS_WAKTU_PEMBAYARAN_MENIT))
+                ->update(['status_pembayaran' => 'failed']);
+
+            if ($diklaim === 0) {
+                return false;
+            }
+
+            $this->hapusFileOrder($orderId);
+
+            return true;
+        });
+    }
+
+    /** True kalau order sudah melewati batas waktu pembayaran. */
+    private function sudahKadaluarsa(Order $order): bool
+    {
+        return $order->tanggal_pesan !== null
+            && $order->tanggal_pesan->copy()->addMinutes(self::BATAS_WAKTU_PEMBAYARAN_MENIT)->isPast();
+    }
+
+    /**
+     * Hapus file upload milik order dari storage beserta relasinya,
+     * tanpa menghapus baris order-nya.
+     */
+    private function hapusFileOrder(string $orderId): void
+    {
+        // Hapus antrean milik order ini lebih dulu.
+        FileQueue::where('order_id', $orderId)->delete();
+
+        foreach (File::where('order_id', $orderId)->get() as $file) {
+            if ($file->path) {
+                Storage::disk('local')->delete($file->path);
+            }
+
+            // Layanan terpilih memakai onDelete set null; hapus eksplisit.
+            LayananTerpilih::where('files_id', $file->id)->delete();
+
+            // Menghapus file ikut menghapus configuration (cascade).
+            $file->delete();
+        }
+    }
+
+    /** Respons JSON untuk kegagalan pembuatan token pembayaran. */
+    private function gagalBayar(string $pesan, int $status = 422)
+    {
+        return response()->json([
+            'message' => $pesan,
+            'error' => true,
+        ], $status);
     }
 
     public function setValidation(array $unsetArrayKey = [], array $changeValidation = [])
@@ -358,14 +439,42 @@ class OrderController extends Controller
         $session = $request->session()->get(UploadTerjadwalController::SESSION_KEY, null);
 
         if ($session === null) {
-            return redirect()->back()->with("error", "Sesi anda sudah habis.");
+            return $this->gagalBayar("Sesi pembayaran sudah kadaluarsa. Silakan upload ulang file Anda.", 410);
         }
 
         if ($session["orderid"] !== $validated["orderid"]) {
-            return redirect()->back()->with("error", "tidak dapat mencari order id yang sesuai");
+            return $this->gagalBayar("tidak dapat mencari order id yang sesuai", 404);
+        }
+
+        if (!ctype_xdigit($validated["orderid"])) {
+            return $this->gagalBayar("Order id tidak valid.", 404);
         }
 
         $order = Order::whereKey(hex2bin($validated["orderid"]))->first();
+
+        if (!$order) {
+            return $this->gagalBayar("Order tidak ditemukan.", 404);
+        }
+
+        // Sudah lebih dari batas waktu tanpa membayar: pembayaran ditolak,
+        // order ditandai gagal, dan file di server dihapus.
+        if ($this->sudahKadaluarsa($order)) {
+            $this->kadaluarsakanOrder($order->id);
+
+            return $this->gagalBayar(
+                "Tidak bisa melanjutkan pembayaran karena sesi sudah kadaluarsa (lebih dari "
+                    . self::BATAS_WAKTU_PEMBAYARAN_MENIT
+                    . " menit). File Anda telah dihapus dari server, silakan upload ulang.",
+                410
+            );
+        }
+
+        if ($order->status_pembayaran !== 'pending') {
+            return $this->gagalBayar(
+                "Order ini tidak bisa dibayar karena statusnya sudah \"{$order->status_pembayaran}\".",
+                409
+            );
+        }
 
         $params = array(
             'transaction_details' => array(
