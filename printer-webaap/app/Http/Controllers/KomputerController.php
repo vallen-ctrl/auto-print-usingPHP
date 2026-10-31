@@ -94,6 +94,27 @@ class KomputerController extends Controller
     }
 
     /**
+     * Jumlah antrean file per komputer, key = id komputer (hex).
+     * Dipakai polling halaman komputer; selalu mengembalikan entri untuk
+     * setiap komputer supaya baris tanpa antrean tetap tampil 0.
+     */
+    public function getFileStat()
+    {
+        $counts = $this->queueCounts();
+
+        $data = Computer::select(DB::raw("LOWER(HEX(id)) as id"))
+            ->get()
+            ->mapWithKeys(fn ($computer) => [
+                $computer->id => $counts[$computer->id] ?? self::QUEUE_KOSONG,
+            ]);
+
+        return response()->json([
+            'server_time' => now()->toIso8601String(),
+            'data' => $data,
+        ]);
+    }
+
+    /**
      * Status satu komputer berdasarkan id (hex). Dipakai modal "Komputer berhasil dibuat"
      * untuk menunggu komputer baru terhubung.
      */

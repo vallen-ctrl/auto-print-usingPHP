@@ -92,6 +92,33 @@ test('status-all ikut berubah begitu status komputer di database berubah', funct
         ->assertJsonPath('computers.0.status', 'shutdown');
 });
 
+test('files/status mengembalikan jumlah antrean per komputer', function () {
+    $session = sesiDashboard();
+    $komputer = Computer::factory()->create();
+    $kosong = Computer::factory()->create();
+
+    antrean($komputer, 'pending', 'a.pdf');
+    antrean($komputer, 'processing', 'b.pdf');
+    antrean($komputer, 'completed', 'c.pdf');
+    antrean($komputer, 'failed', 'd.pdf');
+
+    $response = $this->withSession($session)->postJson(route('komputer.get.filestatus'));
+
+    $response->assertOk()
+        ->assertJsonPath('data.' . bin2hex($komputer->id) . '.pending', 1)
+        ->assertJsonPath('data.' . bin2hex($komputer->id) . '.processing', 1)
+        ->assertJsonPath('data.' . bin2hex($komputer->id) . '.completed', 1)
+        ->assertJsonPath('data.' . bin2hex($komputer->id) . '.failed', 1)
+        ->assertJsonPath('data.' . bin2hex($kosong->id) . '.pending', 0)
+        ->assertJsonPath('data.' . bin2hex($kosong->id) . '.completed', 0);
+
+    expect($response->json('server_time'))->not->toBeNull();
+});
+
+test('files/status butuh login admin', function () {
+    $this->postJson(route('komputer.get.filestatus'))->assertUnauthorized();
+});
+
 test('isActive membaca status komputer dari id hex', function () {
     $session = sesiDashboard();
     $komputer = Computer::factory()->create(['status' => 'connected']);
