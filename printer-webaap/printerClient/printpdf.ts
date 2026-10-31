@@ -23,8 +23,12 @@ const EXE_NAMES = ["PrinterClient.exe", "SumatraPDF.exe"];
 
 /** true: 210x297 -> "paper=A4" (nama ukuran yang dikenal SumatraPDF); false: selalu "paper=210mm x 297mm" */
 const PAPER_AS_NAME = false;
-/** true: pages_toprint=5 -> "1-5"; false: dipakai apa adanya -> "5" (hanya halaman 5) */
-const PAGES_AS_RANGE = false;
+/**
+ * `pages_toprint` dari server = JUMLAH halaman yang dicetak (bukan nomor halaman).
+ * true  -> pages_toprint=3 jadi "1-3" (semua halaman 1..3)  <-- dipakai
+ * false -> "3" (SumatraPDF hanya mencetak halaman 3)
+ */
+const PAGES_AS_RANGE = true;
 
 /* ───────────── Tipe config dari server ───────────── */
 
