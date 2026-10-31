@@ -6,8 +6,10 @@
     $badgeBayar = [
         'pending'    => 'bg-warning-soft text-warning-strong',
         'processing' => 'bg-blue-100 text-blue-800',
-        'paid'    => 'bg-success-soft text-success-strong',
+        'paid'       => 'bg-success-soft text-success-strong',
+        'failed'     => 'bg-danger-soft text-danger-strong',
         'fail'       => 'bg-danger-soft text-danger-strong',
+        'refunded'   => 'bg-muted text-ink-muted',
     ];
 
     $badgeFile = [

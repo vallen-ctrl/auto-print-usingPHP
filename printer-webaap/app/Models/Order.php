@@ -26,11 +26,13 @@ class Order extends Model
         'metode_pembayaran',
         'id_metode_pembayaran',
         'session_id',
+        'tanggal_bayar',
     ];
 
     protected $casts = [
         'tanggal_pesan' => 'datetime',
         'tanggal_ambil' => 'datetime',
+        'tanggal_bayar' => 'datetime',
     ];
 }
 

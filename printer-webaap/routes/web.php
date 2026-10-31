@@ -3,16 +3,41 @@
 use Illuminate\Support\Facades\Route;
 
 
-Route::get('/', function (\Illuminate\Http\Request $request) {
+Route::get('/', function (
+    \Illuminate\Http\Request $request,
+    \App\Service\KedaluwarsaOrder $kedaluwarsa
+) {
     $order = $request->session()->get(\App\Http\Controllers\UploadTerjadwalController::SESSION_KEY);
 
     // User sudah punya order terjadwal yang belum selesai: lanjutkan ke
     // formulir dengan order id tersebut, bukan memulai dari awal.
     if ($order) {
-        switch($order["where"]){
+        switch ($order["where"] ?? null) {
             case "formulir.terjadwal":
-                return redirect()->route('formulir.terjadwal', ['order' => $order["orderid"]]);
+                $orderModel = $kedaluwarsa->cariDariHex($order["orderid"] ?? null);
 
+                // Order sudah tidak ada di database: session-nya dibersihkan.
+                if ($orderModel === null) {
+                    $request->session()->forget(\App\Http\Controllers\UploadTerjadwalController::SESSION_KEY);
+
+                    break;
+                }
+
+                // File yang diupload lebih dari 1 jam dan order masih pending
+                // (atau pembayaran tidak selesai 20 menit setelah "Bayar sekarang")
+                // dianggap kedaluwarsa: file dihapus dari server, user kembali ke
+                // beranda dengan pesan supaya upload ulang.
+                // Catatan: aturan waktu ini dipakai juga oleh alur pembayaran di
+                // front-end yang belum dibuat.
+                if ($kedaluwarsa->sudahKadaluarsa($orderModel)) {
+                    $pesan = $kedaluwarsa->pesanKadaluarsa($orderModel);
+                    $kedaluwarsa->kadaluarsakan($orderModel);
+                    $request->session()->forget(\App\Http\Controllers\UploadTerjadwalController::SESSION_KEY);
+
+                    return redirect('/')->with('error', $pesan);
+                }
+
+                return redirect()->route('formulir.terjadwal', ['order' => $order["orderid"]]);
         }
     }
 
