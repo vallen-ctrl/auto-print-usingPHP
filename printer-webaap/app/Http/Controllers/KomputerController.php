@@ -67,6 +67,37 @@ class KomputerController extends Controller
             $computer->queue_counts = $counts[$computer->id] ?? self::QUEUE_KOSONG;
         });
 
+        return $computers;
+    }
+
+    public function getFileStat()
+    {
+        $fileStat = $this->getFileStatus()
+        ->map(function ($rows) {
+            $counts = $rows->pluck('total', 'status')
+                ->map(fn ($v) => (int) $v)
+                ->all();
+
+            return array_merge([
+                'pending'     => 0,
+                'processing'  => 0,
+                'completed'   => 0,
+                'failed'      => 0,
+                'downloading' => 0,
+            ], $counts);
+        })
+        ->all();
+
+        return response()->json([
+            "message" => "sukses mengambil data",
+            "data" => $fileStat
+        ]);
+    }
+
+
+    public function get()
+    {
+        $computers = $this->getComputerFromMysql();
         return view("Dashboard.selection.komputer", compact('computers'));
     }
 
@@ -194,17 +225,18 @@ class KomputerController extends Controller
         return redirect()->back()->with("success", "Berhasil menghapus komputer" . ($filesToMove->isNotEmpty() ? " dan memindahkan {$filesToMove->count()} antrean file ke {$targetComputer->name}" : ""));
     }
 
-    public function retry(string $id){
+    public function retry(string $id)
+    {
         $computerBinaryId = hex2bin($id);
         $computerName = Computer::findOrFail($computerBinaryId)->first()->name;
-        try{
+        try {
             FileQueue::where("computer_id", $computerBinaryId)
                 ->whereIn("status", ["processing", "failed"])
-                -> update([
+                ->update([
                     "status" => "pending"
                 ]);
             return redirect()->back()->with("success", "Mengulang semua file yang gagal pada komputer $computerName");
-        }catch(\Exception $e){
+        } catch (\Exception $e) {
             return redirect()->back()->with("error", "Ada masalah dengan komputer / File yang bermasalah.");
         }
     }
