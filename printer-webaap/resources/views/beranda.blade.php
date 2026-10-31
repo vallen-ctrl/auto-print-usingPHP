@@ -21,6 +21,13 @@
     </header>
 
     <main class="page-main">
+        {{-- Pesan dari server, mis. file sudah dihapus karena order kedaluwarsa. --}}
+        @if (session('error'))
+            <div class="panel-notice" role="alert">
+                <p>{{ session('error') }}</p>
+            </div>
+        @endif
+
         <wired-card roughness="1.2" class="panel">
             <div class="panel-inner">
                 <wired-button roughness="1.2" class="panel-button" elevation="1">Cetak Kilat</wired-button>

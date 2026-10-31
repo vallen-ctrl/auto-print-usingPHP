@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 use App\Http\Controllers\Controller;
 use App\Models\Computer;
@@ -20,6 +19,7 @@ use App\Rules\CustomHalamanRule;
 use App\Models\User;
 use App\Models\PengaturanToko;
 use App\Service\JadwalToko;
+use App\Service\KedaluwarsaOrder;
 use Illuminate\Support\Facades\Cache;
 use Midtrans\Transaction;
 
@@ -31,17 +31,15 @@ use function Illuminate\Log\log;
 
 class OrderController extends Controller
 {
-    /**
-     * Batas waktu pembayaran sebuah order (menit). Lewat dari ini order
-     * dianggap gagal dan file uploadnya dihapus dari server.
-     */
-    private const BATAS_WAKTU_PEMBAYARAN_MENIT = 15;
+    public function __construct(private readonly KedaluwarsaOrder $kedaluwarsa)
+    {
+    }
 
     public function get(Request $request)
     {
         // Setiap kali halaman order dibuka, order yang sudah lewat batas waktu
-        // pembayaran ditandai gagal dan file uploadnya dibersihkan.
-        $this->kadaluarsakanPembayaran();
+        // ditandai gagal dan file uploadnya dibersihkan.
+        $this->kedaluwarsa->kadaluarsakanSemua();
 
         $search = trim((string) $request->query('search', ''));
 
@@ -95,88 +93,13 @@ class OrderController extends Controller
         $order = Order::findOrFail(hex2bin($id));
 
         DB::transaction(function () use ($order) {
-            $this->hapusFileOrder($order->id);
+            $this->kedaluwarsa->hapusFile($order->id);
 
             // Baris order dihapus setelah file-nya (files.order_id = restrict).
             $order->delete();
         });
 
         return redirect()->route('order.index')->with('success', 'Order berhasil dihapus.');
-    }
-
-    /**
-     * Tandai semua order pending yang melewati batas waktu pembayaran sebagai
-     * "failed" lalu hapus file uploadnya. Dipanggil saat halaman order dibuka.
-     *
-     * @return int jumlah order yang dikadaluarsakan
-     */
-    private function kadaluarsakanPembayaran(): int
-    {
-        $orderIds = Order::query()
-            ->where('status_pembayaran', 'pending')
-            ->where('tanggal_pesan', '<=', now()->subMinutes(self::BATAS_WAKTU_PEMBAYARAN_MENIT))
-            ->pluck('id');
-
-        $jumlah = 0;
-
-        foreach ($orderIds as $orderId) {
-            if ($this->kadaluarsakanOrder($orderId)) {
-                $jumlah++;
-            }
-        }
-
-        return $jumlah;
-    }
-
-    /**
-     * Ubah satu order menjadi gagal dan bersihkan filenya dari server.
-     * Perubahan status diklaim secara atomik supaya file tidak terhapus dua kali.
-     */
-    private function kadaluarsakanOrder(string $orderId): bool
-    {
-        return DB::transaction(function () use ($orderId) {
-            $diklaim = Order::where('id', $orderId)
-                ->where('status_pembayaran', 'pending')
-                ->where('tanggal_pesan', '<=', now()->subMinutes(self::BATAS_WAKTU_PEMBAYARAN_MENIT))
-                ->update(['status_pembayaran' => 'failed']);
-
-            if ($diklaim === 0) {
-                return false;
-            }
-
-            $this->hapusFileOrder($orderId);
-
-            return true;
-        });
-    }
-
-    /** True kalau order sudah melewati batas waktu pembayaran. */
-    private function sudahKadaluarsa(Order $order): bool
-    {
-        return $order->tanggal_pesan !== null
-            && $order->tanggal_pesan->copy()->addMinutes(self::BATAS_WAKTU_PEMBAYARAN_MENIT)->isPast();
-    }
-
-    /**
-     * Hapus file upload milik order dari storage beserta relasinya,
-     * tanpa menghapus baris order-nya.
-     */
-    private function hapusFileOrder(string $orderId): void
-    {
-        // Hapus antrean milik order ini lebih dulu.
-        FileQueue::where('order_id', $orderId)->delete();
-
-        foreach (File::where('order_id', $orderId)->get() as $file) {
-            if ($file->path) {
-                Storage::disk('local')->delete($file->path);
-            }
-
-            // Layanan terpilih memakai onDelete set null; hapus eksplisit.
-            LayananTerpilih::where('files_id', $file->id)->delete();
-
-            // Menghapus file ikut menghapus configuration (cascade).
-            $file->delete();
-        }
     }
 
     /** Respons JSON untuk kegagalan pembuatan token pembayaran. */
@@ -338,6 +261,26 @@ class OrderController extends Controller
                 return redirect()->back()->with("error", $tolak);
             }
 
+            // Order yang sudah lewat batas waktu tidak boleh dilanjutkan: filenya
+            // sudah dihapus dari server, jadi user dikembalikan ke beranda.
+            // Catatan: pengecekan ini bagian dari alur pembayaran yang front-end-nya
+            // belum dibuat; dipakai juga oleh halaman formulir terjadwal.
+            $orderModel = $this->kedaluwarsa->cariDariHex($orderid);
+
+            if ($orderModel === null) {
+                $request->session()->forget(UploadTerjadwalController::SESSION_KEY);
+
+                return redirect('/')->with("error", "Order tidak ditemukan. Silakan upload ulang file Anda.");
+            }
+
+            if ($this->kedaluwarsa->sudahKadaluarsa($orderModel)) {
+                $pesan = $this->kedaluwarsa->pesanKadaluarsa($orderModel);
+                $this->kedaluwarsa->kadaluarsakan($orderModel);
+                $request->session()->forget(UploadTerjadwalController::SESSION_KEY);
+
+                return redirect('/')->with("error", $pesan);
+            }
+
             DB::transaction(function () use (&$TotalSemua, &$validated, $files, $request, $orderSession, $getBiaya) {
                 $filesOnRequest = $validated["files"];
 
@@ -430,6 +373,20 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Buat Snap token pembayaran untuk order terjadwal.
+     *
+     * Catatan: ini titik masuk pembayaran yang nanti dipakai oleh front-end
+     * pembayaran (halaman bayar / popup Midtrans) yang belum dibuat. Kontrak
+     * responsnya:
+     *  - 200 { token, batas_bayar_menit } → buka popup Snap
+     *  - 410 { message, error }          → order kedaluwarsa, file sudah dihapus
+     *  - 409 { message, error }          → status order bukan pending
+     *  - 404 { message, error }          → session/order tidak cocok
+     *
+     * Saat token berhasil dibuat, waktu bayar dicatat (orders.tanggal_bayar)
+     * sebagai awal hitung mundur KedaluwarsaOrder::BATAS_BAYAR_MENIT.
+     */
     public function bayarSekarang(Request $request)
     {
         $validated = $request->validate([
@@ -456,17 +413,16 @@ class OrderController extends Controller
             return $this->gagalBayar("Order tidak ditemukan.", 404);
         }
 
-        // Sudah lebih dari batas waktu tanpa membayar: pembayaran ditolak,
-        // order ditandai gagal, dan file di server dihapus.
-        if ($this->sudahKadaluarsa($order)) {
-            $this->kadaluarsakanOrder($order->id);
+        // Order yang sudah lewat batas waktu tidak boleh dibayar: order ditandai
+        // gagal dan file di server dihapus. Batas waktunya dua tahap:
+        // 60 menit sejak file diupload, atau 20 menit sejak "Bayar sekarang".
+        // Catatan: aturan ini disiapkan untuk alur pembayaran di front-end yang
+        // belum dibuat; sekarang dipakai endpoint token Snap ini.
+        if ($this->kedaluwarsa->sudahKadaluarsa($order)) {
+            $pesan = $this->kedaluwarsa->pesanKadaluarsa($order);
+            $this->kedaluwarsa->kadaluarsakan($order);
 
-            return $this->gagalBayar(
-                "Tidak bisa melanjutkan pembayaran karena sesi sudah kadaluarsa (lebih dari "
-                    . self::BATAS_WAKTU_PEMBAYARAN_MENIT
-                    . " menit). File Anda telah dihapus dari server, silakan upload ulang.",
-                410
-            );
+            return $this->gagalBayar("Tidak bisa melanjutkan pembayaran. " . $pesan, 410);
         }
 
         if ($order->status_pembayaran !== 'pending') {
@@ -484,8 +440,15 @@ class OrderController extends Controller
         );
 
         $snapToken = \Midtrans\Snap::getSnapToken($params);
+
+        // Token Snap berhasil dibuat: hitung mundur pembayaran mulai dari sini
+        // (Snap token Midtrans sendiri kedaluwarsa setelah 15 menit).
+        // Catatan: dipakai front-end pembayaran yang belum dibuat.
+        $this->kedaluwarsa->tandaiBayar($order);
+
         return response()->json([
             "token" => $snapToken,
+            "batas_bayar_menit" => KedaluwarsaOrder::BATAS_BAYAR_MENIT,
             "messgae" => "sukes generated snap token"
         ]);
     }

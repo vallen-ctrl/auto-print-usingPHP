@@ -76,6 +76,7 @@ erDiagram
     ORDERS {
         binary id PK
         timestamp tanggal_pesan
+        timestamp tanggal_bayar
         datetime tanggal_ambil
         bigint biaya_admin
         bigint total_pembayaran

@@ -102,9 +102,27 @@ body {
 .page-main {
     flex: 1 1 auto;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: var(--space-4);
     padding: 0 var(--space-4) var(--space-4);
+}
+
+/* Pesan kesalahan dari server, mis. file sudah dihapus karena kedaluwarsa. */
+.panel-notice {
+    width: 100%;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid #b3261e;
+    border-radius: 12px;
+    background-color: #fdecea;
+    color: #8c1d18;
+}
+
+.panel-notice p {
+    margin: 0;
 }
 
 .panel {
