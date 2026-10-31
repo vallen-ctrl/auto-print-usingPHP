@@ -189,7 +189,7 @@ $statusMap = [
             </button>
             <div class="p-4 md:p-5 text-center">
                 <svg class="mx-auto mb-4 text-fg-disabled w-12 h-12" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 13V8m0 8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
-                <h3 class="mb-6 text-body">Apakah Anda yakin ingin mengulang (retry) semua file yang gagal di <strong class="text-ink">{{ $c->nama }}</strong>?</h3>
+                <h3 class="mb-6 text-body">Apakah Anda yakin ingin mengulang (retry) semua file yang gagal atau macet di <strong class="text-ink">{{ $c->nama }}</strong>?</h3>
                 <div class="flex items-center space-x-4 justify-center">
                     {{-- Tombol ini memicu JS untuk submit form tersembunyi --}}
                     <button type="button" onclick="document.getElementById('form-retry-{{ $c->id }}').submit();" data-modal-hide="modal-retry-{{ $c->id }}" class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-base text-sm px-4 py-2.5 focus:outline-none">
@@ -216,7 +216,7 @@ $statusMap = [
                 <svg class="mx-auto mb-4 text-fg-disabled w-12 h-12" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 13V8m0 8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
                 <h3 class="mb-6 text-body">Apakah anda yakin akan menghapus <strong class="text-ink">{{ $c->nama }}</strong> dari data? File yang berstatus pending atau failed akan dipindahkan ke komputer lain.</h3>
                 
-                <form action="{{ route('komputer.destroy', $c->id) }}" method="DELETE">
+                <form action="{{ route('komputer.destroy', $c->id) }}" method="POST">
                     @csrf
                     @method('DELETE')
                     <div class="flex items-center space-x-4 justify-center">

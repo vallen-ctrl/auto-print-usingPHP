@@ -167,15 +167,14 @@ class KomputerController extends Controller
 
     public function destroy(string $id)
     {
-        // Konversi Hex dari URL ke Binary untuk mencari data
-        $binaryId = hex2bin($id);
+        $binaryId = $this->binaryId($id);
         $computer = Computer::find($binaryId);
 
         if (!$computer) {
             return redirect()->back()->with("warning", "Tidak ada computer dengan id tersebut");
         }
 
-        // Cek file yang berstatus pending atau failed
+        // File pending/failed dipindahkan ke komputer lain sebelum komputer dihapus
         $filesToMove = DB::table('file_queue')
             ->where('computer_id', $binaryId)
             ->whereIn('status', ['pending', 'failed'])
@@ -183,24 +182,21 @@ class KomputerController extends Controller
 
         if ($filesToMove->isNotEmpty()) {
 
-            // PERBAIKAN 1: Gunakan 'computer.*' (tunggal) sesuai nama tabel asli
-            // PERBAIKAN 2: Pastikan subquery merujuk ke tabel 'computer'
+            // Pilih komputer lain dengan beban kerja paling ringan
             $targetComputer = Computer::select('computer.*')
                 ->selectRaw("(
                 SELECT COUNT(*) FROM file_queue 
                 WHERE file_queue.computer_id = computer.id 
                 AND file_queue.status IN ('pending', 'processing')
             ) as beban_kerja")
-                ->where('id', '!=', $binaryId) // Gunakan binaryId yang sudah di hex2bin
+                ->where('id', '!=', $binaryId)
                 ->orderBy('beban_kerja', 'asc')
                 ->first();
 
-            // Jika tidak ada komputer lain sama sekali
             if (!$targetComputer) {
                 return redirect()->back()->with("warning", "Gagal menghapus. Tidak ada komputer lain untuk memindahkan file pending/failed.");
             }
 
-            // Pindahkan file
             DB::table('file_queue')
                 ->where('computer_id', $binaryId)
                 ->whereIn('status', ['pending', 'failed'])
@@ -209,24 +205,46 @@ class KomputerController extends Controller
                 ]);
         }
 
-        // Hapus komputer
         $computer->delete();
 
         return redirect()->back()->with("success", "Berhasil menghapus komputer" . ($filesToMove->isNotEmpty() ? " dan memindahkan {$filesToMove->count()} antrean file ke {$targetComputer->name}" : ""));
     }
 
-    public function retry(string $id){
-        $computerBinaryId = hex2bin($id);
-        $computerName = Computer::findOrFail($computerBinaryId)->first()->name;
-        try{
-            FileQueue::where("computer_id", $computerBinaryId)
+    public function retry(string $id)
+    {
+        $computerBinaryId = $this->binaryId($id);
+        $computer = Computer::find($computerBinaryId);
+
+        if (!$computer) {
+            return redirect()->back()->with("warning", "Tidak ada computer dengan id tersebut");
+        }
+
+        try {
+            // File yang gagal atau macet di tengah proses dikembalikan ke antrean
+            $jumlah = FileQueue::where("computer_id", $computerBinaryId)
                 ->whereIn("status", ["processing", "failed"])
-                -> update([
+                ->update([
                     "status" => "pending"
                 ]);
-            return redirect()->back()->with("success", "Mengulang semua file yang gagal pada komputer $computerName");
-        }catch(\Exception $e){
+
+            return redirect()->back()->with("success", "Mengulang {$jumlah} file yang gagal / macet pada komputer {$computer->name}");
+        } catch (\Exception $e) {
+            report($e);
+
             return redirect()->back()->with("error", "Ada masalah dengan komputer / File yang bermasalah.");
         }
+    }
+
+    /**
+     * Ubah id komputer (hex 32 karakter) dari URL menjadi binary.
+     * Id yang tidak valid dianggap tidak ditemukan, bukan error 500.
+     */
+    private function binaryId(string $id): string
+    {
+        if (!preg_match('/^[0-9a-fA-F]{32}$/', $id)) {
+            abort(404, 'Komputer tidak ditemukan.');
+        }
+
+        return hex2bin($id);
     }
 }
