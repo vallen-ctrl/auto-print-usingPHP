@@ -5,16 +5,50 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Computer;
 use App\Models\FileQueue;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class KomputerController extends Controller
 {
+    private const QUEUE_KOSONG = [
+        'pending' => 0,
+        'processing' => 0,
+        'completed' => 0,
+        'failed' => 0,
+        'downloading' => 0,
+    ];
+
     public function computerStatus(int $StatusCode): string
     {
         $data = ['not connected', 'shutdown', 'pending', 'connected', 'warning'];
         return $data[$StatusCode];
+    }
+
+    /**
+     * Jumlah antrean per komputer, key = id komputer (hex).
+     *
+     * @return array<string, array<string, int>>
+     */
+    private function queueCounts(): array
+    {
+        $rows = DB::table('file_queue')
+            ->select(
+                DB::raw("LOWER(HEX(computer_id)) as computer_id"),
+                'status',
+                DB::raw('COUNT(*) as total')
+            )
+            ->whereNotNull('computer_id')
+            ->groupBy(DB::raw("LOWER(HEX(computer_id))"), 'status')
+            ->get();
+
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $counts[$row->computer_id] ??= self::QUEUE_KOSONG;
+            $counts[$row->computer_id][$row->status] = (int) $row->total;
+        }
+
+        return $counts;
     }
 
     public function get()
@@ -27,60 +61,56 @@ class KomputerController extends Controller
             'status'
         )->get();
 
-        // Hitung jumlah per status per komputer
-        $queueStats = DB::table('file_queue')
-            ->select(
-                DB::raw("LOWER(HEX(computer_id)) as computer_id"),
-                'status',
-                DB::raw('COUNT(*) as total')
-            )
-            ->whereNotNull('computer_id')
-            ->groupBy(DB::raw("LOWER(HEX(computer_id))"), 'status')
-            ->get()
-            ->groupBy('computer_id'); // dikelompokkan per computer_id
+        $counts = $this->queueCounts();
 
-        // Map hasil ke masing-masing komputer
-        $computers->each(function ($computer) use ($queueStats) {
-            $stats = $queueStats->get($computer->id, collect());
-
-            // default 0 untuk semua status
-            $computer->queue_counts = [
-                'pending'     => (int) optional($stats->firstWhere('status', 'pending'))->total,
-                'processing'  => (int) optional($stats->firstWhere('status', 'processing'))->total,
-                'completed'   => (int) optional($stats->firstWhere('status', 'completed'))->total,
-                'failed'      => (int) optional($stats->firstWhere('status', 'failed'))->total,
-                'downloading' => (int) optional($stats->firstWhere('status', 'downloading'))->total,
-            ];
+        $computers->each(function ($computer) use ($counts) {
+            $computer->queue_counts = $counts[$computer->id] ?? self::QUEUE_KOSONG;
         });
 
         return view("Dashboard.selection.komputer", compact('computers'));
     }
 
+    /**
+     * Status koneksi semua komputer untuk pembaruan realtime di halaman komputer.
+     * Dipanggil berkala oleh browser (polling), bukan stream.
+     */
+    public function statusAll()
+    {
+        $computers = Computer::select(
+            DB::raw("LOWER(HEX(id)) as id"),
+            'status'
+        )->get();
+
+        $counts = $this->queueCounts();
+
+        return response()->json([
+            'server_time' => now()->toIso8601String(),
+            'computers' => $computers->map(fn ($computer) => [
+                'id' => $computer->id,
+                'status' => $computer->status ?: 'not connected',
+                'queue' => $counts[$computer->id] ?? self::QUEUE_KOSONG,
+            ])->values(),
+        ]);
+    }
+
+    /**
+     * Status satu komputer berdasarkan id (hex). Dipakai modal "Komputer berhasil dibuat"
+     * untuk menunggu komputer baru terhubung.
+     */
     public function getStatucisActivebyId(Request $request)
     {
         $validated = $request->validate([
             "comid" => "required"
         ]);
 
-        $getStatus = Cache::get("cache:" . $validated["comid"], null);
+        $binId = @hex2bin($validated["comid"]);
+        $status = $binId !== false && strlen($binId) === 16
+            ? (Computer::whereKey($binId)->value('status') ?: 'not connected')
+            : 'not connected';
 
-        if ($getStatus == null) {
-            return response()->json([
-                "status" =>  $this->computerStatus(0)
-            ]);
-        } else {
-            return response()->json([
-                "status" =>  $getStatus
-            ]);
-        }
-        // bagian ini diubah untuk mempercepat saja
-        // $binId = hex2bin($validated["comid"]);
-        // $data = Computer::where("id", $binId)
-        //     ->select("status")
-        //     ->first();
-        // return response()->json([
-        //     "status" =>  $data->status
-        // ]);
+        return response()->json([
+            "status" => $status
+        ]);
     }
 
     public function store(Request $request)
