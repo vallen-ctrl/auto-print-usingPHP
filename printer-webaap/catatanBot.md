@@ -1,75 +1,70 @@
-Last updated: 2026-10-31
+Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/kadaluarsa-pembayaran-order` (commit `1ec73f5`)
+Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `ceecf58`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
 
 ## Ringkasan
 
-**Target feature: front-end pembayaran (halaman bayar + popup Midtrans Snap). It does NOT exist yet.**
-The only caller of `POST /order/token` today is the temporary page `resources/views/snap.blade.php`
-(`GET /test`, `route('test')`). Backend rules and JSON contract for that page are ready.
+**Target feature: menyambungkan halaman konfirmasi pembayaran ke data order asli dan ke popup Midtrans Snap. Belum dikerjakan.**
 
-Business rules now enforced (source of truth: `app/Service/KedaluwarsaOrder.php`):
+UI halaman `/order/konfirmasi/{order_id}` sudah ada dan bisa dipratinjau. Datanya masih
+contoh (`KonfirmasiPembayaranController`), karena integrasi database/API wajib menunggu izin
+Vallen. Yang belum ada: pembacaan Order + File asli, tombol CTA ke `POST /order/token`, dan
+pemanggilan `window.snap.pay()`.
 
-- Order `pending` with `tanggal_bayar` NULL → expires 60 minutes after `orders.tanggal_pesan` (upload time).
-- Order `pending` with `tanggal_bayar` set → expires 20 minutes after `orders.tanggal_bayar` (set when Snap token is created; Snap token itself dies after 15).
-- Expired order → `status_pembayaran = failed`, uploaded file deleted from `Storage::disk('local')`, plus `file_queue`, `files`, `layanan_terpilih` rows; the `orders` row is kept so the dashboard still lists it as `failed`.
-- Enforced at: `GET /`, `FormulirTerjadwalController::get()`, `OrderController::createorder_terjadwal()`, dashboard order list (`OrderController::get()`), and `OrderController::bayarSekarang()`.
+Aturan metode bayar per `files.layanan` (sudah diterapkan di UI):
 
-What the next agent must know:
+- `kilat-langsung`: pilihan QRIS atau Bayar di Kasir.
+- `kilat-edit`: hanya Bayar di Kasir. Total, subtotal cetak, dan harga per file kosong
+  (`Rp. —`) karena file masih bisa diedit; tombol total membuka `<x-modal id="modal-total">`.
+- `terjadwal`: hanya QRIS.
 
-- `POST /order/token` (`create.snap.token`) returns JSON: `200 { token, batas_bayar_menit: 20, messgae }`, `410` order expired (files already deleted), `409` status not `pending`, `404` session/order mismatch. On non-200 show `message` and send the user back to `/`.
-- After the Snap callback, poll `GET /struk/order/{orderIdHex}` (`order.struk` → `OrderController::strukOrder()`). It only processes orders whose status is `pending`, so do not set `processing` anywhere before/inside that check.
-- No scheduler/cron exists: expiry is only cleaned when those pages are opened. A scheduled `KedaluwarsaOrder::kadaluarsakanSemua()` is still missing.
-- `orders.tanggal_bayar` is a new column → run `php artisan migrate`; `resources/css/beranda.css` changed → run `npm run build`.
+Kontrak backend pembayaran yang masih berlaku (dari `app/Service/KedaluwarsaOrder.php`):
+
+- `POST /order/token` (`create.snap.token`) mengembalikan `200 { token, batas_bayar_menit: 20 }`,
+  `410` order kedaluwarsa (file sudah dihapus), `409` status bukan `pending`, `404` session/order
+  tidak cocok. Untuk non-200 tampilkan `message` dan arahkan user ke `/`.
+- Order `pending` tanpa `tanggal_bayar` kedaluwarsa 60 menit setelah `orders.tanggal_pesan`;
+  dengan `tanggal_bayar` kedaluwarsa 20 menit setelahnya (`tanggal_bayar` diisi saat token dibuat).
+- Setelah callback Snap, polling `GET /struk/order/{orderIdHex}` (`order.struk`). Jangan pernah
+  set `processing` sebelum pengecekan di `OrderController::strukOrder()`.
+- Tidak ada scheduler; kedaluwarsa hanya dibersihkan saat halaman terkait dibuka.
+
+Catatan build: CSS/JS halaman baru terdaftar di `vite.config.js`, jadi jalankan `npm run build`
+setelah mengubahnya.
 
 ## Detail Perubahan
 
-### `app/Service/KedaluwarsaOrder.php` (new)
-Single place for all expiry logic; previously duplicated as private helpers in `OrderController` (removed).
-- Constants: `BATAS_UPLOAD_MENIT = 60`, `BATAS_BAYAR_MENIT = 20`.
-- `sudahKadaluarsa(Order $order): bool` — true only for `pending` orders past the applicable limit.
-- `pesanKadaluarsa(Order $order): string` — Indonesian message for the user; wording differs for the upload vs payment limit.
-- `kadaluarsakan(Order $order): bool` — atomic claim (`UPDATE ... WHERE status_pembayaran = 'pending'` + matching time condition), then deletes files; returns false if another request already handled it.
-- `kadaluarsakanSemua(): int` — sweeps both rules; used by the dashboard order list.
-- `tandaiBayar(Order $order): void` — writes `orders.tanggal_bayar = now()`; call it right after a Snap token is successfully created.
-- `hapusFile(string $orderId): void` — deletes storage file + `file_queue` + `layanan_terpilih` + `files` rows (configuration cascades). Also used by `OrderController::destroy()`.
-- `cariDariHex(?string $orderIdHex): ?Order` — validates 32-char hex and returns the order or null.
+### `app/Http/Controllers/KonfirmasiPembayaranController.php` (new)
+- `show(Request, string $order_id)` merakit `$order`, `$files`, `$metode` untuk view.
+- Data masih placeholder; parameter `?layanan=kilat-langsung|kilat-edit|terjadwal` hanya untuk
+  pratinjau ketiga alur. Ganti isi `$order`/`$files` dengan `Order` + `File` asli saat sudah
+  diizinkan; struktur data ke view tidak perlu berubah.
+- `$order['harga_menyesuaikan']` = true untuk `kilat-edit` dan mengatur tampilan total kosong.
 
-### `database/migrations/2026_10_31_120000_add_tanggal_bayar_to_orders_table.php` (new)
-Adds nullable `orders.tanggal_bayar` (timestamp). Run `php artisan migrate`.
+### `resources/views/order-konfirmasi.blade.php` (new)
+- Struktur: header (tombol kembali + judul), badge pengambilan, kartu Rincian dokumen, kartu
+  Pilih Metode Pembayaran, kartu Ringkasan Pembayaran, bilah Total Bayar + CTA.
+- Metode bayar dirender dari `$metode`; opsi pertama otomatis terpilih (`role="radio"`).
+- `<x-modal id="modal-total">` hanya dirender untuk `kilat-edit`, dibuka lewat `data-modal-open`.
+- Butuh `@stack('scripts')` karena komponen modal mem-push script-nya.
 
-### `app/Models/Order.php`
-`tanggal_bayar` added to `$fillable` and to `$casts` as `datetime`.
+### `resources/css/order-konfirmasi.css` (new)
+- Mobile-first, breakpoint 768px dan 1024px (dua kolom di desktop). Token warna/ukuran sama
+  dengan halaman sketsa lain; `--color-chip` untuk latar opsi terpilih.
+- Label CTA ditumpuk (`.cta-labels`) supaya lebar tombol tidak berubah saat metode diganti.
 
-### `app/Http/Controllers/OrderController.php`
-- Constructor now injects `KedaluwarsaOrder`; all private expiry/file helpers were deleted in favour of the service.
-- `get()` (dashboard order list): calls `$this->kedaluwarsa->kadaluarsakanSemua()` before querying.
-- `destroy()`: uses `$this->kedaluwarsa->hapusFile($order->id)`.
-- `createorder_terjadwal()`: after the store-schedule check and before the write transaction, rejects expired/missing orders by forgetting the session and redirecting to `/` with `error`.
-- `bayarSekarang()`: rewritten response contract documented in its docblock; expired order → 410 + files deleted; non-`pending` → 409; on success returns `token` + `batas_bayar_menit` and then calls `tandaiBayar($order)`.
-- `strukOrder()` and `addFileQueue()` are unchanged on purpose.
+### `resources/js/pages/order-konfirmasi.js` (new)
+- Klik/Enter/Space/panah pada `.pay-option` memindahkan pilihan, mengubah `aria-checked` dan
+  `tabindex`, lalu menampilkan label CTA yang cocok (`data-cta`).
 
-### `app/Http/Controllers/FormulirTerjadwalController.php`
-Injects `KedaluwarsaOrder`; `get()` validates the session order before rendering: missing → forget session + redirect `/`; expired → mark failed, delete files, forget session, redirect `/` with `error`. Valid sessions are re-put into the session as before.
+### `routes/web.php` (changed)
+- Tambah `GET /order/konfirmasi/{order_id}` dengan nama `order.konfirmasi`.
 
-### `routes/web.php`
-The `GET /` closure now receives `KedaluwarsaOrder`. When a `terjadwal_order` session exists: missing order → forget session and show the homepage; expired order → mark failed, delete files, forget session, `redirect('/')->with('error', ...)`; otherwise redirect to `formulir.terjadwal` with the order id.
+### `vite.config.js` (changed)
+- Tambah entry `resources/css/order-konfirmasi.css` dan `resources/js/pages/order-konfirmasi.js`.
 
-### `resources/views/beranda.blade.php` + `resources/css/beranda.css`
-Homepage renders `session('error')` in a `.panel-notice` alert box; `.page-main` became a column flex container with a gap. Requires `npm run build` (assets are gitignored).
-
-### `resources/views/Dashboard/selection/order.blade.php`
-`$badgeBayar` map now includes `failed` (red) and `refunded` (muted) besides the legacy `fail`.
-
-### `resources/views/snap.blade.php`
-On non-OK response it now shows `alert(data.message)` in addition to `console.error`. This page is still the temporary manual test page for Snap.
-
-### `databasescheme.md`
-`ORDERS` block documents the new `tanggal_bayar` column.
-
-### `tests/Feature/OrderKadaluarsaPembayaranTest.php` (new)
-13 Pest tests: 60-minute upload expiry via dashboard, non-expiry at 30 minutes, 20-minute payment expiry and non-expiry via `tanggal_bayar`, `paid` orders untouched, `tandaiBayar()` shifting the limit, `bayarSekarang()` 410 on both limits, 409 for `failed`, 410 without session, `/` redirect + flash + file deletion for expired order, `/` redirect to form for valid order, form route redirect for expired order.
-Run with: `php artisan test tests/Feature/OrderKadaluarsaPembayaranTest.php`.
+### `app/Service/KedaluwarsaOrder.php` (existing, unchanged)
+- Sumber aturan kedaluwarsa order; dipakai juga oleh halaman order lain. Jangan duplikasi logikanya.
