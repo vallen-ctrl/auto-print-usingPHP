@@ -1,6 +1,6 @@
 Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `4e80017`)
+Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `b6fade8`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
@@ -45,8 +45,9 @@ setelah mengubahnya.
 - `$order['harga_menyesuaikan']` = true untuk `kilat-edit` dan mengatur tampilan total kosong.
 
 ### `resources/views/order-konfirmasi.blade.php` (new)
-- Struktur: header (tombol kembali + judul), badge pengambilan, kartu Rincian dokumen, kartu
-  Pilih Metode Pembayaran, kartu Ringkasan Pembayaran, bilah Total Bayar + CTA.
+- Struktur: header (tombol Kembali di kiri, logo jasa + "nama print" di kanan, sama seperti
+  `/formulir/terjadwal`), judul halaman di dalam isi, badge pengambilan, kartu Rincian dokumen,
+  kartu Pilih Metode Pembayaran, kartu Ringkasan Pembayaran, bilah Total Bayar + CTA.
 - Metode bayar dirender dari `$metode`; opsi pertama otomatis terpilih (`role="radio"`).
 - `<x-modal id="modal-total">` hanya dirender untuk `kilat-edit`, dibuka lewat `data-modal-open`.
 - Butuh `@stack('scripts')` karena komponen modal mem-push script-nya.
