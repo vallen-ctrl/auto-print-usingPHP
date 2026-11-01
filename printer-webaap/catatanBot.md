@@ -1,94 +1,106 @@
 Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `b77207e`)
+Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `b3442af`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
 
 ## Ringkasan
 
-**Target feature berikutnya: alur pembuatan order kilat (backend formulir kilat), halaman tujuan
-setelah "Bayar di Kasir", dan alur konfirmasi penjual. Belum dikerjakan.**
+**Target feature berikutnya: alur order kilat (backend formulir kilat), halaman tujuan setelah
+"Bayar di Kasir", dan alur konfirmasi penjual. Belum dikerjakan.**
 
 Alur kilat sengaja dikosongkan dulu: `GET /formulir/kilat` masih `Route::view()` statis dan belum
-ada endpoint yang membuat order kilat. `POST /order/token` juga masih mensyaratkan session
+ada endpoint yang membuat order kilat. `POST /order/token` masih mensyaratkan session
 `terjadwal_order`; alur kilat nanti butuh mekanisme sesi sendiri.
 
-Yang sudah berjalan di halaman `/order/konfirmasi/{order_id}`:
+Beranda kini melanjutkan order dari DATABASE, bukan dari isi session:
 
-- Data order/file/biaya dibaca dari database (`KonfirmasiPembayaranController`).
+- `orders.browser_session` (Laravel session id) diisi sejak file diupload.
+- `GET /` mencari order terbaru dengan penanda itu: belum submit formulir -> formulir terjadwal;
+  sudah submit (`total_pembayaran > 0`) -> halaman konfirmasi/metode pembayaran; menunggu kasir ->
+  halaman konfirmasi; pembayaran online -> `/struk/{id}`; paid/gagal -> beranda + penanda dilepas.
+- Session `terjadwal_order` dibangun ulang dari DB (daftar file + total_pages) saat melanjutkan,
+  jadi tombol bayar/formulir tetap bekerja walau tab sempat tertutup.
+
+Konfirmasi pembayaran:
+
 - Timer 20 menit mulai saat halaman pertama dibuka (`orders.tanggal_bayar`, tidak di-reset reload).
-- QRIS: `POST /order/token` -> `window.snap.pay()`. `onSuccess`/`onPending` menunggu status
-  tercatat (retry singkat ke `/struk/order/{id}`) lalu langsung pindah ke `/struk/{id}`;
-  `onClose` hanya cadangan. Finish Redirect URL tetap bisa diatur di dashboard Midtrans.
-- Bayar di Kasir: `POST /order/konfirmasi/{order_id}/kasir` mengubah
-  `status_pembayaran = 'processing'` dan `metode_pembayaran = 'kasir'`. Halaman lalu dimuat ulang,
-  menampilkan "Pesanan berhasil" + "Silakan bayar di kasir", tanpa timer, CTA nonaktif
-  ("Menunggu konfirmasi kasir"). Pesan dibedakan: kilat-edit menegaskan harga cetak masih
-  perkiraan/bisa berubah, kilat-langsung menegaskan harga sudah sesuai rincian pesanan.
-- `createorder_terjadwal()` redirect ke halaman konfirmasi.
+- QRIS: `POST /order/token` -> `snap.pay`; `onSuccess`/`onPending` menunggu status tercatat
+  (retry singkat) lalu pindah ke `/struk/{id}`; `localStorage.clear()` saat sukses. `onClose`
+  hanya cadangan. Finish Redirect URL tetap bisa diatur di dashboard Midtrans.
+- Kasir: `POST /order/konfirmasi/{id}/kasir` -> `status_pembayaran = 'processing'`,
+  `metode_pembayaran = 'kasir'`. Halaman reload menampilkan "Pesanan berhasil" + "Silakan bayar
+  di kasir" (kilat-edit: harga masih perkiraan; kilat-langsung: harga sudah sesuai).
+- `strukOrder()` saat `paid` melepas session alur + `orders.browser_session`.
 
 Yang masih kurang:
 
-- Konfirmasi penjual: belum ada UI/endpoint untuk mengubah order kasir dari `processing` ke
-  `paid`. Saat itu dibuat, file WAJIB dimasukkan ke `file_queue` (pakai logika
-  `OrderController::addFileQueue()`, sekarang private). `strukOrder()` hanya menambah antrean
-  untuk pembayaran Midtrans.
+- Konfirmasi penjual: belum ada UI/endpoint `processing` -> `paid` untuk kasir. Saat dibuat,
+  file WAJIB dimasukkan ke `file_queue` (pakai `OrderController::addFileQueue()`, masih private).
 - Halaman/lokasi setelah user memilih bayar di kasir (diminta dibuat nanti).
 - Scheduler pembersihan order kedaluwarsa belum ada; masih dicek saat halaman dibuka.
 
-Menjalankan: `php artisan serve` + `npm run dev` (atau `npm run build` setelah mengubah CSS/JS).
-Tes terkait: `php artisan test --filter=KonfirmasiPembayaran` (11 tes) dan
-`php artisan test --filter=OrderKadaluarsaPembayaran` (13 tes).
+Menjalankan: `php artisan migrate` (kolom `browser_session`), `npm run build` setelah ubah CSS/JS.
+Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"` (30 tes).
 
 ## Detail Perubahan
 
-### `app/Http/Controllers/KonfirmasiPembayaranController.php` (changed)
-- `show()`: validasi hex, tangani `paid`/`processing` -> `/struk/{id}`, status lain -> `/` + error,
-  kedaluwarsa -> `kadaluarsakan()` + lupakan session + `/` + error.
-- Pengecualian: `processing` + `metode_pembayaran = 'kasir'` TIDAK diarahkan ke `/struk`; halaman
-  ditampilkan dalam keadaan menunggu kasir (`$order['menunggu_kasir'] = true`).
-- `tandaiBayar()` dipanggil saat halaman dibuka (hanya untuk order pending); `sisa_detik` dikirim
-  ke view. Data file diambil dari `files` + `configuration` + `paper`.
-- `bayarDiKasir()`: syarat session `terjadwal_order`, klaim atomik `pending` -> `processing`,
-  set `metode_pembayaran = 'kasir'` dan `tanggal_bayar` bila kosong. Respons JSON
-  `{ status, message }`; 403 sesi, 404 order, 409 status, 410 kedaluwarsa. `message` dibedakan
-  per `files.layanan`: kilat-edit = harga masih perkiraan, kilat-langsung = harga sudah sesuai.
-- `formatUkuran()` byte -> "400 KB" / "0,4 MB".
+### `app/Http/Controllers/BerandaController.php` (new)
+- Menggantikan closure `/` di `routes/web.php`.
+- Cari `Order::where('browser_session', $request->session()->getId())` terbaru.
+- Urutan pengecekan: kedaluwarsa -> `kadaluarsakan()` + lepas penanda; `paid` -> beranda;
+  `processing` + kasir -> konfirmasi; `processing` lain -> `/struk/{id}`; failed/refunded ->
+  beranda; `pending` + total > 0 -> konfirmasi; `pending` + total 0 -> formulir.
+- `pulihkanSession()` membangun ulang session `terjadwal_order` (orderid, sessionid, files,
+  localPath) dari tabel `files`.
+- `lupakanOrder()` menghapus session `terjadwal_order` dan meng-null-kan `browser_session`.
+
+### `database/migrations/2026_11_01_000000_add_browser_session_to_orders_table.php` (new)
+- Menambah `orders.browser_session` VARCHAR(255) NULL + index. Sudah dijalankan di DB dev.
+
+### `app/Models/Order.php` (changed)
+- `browser_session` masuk `$fillable`.
+
+### `app/Http/Controllers/UploadTerjadwalController.php` (changed)
+- `store()` mengisi `browser_session` dengan `$request->session()->getId()` saat order dibuat.
+- `show()` (mulai order baru) meng-null-kan `browser_session` pada order pending milik sesi ini.
 
 ### `app/Http/Controllers/OrderController.php` (changed)
-- `createorder_terjadwal()` -> `redirect()->route('order.konfirmasi', ['order_id' => $orderid])`.
+- `createorder_terjadwal()` redirect ke halaman konfirmasi.
 - `bayarSekarang()`: key `message` (bukan `messgae`), tanpa `callbacks.finish`.
+- `strukOrder(Request, string $orderId)`: jika status akhir `paid`, `session()->forget()`
+  `UploadTerjadwalController::SESSION_KEY` dan `browser_session = null`.
 - `addFileQueue()` masih `private`; perlu dipakai juga oleh alur konfirmasi kasir nanti.
 
 ### `app/Service/KedaluwarsaOrder.php` (changed)
 - `tandaiBayar()` idempoten (tidak menimpa `tanggal_bayar`), jadi reload tidak menambah waktu.
 - Order `processing`/`paid` tidak dianggap kedaluwarsa (hanya `pending`).
 
+### `resources/js/pages/order-konfirmasi.js` (changed)
+- Countdown 20 menit; 00:00 -> tombol mati + `modal-kadaluarsa`.
+- QRIS: `POST data-token-url` -> `snap.pay`; 410 memakai pesan server + mematikan pembayaran.
+  `onSuccess`/`onPending` -> `tungguStatusTercatat()` (5x @900ms ke `data-status-url`) lalu
+  `window.location.href = data-struk-url`. `onSuccess` juga `localStorage.clear()`.
+- Kasir: `POST data-kasir-url` -> modal sukses ("Pesanan berhasil") -> reload halaman.
+- Saat `data-menunggu-kasir="1"` timer tidak jalan dan semua aksi pembayaran dikunci.
+
+### `resources/views/test_struk.blade.php` (changed)
+- Saat status `paid`, `localStorage.clear()` (cadangan kalau user mendarat langsung di sini).
+
 ### `resources/views/order-konfirmasi.blade.php` (changed)
 - Script Snap sesuai `config('midtrans.is_production')`, `meta csrf-token`.
 - `main#halaman-konfirmasi` membawa `data-order-id`, `data-token-url`, `data-kasir-url`,
   `data-status-url`, `data-struk-url`, `data-sisa-detik`, `data-menunggu-kasir`.
-- Timer hanya dirender saat masih pending; saat menunggu kasir tampil `.status-notice`.
+- Timer hanya dirender saat pending; saat menunggu kasir tampil `.status-notice`.
 - Modal: `modal-total` (kilat-edit), `modal-info` (error), `modal-kasir` (petunjuk/sukses),
   `modal-kadaluarsa`.
 
-### `resources/js/pages/order-konfirmasi.js` (changed)
-- Countdown 20 menit; 00:00 -> tombol mati + `modal-kadaluarsa`.
-- QRIS: `POST data-token-url` -> `snap.pay`; 410 memakai pesan server + mematikan pembayaran.
-  `onSuccess`/`onPending` -> `tungguStatusTercatat()` (retry 5x @900ms ke `data-status-url`) lalu
-  `window.location.href = data-struk-url`. `onClose` hanya cadangan kalau popup ditutup cepat.
-- Kasir: `POST data-kasir-url` -> modal sukses -> reload halaman (server merender keadaan menunggu).
-- `onSuccess`/`onPending` cek `data-status-url`; `onClose` fallback ke `data-struk-url`.
-- Saat `data-menunggu-kasir="1"` timer tidak jalan dan semua aksi pembayaran dikunci.
-
-### `resources/css/order-konfirmasi.css` (changed)
-- `.timer-bayar` + `.is-habis`, `.status-notice` untuk keadaan menunggu kasir.
-
 ### `routes/web.php` (changed)
+- `GET /` -> `BerandaController`.
 - `GET /order/konfirmasi/{order_id}` -> `order.konfirmasi`.
 - `POST /order/konfirmasi/{order_id}/kasir` -> `order.konfirmasi.kasir`.
 
-### `tests/Feature/KonfirmasiPembayaranTest.php` (new)
-- 11 tes: render data, timer tidak di-reset, aturan metode per layanan, redirect status,
-  kedaluwarsa, order tak dikenal, kasir -> processing, keadaan menunggu kasir, sesi & expired.
+### `tests/Feature/KonfirmasiPembayaranTest.php` & `OrderKadaluarsaPembayaranTest.php`
+- 30 tes gabungan. Tes `/` memakai cookie `config('session.cookie')` + helper
+  `tandaiSesiBeranda()` supaya id sesi request sama dengan `browser_session` di DB.

@@ -202,10 +202,21 @@ const keHalamanStatus = () => {
     window.location.href = strukUrl || '/';
 };
 
+// Setelah pembayaran berhasil, data alur yang tersimpan di browser tidak
+// diperlukan lagi.
+const bersihkanPenyimpananBrowser = () => {
+    try {
+        window.localStorage.clear();
+    } catch (error) {
+        // Penyimpanan browser tidak tersedia: tidak masalah.
+    }
+};
+
 const bukaSnap = (token) => {
     window.snap.pay(token, {
         onSuccess: async () => {
             pembayaranSelesai = true;
+            bersihkanPenyimpananBrowser();
             await tungguStatusTercatat();
             keHalamanStatus();
         },

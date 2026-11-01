@@ -159,6 +159,7 @@ erDiagram
 | `metode_pembayaran` | string(255) | YES | - | |
 | `id_metode_pembayaran` | binary(16) | YES | - | **FK** → `metode_pembayaran.id` |
 | `session_id` | string(255) | YES | - | **FK** → `user.sessionid` |
+| `browser_session` | string(255) | YES | - | Laravel session id pemilik alur. Dipakai beranda untuk melanjutkan order dari database. *(migration 2026_11_01)* |
 | `tanggal_bayar` | timestamp | YES | - | Waktu klik "Bayar sekarang" (Snap token dibuat). Awal hitung mundur batas pembayaran. *(migration 2026_10_31)* |
 
 ## 10. `files`

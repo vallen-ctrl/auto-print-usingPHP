@@ -26,6 +26,7 @@ class Order extends Model
         'metode_pembayaran',
         'id_metode_pembayaran',
         'session_id',
+        'browser_session',
         'tanggal_bayar',
     ];
 

@@ -95,6 +95,18 @@ function sesiOrderTerjadwal(Order $order): array
     ];
 }
 
+/**
+ * Tandai order sebagai milik sesi browser saat ini, lalu kembalikan id sesi
+ * untuk dipasang sebagai cookie pada request berikutnya.
+ */
+function tandaiSesiBeranda(Order $order): string
+{
+    $id = session()->getId();
+    $order->update(['browser_session' => $id]);
+
+    return $id;
+}
+
 test('halaman order menandai order pending lebih dari 1 jam sebagai failed dan menghapus filenya', function () {
     Storage::fake('local');
     $session = sesiDashboardOrder();
@@ -259,25 +271,68 @@ test('membuka "/" dengan order kedaluwarsa menghapus file dan kembali ke beranda
     Storage::disk('local')->put('orders/root/h.pdf', 'isi pdf');
     $file = fileOrderPembayaran($order, 'orders/root/h.pdf');
 
-    $this->withSession(sesiOrderTerjadwal($order))
-        ->get('/')
-        ->assertRedirect('/')
-        ->assertSessionHas('error', fn ($pesan) => str_contains($pesan, 'dihapus dari server'));
+    // Beranda mencari order dari penanda sesi di database.
+    $this->withSession(sesiOrderTerjadwal($order));
+    $this->withCookie(config('session.cookie'), tandaiSesiBeranda($order));
 
-    expect($order->fresh()->status_pembayaran)->toBe('failed');
+    $this->get('/')
+        ->assertRedirect('/')
+        ->assertSessionHas('error', fn ($pesan) => str_contains($pesan, 'dihapus dari server'))
+        ->assertSessionMissing(UploadTerjadwalController::SESSION_KEY);
+
+    expect($order->fresh()->status_pembayaran)->toBe('failed')
+        ->and($order->fresh()->browser_session)->toBeNull();
     expect(File::find($file->id))->toBeNull();
     Storage::disk('local')->assertMissing('orders/root/h.pdf');
 
-    // Session order sudah dibersihkan: membuka "/" lagi menampilkan beranda.
+    // Penanda sesi sudah dilepas: membuka "/" lagi menampilkan beranda.
     $this->get('/')->assertOk();
 });
 
 test('membuka "/" dengan order yang masih berlaku diarahkan ke formulir', function () {
+    // total_pembayaran masih 0 = formulir belum disubmit.
+    $order = buatOrderPembayaran('pending', now()->subMinutes(10));
+    $order->update(['total_pembayaran' => 0]);
+
+    $this->withSession(sesiOrderTerjadwal($order));
+    $this->withCookie(config('session.cookie'), tandaiSesiBeranda($order));
+
+    $this->get('/')
+        ->assertRedirect(route('formulir.terjadwal', ['order' => bin2hex($order->id)]))
+        ->assertSessionHas(UploadTerjadwalController::SESSION_KEY);
+});
+
+test('membuka "/" setelah formulir disubmit diarahkan ke halaman metode pembayaran', function () {
     $order = buatOrderPembayaran('pending', now()->subMinutes(10));
 
-    $this->withSession(sesiOrderTerjadwal($order))
-        ->get('/')
-        ->assertRedirect(route('formulir.terjadwal', ['order' => bin2hex($order->id)]));
+    $this->withSession(sesiOrderTerjadwal($order));
+    $this->withCookie(config('session.cookie'), tandaiSesiBeranda($order));
+
+    $this->get('/')
+        ->assertRedirect(route('order.konfirmasi', ['order_id' => bin2hex($order->id)]))
+        ->assertSessionHas(UploadTerjadwalController::SESSION_KEY);
+});
+
+test('membuka "/" saat menunggu kasir diarahkan ke halaman konfirmasi', function () {
+    $order = buatOrderPembayaran('processing');
+    $order->update(['metode_pembayaran' => 'kasir']);
+
+    $this->withSession(sesiOrderTerjadwal($order));
+    $this->withCookie(config('session.cookie'), tandaiSesiBeranda($order));
+
+    $this->get('/')
+        ->assertRedirect(route('order.konfirmasi', ['order_id' => bin2hex($order->id)]));
+});
+
+test('membuka "/" setelah lunas menampilkan beranda dan melepas penanda sesi', function () {
+    $order = buatOrderPembayaran('paid');
+
+    $this->withSession(sesiOrderTerjadwal($order));
+    $this->withCookie(config('session.cookie'), tandaiSesiBeranda($order));
+
+    $this->get('/')->assertOk();
+
+    expect($order->fresh()->browser_session)->toBeNull();
 });
 
 test('membuka formulir dengan order kedaluwarsa diarahkan ke beranda dan file dihapus', function () {

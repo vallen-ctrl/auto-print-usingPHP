@@ -26,6 +26,12 @@ class UploadTerjadwalController extends Controller
     {
         $request->session()->forget(self::SESSION_KEY);
 
+        // Membuka halaman upload berarti memulai order baru. Penanda sesi pada
+        // order pending lama dilepas supaya beranda tidak melanjutkan order itu.
+        Order::where('browser_session', $request->session()->getId())
+            ->where('status_pembayaran', 'pending')
+            ->update(['browser_session' => null]);
+
         return view('upload-terjadwal');
     }
 
@@ -54,6 +60,9 @@ class UploadTerjadwalController extends Controller
                 'id'            => $orderId,
                 'tanggal_ambil' => now(),
                 'status_pembayaran' => 'pending',
+                // Penanda sesi browser: dipakai beranda untuk melanjutkan order
+                // ini kalau user tidak sengaja keluar dari alur.
+                'browser_session' => $request->session()->getId(),
             ]);
             $pdf = new Parser();
             foreach ($request->file('files') as $file) {

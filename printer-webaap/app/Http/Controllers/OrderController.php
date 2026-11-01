@@ -487,7 +487,7 @@ class OrderController extends Controller
         ];
     }
 
-    public function strukOrder(string $orderId)
+    public function strukOrder(Request $request, string $orderId)
     {
         if (!ctype_xdigit($orderId) || strlen($orderId) % 2 !== 0) {
             return response()->json(['message' => 'Order ID tidak valid'], 404);
@@ -528,6 +528,15 @@ class OrderController extends Controller
             }
         }
 
-        return response()->json(['status' => $order->fresh()->status_pembayaran], 200);
+        $statusSekarang = $order->fresh()->status_pembayaran;
+
+        // Pembayaran lunas: alur selesai. Lepas session alur dan penanda sesi
+        // di database supaya beranda tidak mengarahkan user ke order ini lagi.
+        if ($statusSekarang === 'paid') {
+            $request->session()->forget(UploadTerjadwalController::SESSION_KEY);
+            Order::where('id', $binId)->update(['browser_session' => null]);
+        }
+
+        return response()->json(['status' => $statusSekarang], 200);
     }
 }
