@@ -10,6 +10,7 @@ import '../wired/sketch.js';
 import '../wired/input-label.js';
 import '../shared/navigate.js';
 import '../shared/back-button.js';
+import { bukaModal } from '../shared/modal.js';
 import { FORM_STORAGE_KEY, bacaNamaFile } from '../shared/file-store.js';
 import { pengaturanAwal } from '../shared/form-config.js';
 
@@ -475,6 +476,15 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
         tulisKonfigurasi();
     } else {
         hitungSubTotal();
+    }
+
+    // Kalau subtotal awal masih Rp. 0 (jumlah halaman/harga kertas tidak
+    // terbaca), beri tahu user. Modal dari server didahulukan.
+    const modalFormulirServer = document.getElementById('modal-formulir');
+    const angkaSubTotal = Number(String(subTotal ? subTotal.textContent : '').replace(/\./g, '')) || 0;
+
+    if (subTotal && !(modalFormulirServer && modalFormulirServer.open) && angkaSubTotal <= 0) {
+        bukaModal('modal-subtotal');
     }
 }
 

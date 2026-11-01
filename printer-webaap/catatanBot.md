@@ -1,6 +1,6 @@
 Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `0cd79eb`)
+Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `39ca8de`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
@@ -78,6 +78,9 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 
 ### `app/Http/Controllers/OrderController.php` (changed)
 - `createorder_terjadwal()` redirect ke halaman konfirmasi.
+- Formulir terjadwal menampilkan modal error kalau file tidak punya `total_pages` (tidak terbaca)
+  atau semua harga kertas 0 (subtotal Rp. 0). JS formulir juga membuka modal yang sama kalau
+  subtotal awal terhitung 0.
 - `bayarSekarang()`: key `message` (bukan `messgae`), tanpa `callbacks.finish`; setelah token jadi
   mengisi `orders.metode_pembayaran = 'qris'`.
 - `strukOrder(Request, string $orderId)`: jika status akhir `paid`, `session()->forget()`
@@ -87,6 +90,17 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 ### `app/Service/KedaluwarsaOrder.php` (changed)
 - `tandaiBayar()` idempoten (tidak menimpa `tanggal_bayar`), jadi reload tidak menambah waktu.
 - Order `processing`/`paid` tidak dianggap kedaluwarsa (hanya `pending`).
+
+### `app/Http/Controllers/FormulirTerjadwalController.php` (changed)
+- `pesanFormulir()` mengirim `$pesanFormulir` ke view saat: sesi/order kosong, file kosong,
+  ada `files.total_pages <= 0`, tidak ada paper aktif, atau semua harga paper 0.
+
+### `resources/views/formulir-terjadwal.blade.php` (changed)
+- Modal `modal-formulir` (terbuka otomatis, pesan dari server) dan `modal-subtotal`.
+
+### `resources/js/pages/formulir-terjadwal.js` (changed)
+- Setelah subtotal awal dihitung: kalau hasilnya 0 dan `modal-formulir` belum terbuka,
+  `bukaModal('modal-subtotal')`.
 
 ### `resources/js/pages/order-konfirmasi.js` (changed)
 - Countdown 20 menit; 00:00 -> tombol mati + `modal-kadaluarsa`.
@@ -112,6 +126,7 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 - `GET /order/konfirmasi/{order_id}` -> `order.konfirmasi`.
 - `POST /order/konfirmasi/{order_id}/kasir` -> `order.konfirmasi.kasir`.
 
-### `tests/Feature/KonfirmasiPembayaranTest.php` & `OrderKadaluarsaPembayaranTest.php`
-- 30 tes gabungan. Tes `/` memakai cookie `config('session.cookie')` + helper
+### `tests/Feature/KonfirmasiPembayaranTest.php`, `OrderKadaluarsaPembayaranTest.php`, `FormulirTerjadwalTest.php`
+- 33 tes gabungan. Tes `/` memakai cookie `config('session.cookie')` + helper
   `tandaiSesiBeranda()` supaya id sesi request sama dengan `browser_session` di DB.
+- `FormulirTerjadwalTest`: pesan halaman tidak terbaca, harga kertas 0, dan data siap.
