@@ -31,9 +31,7 @@ use function Illuminate\Log\log;
 
 class OrderController extends Controller
 {
-    public function __construct(private readonly KedaluwarsaOrder $kedaluwarsa)
-    {
-    }
+    public function __construct(private readonly KedaluwarsaOrder $kedaluwarsa) {}
 
     public function get(Request $request)
     {
@@ -326,7 +324,7 @@ class OrderController extends Controller
                     // tapi user mengisi "1,2,5" -> halaman 5 tidak ada.
                     $halamanDiLuarFile = array_values(array_filter(
                         $halamanDicetak,
-                        fn ($halaman) => $halaman < 1 || $halaman > $totalPages
+                        fn($halaman) => $halaman < 1 || $halaman > $totalPages
                     ));
 
                     if ($halamanDiLuarFile !== []) {
@@ -572,21 +570,69 @@ class OrderController extends Controller
                 Order::where('id', $binId)->update(['status_pembayaran' => $status]);
 
                 if ($status === 'paid') {
-                    $file = File::select('id')->where('order_id', $binId)->first();
-                    if ($file) $this->addFileQueue($orderId, bin2hex($file->id));
+                    $files = File::select('id')->where('order_id', $binId)->get();
+
+                    foreach ($files as $fileItem) {
+                        try {
+                            $this->addFileQueue($orderId, bin2hex($fileItem->id));
+                        } catch (\Throwable $e) {
+                            // Antrean gagal (mis. tidak ada komputer) tidak boleh
+                            // menggagalkan halaman struk.
+                            logger()->warning('Gagal menambahkan file ke antrean', [
+                                'order' => $orderId,
+                                'e' => $e->getMessage(),
+                            ]);
+                        }
+                    }
                 }
             }
         }
 
-        $statusSekarang = $order->fresh()->status_pembayaran;
+        $statusSekarang = $order->fresh();
+
+        // Pembayaran lunas: pastikan total_dibayar ikut tercatat.
+        if ($statusSekarang->status_pembayaran === 'paid'
+            && (int) $statusSekarang->total_dibayar !== (int) $statusSekarang->total_pembayaran) {
+            Order::where('id', $binId)->update([
+                'total_dibayar' => $statusSekarang->total_pembayaran,
+            ]);
+
+            $statusSekarang->total_dibayar = $statusSekarang->total_pembayaran;
+        }
+
+        $pelanggan = User::find($statusSekarang->session_id);
+
+        $sendToclient = [
+            'orderid' => bin2hex($statusSekarang->id),
+            'pelanggan' => $pelanggan?->name ?? '-',
+            'tanggal_pesan' => $statusSekarang->tanggal_pesan,
+            'tanggal_ambil' => $statusSekarang->tanggal_ambil,
+            'status' => $statusSekarang->status_pembayaran,
+            'biaya_admin' => $statusSekarang->biaya_admin,
+            'total_pembayaran' => $statusSekarang->total_pembayaran,
+            'total_dibayar' => $statusSekarang->total_dibayar,
+            'metode_pembayaran' => $statusSekarang->metode_pembayaran
+        ];
 
         // Pembayaran lunas: alur selesai. Lepas session alur dan penanda sesi
         // di database supaya beranda tidak mengarahkan user ke order ini lagi.
-        if ($statusSekarang === 'paid') {
+        if ($sendToclient['status'] === 'paid') {
             $request->session()->forget(UploadTerjadwalController::SESSION_KEY);
+            $file = File::select(
+                'files.name',
+                'files.subtotal',
+                'configuration.ukuran',
+                'configuration.jumlah_cetak', 
+                'configuration.pages_toprint',
+                'configuration.catatan_tambahan',
+            )
+                ->leftJoin('configuration', 'configuration.file_id', '=', 'files.id')
+                ->where('files.order_id', $binId)
+                ->get();
+            $sendToclient["files"] = $file;
             Order::where('id', $binId)->update(['browser_session' => null]);
         }
 
-        return response()->json(['status' => $statusSekarang], 200);
+        return response()->json($sendToclient, 200);
     }
 }

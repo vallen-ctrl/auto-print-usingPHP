@@ -1,6 +1,6 @@
 Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `1feaeb4`)
+Branch at time of writing: `fitur/struk-wired` (commit `9448a7b`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
@@ -33,6 +33,8 @@ Konfirmasi pembayaran:
   `metode_pembayaran = 'kasir'`. Halaman reload menampilkan "Pesanan berhasil" + "Silakan bayar
   di kasir" (kilat-edit: harga masih perkiraan; kilat-langsung: harga sudah sesuai).
 - `strukOrder()` saat `paid` melepas session alur + `orders.browser_session`.
+- Halaman struk `/struk/{id}` memakai wired-elements + QR (qrcodejs) dan modal pengingat
+  unduh/screenshot. `GET /struk/order/{id}` mengembalikan data lengkap saat `paid`.
 
 Skema pembayaran (migration 2026_11_01):
 - `orders.metode_pembayaran` sekarang ENUM(`qris`, `kasir`) NULL.
@@ -47,7 +49,7 @@ Yang masih kurang:
 - Scheduler pembersihan order kedaluwarsa belum ada; masih dicek saat halaman dibuka.
 
 Menjalankan: `php artisan migrate` (kolom `browser_session`), `npm run build` setelah ubah CSS/JS.
-Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"` (30 tes).
+Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran|FormulirTerjadwal|CustomHalamanOrder|OrderTerjadwalJadwal"` (44 tes).
 
 ## Detail Perubahan
 
@@ -95,7 +97,9 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 - `bayarSekarang()`: key `message` (bukan `messgae`), tanpa `callbacks.finish`; setelah token jadi
   mengisi `orders.metode_pembayaran = 'qris'`.
 - `strukOrder(Request, string $orderId)`: jika status akhir `paid`, `session()->forget()`
-  `UploadTerjadwalController::SESSION_KEY` dan `browser_session = null`.
+  `UploadTerjadwalController::SESSION_KEY` dan `browser_session = null`. Respons JSON memuat
+  `pelanggan`, tanggal, biaya, total, dan `files` (saat paid); `total_dibayar` disamakan dengan
+  total; penambahan antrean dibungkus try/catch agar struk tetap tampil.
 - `addFileQueue()` masih `private`; perlu dipakai juga oleh alur konfirmasi kasir nanti.
 
 ### `app/Service/KedaluwarsaOrder.php` (changed)
@@ -159,3 +163,22 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 - `CustomHalamanOrderTest`: "1,2,5" dan range "2-4" untuk file 3 halaman ditolak; "1,2,3"
   diterima; submit ulang mengubah harga tanpa duplikat; formulir order pending masih bisa dibuka
   untuk edit (timer direset); order paid tidak bisa diedit.
+
+### `resources/views/test_struk.blade.php` (redesigned)
+- Memakai `wired-card`, `wired-button`, `wired-divider`; CSS/JS lewat Vite
+  (`resources/css/test-struk.css`, `resources/js/pages/test-struk.js`).
+- QR dibuat di browser dengan qrcodejs (CDN), berisi URL halaman struk.
+- Modal `x-modal` `modal-struk` ("Simpan struk ini") dibuka otomatis saat struk tampil.
+- Order ID memakai `--fs-body` + `word-break: break-all` (sebelumnya terlalu kecil).
+- Tombol "Unduh Sekarang" memanggil `window.print()` (simpan PDF/screenshot).
+
+### `resources/css/test-struk.css` (new)
+- Token & font sama dengan halaman sketsa lain; mobile-first; aturan print menyembunyikan
+  header/tombol.
+
+### `resources/js/pages/test-struk.js` (new)
+- Poll `/struk/order/{id}` tiap 3 detik; toleransi 404 maksimal 5x; render struk saat `paid`;
+  tampilkan error saat failed/refunded; `localStorage.clear()` saat paid; buka `modal-struk` sekali.
+
+### `vite.config.js` (changed)
+- Entry `resources/css/test-struk.css` dan `resources/js/pages/test-struk.js`.
