@@ -169,6 +169,12 @@
                 const status = data && data.status ? data.status.toLowerCase() : "";
 
                 if (status === "paid") {
+                    // Pembayaran lunas: bersihkan data alur di browser.
+                    try {
+                        window.localStorage.clear();
+                    } catch (err) {
+                        // Penyimpanan browser tidak tersedia.
+                    }
                     finish(true, "Pembayaran berhasil diverifikasi");
                     return;
                 }

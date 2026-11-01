@@ -281,7 +281,26 @@ class OrderController extends Controller
                 return redirect('/')->with("error", $pesan);
             }
 
+            // Order yang sudah dibayar/diproses tidak boleh diubah lagi lewat
+            // formulir. Order pending tetap boleh disubmit ulang (mode edit).
+            if ($orderModel->status_pembayaran !== 'pending') {
+                return redirect()->route('order.konfirmasi', ['order_id' => $orderid]);
+            }
+
             DB::transaction(function () use (&$TotalSemua, &$validated, $files, $request, $orderSession, $getBiaya) {
+                $orderTerkunci = Order::whereKey(hex2bin($orderSession["orderid"]))
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($orderTerkunci === null) {
+                    throw new \RuntimeException("Order tidak ditemukan.");
+                }
+
+                // Sudah dibayar/diproses oleh request lain: jangan timpa.
+                if ($orderTerkunci->status_pembayaran !== 'pending') {
+                    return;
+                }
+
                 $filesOnRequest = $validated["files"];
 
                 $TotalSemua = 0 + $getBiaya->biaya_admin;
@@ -295,16 +314,35 @@ class OrderController extends Controller
                     $filesId = $value["id"];
                     $filesOnSession = $orderSession["files"][$filesId] ?? null;
 
-                    if ($filesOnSession["id"] == null) {
-                        return redirect()->back()->with("error", "Id di filessession yang tersimpan tidak sama");
+                    if (($filesOnSession["id"] ?? null) === null) {
+                        throw new \InvalidArgumentException("Id di filessession yang tersimpan tidak sama");
                     }
 
                     $totalPages = $filesOnSession["total_pages"];
 
-                    $totalPagesToPrint = count($this->parseHalaman($value["halaman"] ?? "1-$totalPages"));
+                    $halamanDicetak = $this->parseHalaman($value["halaman"] ?? "1-$totalPages");
+
+                    // Setiap nomor halaman harus ada di file. Contoh: total 3 halaman
+                    // tapi user mengisi "1,2,5" -> halaman 5 tidak ada.
+                    $halamanDiLuarFile = array_values(array_filter(
+                        $halamanDicetak,
+                        fn ($halaman) => $halaman < 1 || $halaman > $totalPages
+                    ));
+
+                    if ($halamanDiLuarFile !== []) {
+                        $daftarHalaman = implode(', ', array_unique($halamanDiLuarFile));
+
+                        throw new \InvalidArgumentException(
+                            "Halaman {$daftarHalaman} melebihi total halaman file ({$totalPages} halaman)."
+                        );
+                    }
+
+                    $totalPagesToPrint = count($halamanDicetak);
 
                     if ($totalPagesToPrint > $totalPages) {
-                        return redirect()->back()->with("error", "Jumlah pages yang anda isi di costume halaman tidak sesuai dengan total pages yang akan anda kirim");
+                        throw new \InvalidArgumentException(
+                            "Jumlah pages yang anda isi di costume halaman tidak sesuai dengan total pages yang akan anda kirim"
+                        );
                     }
 
                     $paper = Paper::findOrFail($value["id_paper"]);
@@ -319,6 +357,9 @@ class OrderController extends Controller
                             $subTotal += ($paper->harga_grayscale * $banyakHalaman);
                             break;
                     }
+
+                    // Buang pilihan paket lama supaya submit ulang tidak menggandakan.
+                    LayananTerpilih::where("files_id", hex2bin($value["id"]))->delete();
 
                     foreach (($value["paket"] ?? []) as $idLayanan) {
                         $layanan = Layanan::findOrFail($idLayanan);
@@ -336,28 +377,34 @@ class OrderController extends Controller
                             "subtotal" => $subTotal,
                         ]);
 
-                    Configuration::create([
-                        'file_id' => hex2bin($value["id"]),
-                        'orientasi' => $value["orientasi"],
-                        'warna' => $value["warna"],
-                        'ukuran' => $paper->name,
-                        'kualitas' => $value["kualitas"],
-                        'jumlah_cetak' => $value["jumlah"],
-                        'custom_halaman' => $value["halaman"],
-                        'catatan_tambahan' => $value["catatan"],
-                        'paper_id' => $value["id_paper"],
-                        'pages_toprint' => $totalPagesToPrint,
-                    ]);
+                    Configuration::updateOrCreate(
+                        ['file_id' => hex2bin($value["id"])],
+                        [
+                            'orientasi' => $value["orientasi"],
+                            'warna' => $value["warna"],
+                            'ukuran' => $paper->name,
+                            'kualitas' => $value["kualitas"],
+                            'jumlah_cetak' => $value["jumlah"],
+                            'custom_halaman' => $value["halaman"],
+                            'catatan_tambahan' => $value["catatan"],
+                            'paper_id' => $value["id_paper"],
+                            'pages_toprint' => $totalPagesToPrint,
+                        ]
+                    );
 
                     $TotalSemua += $subTotal;
                     $validated["files"][$index]["subtotal"] = $subTotal;
                 }
 
-                User::create([
-                    "sessionid" => $orderSession["sessionid"],
-                    "name" => $validated["nama"],
-                    "no_wa" => $validated["no_wa"]
-                ]);
+                // updateOrCreate: submit ulang (back button/klik ganda) tidak
+                // boleh gagal karena user dengan sessionid yang sama sudah ada.
+                User::updateOrCreate(
+                    ["sessionid" => $orderSession["sessionid"]],
+                    [
+                        "name" => $validated["nama"],
+                        "no_wa" => $validated["no_wa"]
+                    ]
+                );
 
                 Order::findOrFail(hex2bin($orderSession["orderid"]))
                     ->update([
@@ -367,22 +414,21 @@ class OrderController extends Controller
                         "session_id" => $orderSession["sessionid"]
                     ]);
             });
-            return redirect()->back()->with("success", "hehe");
+            return redirect()->route('order.konfirmasi', ['order_id' => $orderid]);
         } catch (\Exception $e) {
             return redirect()->back()->with("error", $e->getMessage());
         }
     }
 
     /**
-     * Buat Snap token pembayaran untuk order terjadwal.
+     * Buat Snap token pembayaran untuk order.
      *
-     * Catatan: ini titik masuk pembayaran yang nanti dipakai oleh front-end
-     * pembayaran (halaman bayar / popup Midtrans) yang belum dibuat. Kontrak
-     * responsnya:
-     *  - 200 { token, batas_bayar_menit } → buka popup Snap
-     *  - 410 { message, error }          → order kedaluwarsa, file sudah dihapus
-     *  - 409 { message, error }          → status order bukan pending
-     *  - 404 { message, error }          → session/order tidak cocok
+     * Dipakai oleh tombol CTA di halaman konfirmasi pembayaran
+     * (/order/konfirmasi/{order_id}). Kontrak responsnya:
+     *  - 200 { token, batas_bayar_menit, message } → buka popup Snap
+     *  - 410 { message, error }                    → order kedaluwarsa, file sudah dihapus
+     *  - 409 { message, error }                    → status order bukan pending
+     *  - 404 { message, error }                    → session/order tidak cocok
      *
      * Saat token berhasil dibuat, waktu bayar dicatat (orders.tanggal_bayar)
      * sebagai awal hitung mundur KedaluwarsaOrder::BATAS_BAYAR_MENIT.
@@ -432,6 +478,8 @@ class OrderController extends Controller
             );
         }
 
+        // Catatan: URL redirect setelah pembayaran (Finish Redirect URL)
+        // dikonfigurasi di dashboard Midtrans, jadi tidak di-hardcode di sini.
         $params = array(
             'transaction_details' => array(
                 'order_id' => bin2hex($order->id),
@@ -441,15 +489,18 @@ class OrderController extends Controller
 
         $snapToken = \Midtrans\Snap::getSnapToken($params);
 
-        // Token Snap berhasil dibuat: hitung mundur pembayaran mulai dari sini
-        // (Snap token Midtrans sendiri kedaluwarsa setelah 15 menit).
-        // Catatan: dipakai front-end pembayaran yang belum dibuat.
+        // Catat metode pembayaran yang dipilih (hanya qris/kasir).
+        $order->update(['metode_pembayaran' => 'qris']);
+
+        // Token Snap berhasil dibuat: pastikan hitung mundur pembayaran sudah
+        // tercatat (tidak menimpa waktu yang dicatat saat halaman konfirmasi
+        // dibuka). Snap token Midtrans sendiri kedaluwarsa setelah 15 menit.
         $this->kedaluwarsa->tandaiBayar($order);
 
         return response()->json([
             "token" => $snapToken,
             "batas_bayar_menit" => KedaluwarsaOrder::BATAS_BAYAR_MENIT,
-            "messgae" => "sukes generated snap token"
+            "message" => "Token pembayaran berhasil dibuat."
         ]);
     }
 
@@ -486,7 +537,7 @@ class OrderController extends Controller
         ];
     }
 
-    public function strukOrder(string $orderId)
+    public function strukOrder(Request $request, string $orderId)
     {
         if (!ctype_xdigit($orderId) || strlen($orderId) % 2 !== 0) {
             return response()->json(['message' => 'Order ID tidak valid'], 404);
@@ -527,6 +578,15 @@ class OrderController extends Controller
             }
         }
 
-        return response()->json(['status' => $order->fresh()->status_pembayaran], 200);
+        $statusSekarang = $order->fresh()->status_pembayaran;
+
+        // Pembayaran lunas: alur selesai. Lepas session alur dan penanda sesi
+        // di database supaya beranda tidak mengarahkan user ke order ini lagi.
+        if ($statusSekarang === 'paid') {
+            $request->session()->forget(UploadTerjadwalController::SESSION_KEY);
+            Order::where('id', $binId)->update(['browser_session' => null]);
+        }
+
+        return response()->json(['status' => $statusSekarang], 200);
     }
 }

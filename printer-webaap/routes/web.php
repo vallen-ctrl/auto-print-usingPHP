@@ -3,46 +3,7 @@
 use Illuminate\Support\Facades\Route;
 
 
-Route::get('/', function (
-    \Illuminate\Http\Request $request,
-    \App\Service\KedaluwarsaOrder $kedaluwarsa
-) {
-    $order = $request->session()->get(\App\Http\Controllers\UploadTerjadwalController::SESSION_KEY);
-
-    // User sudah punya order terjadwal yang belum selesai: lanjutkan ke
-    // formulir dengan order id tersebut, bukan memulai dari awal.
-    if ($order) {
-        switch ($order["where"] ?? null) {
-            case "formulir.terjadwal":
-                $orderModel = $kedaluwarsa->cariDariHex($order["orderid"] ?? null);
-
-                // Order sudah tidak ada di database: session-nya dibersihkan.
-                if ($orderModel === null) {
-                    $request->session()->forget(\App\Http\Controllers\UploadTerjadwalController::SESSION_KEY);
-
-                    break;
-                }
-
-                // File yang diupload lebih dari 1 jam dan order masih pending
-                // (atau pembayaran tidak selesai 20 menit setelah "Bayar sekarang")
-                // dianggap kedaluwarsa: file dihapus dari server, user kembali ke
-                // beranda dengan pesan supaya upload ulang.
-                // Catatan: aturan waktu ini dipakai juga oleh alur pembayaran di
-                // front-end yang belum dibuat.
-                if ($kedaluwarsa->sudahKadaluarsa($orderModel)) {
-                    $pesan = $kedaluwarsa->pesanKadaluarsa($orderModel);
-                    $kedaluwarsa->kadaluarsakan($orderModel);
-                    $request->session()->forget(\App\Http\Controllers\UploadTerjadwalController::SESSION_KEY);
-
-                    return redirect('/')->with('error', $pesan);
-                }
-
-                return redirect()->route('formulir.terjadwal', ['order' => $order["orderid"]]);
-        }
-    }
-
-    return view('beranda');
-});
+Route::get('/', \App\Http\Controllers\BerandaController::class);
 
 Route::view('/formulir/kilat', 'formulir-kilat')->name('formulir.kilat');
 
@@ -66,6 +27,8 @@ Route::get('/terjadwal/keluar', function (\Illuminate\Http\Request $request) {
 })->name('terjadwal.keluar');
 
 //alur order
+Route::get('/order/konfirmasi/{order_id}', [\App\Http\Controllers\KonfirmasiPembayaranController::class, 'show'])->name('order.konfirmasi');
+Route::post('/order/konfirmasi/{order_id}/kasir', [\App\Http\Controllers\KonfirmasiPembayaranController::class, 'bayarDiKasir'])->name('order.konfirmasi.kasir');
 Route::post("/order/create", [\App\Http\Controllers\OrderController::class, 'createorder_terjadwal'])->name("create.order");
 Route::post('/order/token', [\App\Http\Controllers\OrderController::class, "bayarSekarang"])->name("create.snap.token");
 Route::get("/struk/order/{id}", [\App\Http\Controllers\OrderController::class, "strukOrder"])->name("order.struk");

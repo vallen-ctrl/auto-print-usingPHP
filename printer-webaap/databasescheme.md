@@ -20,8 +20,6 @@ erDiagram
     toko ||--o{ computer : "toko_id"
     toko ||--|| pengaturan_toko : "id_toko"
     pengaturan_toko ||--o{ jam_operasional : "id_pengaturan"
-    pengaturan_toko ||--o{ metode_pembayaran : "id_pengaturan"
-    metode_pembayaran ||--o{ orders : "id_metode_pembayaran"
     orders ||--o{ files : "order_id"
     orders ||--o{ file_queue : "order_id"
     files ||--o{ layanan_terpilih : "files_id"
@@ -45,12 +43,11 @@ erDiagram
 | 5 | `computer` | Komputer/printer client milik toko |
 | 6 | `pengaturan_toko` | Pengaturan toko |
 | 7 | `jam_operasional` | Jam buka per hari |
-| 8 | `metode_pembayaran` | Metode pembayaran toko |
-| 9 | `orders` | Pesanan |
-| 10 | `files` | File yang diupload per pesanan |
-| 11 | `layanan_terpilih` | Layanan yang dipilih per file |
-| 12 | `configuration` | Konfigurasi cetak per file |
-| 13 | `file_queue` | Antrean file ke komputer toko |
+| 8 | `orders` | Pesanan |
+| 9 | `files` | File yang diupload per pesanan |
+| 10 | `layanan_terpilih` | Layanan yang dipilih per file |
+| 11 | `configuration` | Konfigurasi cetak per file |
+| 12 | `file_queue` | Antrean file ke komputer toko |
 
 ---
 
@@ -134,18 +131,7 @@ erDiagram
 | `apakah_dibuka` | boolean | NO | - | |
 | `id_pengaturan` | bigint unsigned | NO | - | **FK** → `pengaturan_toko.id` |
 
-## 8. `metode_pembayaran`
-
-| Kolom | Tipe | Null | Default | Keterangan |
-|-------|------|------|---------|------------|
-| `id` | binary(16) | NO | - | **PK** |
-| `nama` | string(255) | YES | - | |
-| `webhook` | text | YES | - | |
-| `token` | text | YES | - | |
-| `image_path` | text | YES | - | |
-| `id_pengaturan` | bigint unsigned | YES | - | **FK** → `pengaturan_toko.id` |
-
-## 9. `orders`
+## 8. `orders`
 
 | Kolom | Tipe | Null | Default | Keterangan |
 |-------|------|------|---------|------------|
@@ -156,12 +142,12 @@ erDiagram
 | `total_pembayaran` | bigint | NO | `0` | |
 | `total_dibayar` | bigint | NO | `0` | |
 | `status_pembayaran` | enum | NO | `pending` | `paid`, `pending`, `failed`, `refunded`, `processing` |
-| `metode_pembayaran` | string(255) | YES | - | |
-| `id_metode_pembayaran` | binary(16) | YES | - | **FK** → `metode_pembayaran.id` |
+| `metode_pembayaran` | enum | YES | - | `qris`, `kasir` *(migration 2026_11_01)* |
 | `session_id` | string(255) | YES | - | **FK** → `user.sessionid` |
+| `browser_session` | string(255) | YES | - | Laravel session id pemilik alur. Dipakai beranda untuk melanjutkan order dari database. *(migration 2026_11_01)* |
 | `tanggal_bayar` | timestamp | YES | - | Waktu klik "Bayar sekarang" (Snap token dibuat). Awal hitung mundur batas pembayaran. *(migration 2026_10_31)* |
 
-## 10. `files`
+## 9. `files`
 
 | Kolom | Tipe | Null | Default | Keterangan |
 |-------|------|------|---------|------------|
@@ -188,7 +174,7 @@ Nilai enum `mime`:
 - `image/jpeg`
 - `image/png`
 
-## 11. `layanan_terpilih`
+## 10. `layanan_terpilih`
 
 | Kolom | Tipe | Null | Default | Keterangan |
 |-------|------|------|---------|------------|
@@ -197,7 +183,7 @@ Nilai enum `mime`:
 | `layanan_id` | bigint unsigned | YES | - | **FK** → `layanan.id` |
 | `nama_layanan` | string(50) | NO | - | |
 
-## 12. `configuration`
+## 11. `configuration`
 
 | Kolom | Tipe | Null | Default | Keterangan |
 |-------|------|------|---------|------------|
@@ -213,7 +199,7 @@ Nilai enum `mime`:
 | `paper_id` | bigint unsigned | YES | - | **FK** → `paper.id` |
 | `pages_toprint` | smallint | NO | `0` | |
 
-## 13. `file_queue`
+## 12. `file_queue`
 
 | Kolom | Tipe | Null | Default | Keterangan |
 |-------|------|------|---------|------------|
@@ -234,8 +220,6 @@ Nilai enum `mime`:
 | `computer` | `toko_id` | `toko.id` | CASCADE | CASCADE |
 | `pengaturan_toko` | `id_toko` | `toko.id` | CASCADE | CASCADE |
 | `jam_operasional` | `id_pengaturan` | `pengaturan_toko.id` | CASCADE | CASCADE |
-| `metode_pembayaran` | `id_pengaturan` | `pengaturan_toko.id` | CASCADE | SET NULL |
-| `orders` | `id_metode_pembayaran` | `metode_pembayaran.id` | CASCADE | SET NULL |
 | `orders` | `session_id` | `user.sessionid` | CASCADE | SET NULL |
 | `files` | `diupload_oleh` | `user.sessionid` | CASCADE | SET NULL |
 | `files` | `order_id` | `orders.id` | CASCADE | RESTRICT |
@@ -253,4 +237,5 @@ Nilai enum `mime`:
 
 - `jam_operasional.nomor_hari` dibuat **unique global** (bukan per `id_pengaturan`). Kalau nanti ada lebih dari satu toko, insert jam operasional toko kedua akan bentrok. Pertimbangkan unique composite `(id_pengaturan, nomor_hari)`.
 - `orders.tanggal_bayar` ditambahkan di migration terpisah dan nullable. Nilainya `NULL` sampai user menekan "Bayar sekarang".
+- `orders.metode_pembayaran` sekarang hanya berisi `qris` atau `kasir`. Kolom `id_metode_pembayaran` dihapus dan tabel `metode_pembayaran` di-drop *(migration 2026_11_01)*.
 - `files.order_id` memakai `RESTRICT`, jadi order tidak bisa dihapus selama masih punya file.

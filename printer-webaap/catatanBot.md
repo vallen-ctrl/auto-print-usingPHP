@@ -1,75 +1,161 @@
-Last updated: 2026-10-31
+Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/kadaluarsa-pembayaran-order` (commit `1ec73f5`)
+Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `1feaeb4`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
 
 ## Ringkasan
 
-**Target feature: front-end pembayaran (halaman bayar + popup Midtrans Snap). It does NOT exist yet.**
-The only caller of `POST /order/token` today is the temporary page `resources/views/snap.blade.php`
-(`GET /test`, `route('test')`). Backend rules and JSON contract for that page are ready.
+**Target feature berikutnya: alur order kilat (backend formulir kilat), halaman tujuan setelah
+"Bayar di Kasir", dan alur konfirmasi penjual. Belum dikerjakan.**
 
-Business rules now enforced (source of truth: `app/Service/KedaluwarsaOrder.php`):
+Alur kilat sengaja dikosongkan dulu: `GET /formulir/kilat` masih `Route::view()` statis dan belum
+ada endpoint yang membuat order kilat. `POST /order/token` masih mensyaratkan session
+`terjadwal_order`; alur kilat nanti butuh mekanisme sesi sendiri.
 
-- Order `pending` with `tanggal_bayar` NULL → expires 60 minutes after `orders.tanggal_pesan` (upload time).
-- Order `pending` with `tanggal_bayar` set → expires 20 minutes after `orders.tanggal_bayar` (set when Snap token is created; Snap token itself dies after 15).
-- Expired order → `status_pembayaran = failed`, uploaded file deleted from `Storage::disk('local')`, plus `file_queue`, `files`, `layanan_terpilih` rows; the `orders` row is kept so the dashboard still lists it as `failed`.
-- Enforced at: `GET /`, `FormulirTerjadwalController::get()`, `OrderController::createorder_terjadwal()`, dashboard order list (`OrderController::get()`), and `OrderController::bayarSekarang()`.
+Beranda kini melanjutkan order dari DATABASE, bukan dari isi session:
 
-What the next agent must know:
+- `orders.browser_session` (Laravel session id) diisi sejak file diupload.
+- `GET /` mencari order terbaru dengan penanda itu: belum submit formulir -> formulir terjadwal;
+  sudah submit (`total_pembayaran > 0`) -> halaman konfirmasi/metode pembayaran; menunggu kasir ->
+  halaman konfirmasi; pembayaran online -> `/struk/{id}`; paid/gagal -> beranda + penanda dilepas.
+- Session `terjadwal_order` dibangun ulang dari DB (daftar file + total_pages) saat melanjutkan,
+  jadi tombol bayar/formulir tetap bekerja walau tab sempat tertutup.
 
-- `POST /order/token` (`create.snap.token`) returns JSON: `200 { token, batas_bayar_menit: 20, messgae }`, `410` order expired (files already deleted), `409` status not `pending`, `404` session/order mismatch. On non-200 show `message` and send the user back to `/`.
-- After the Snap callback, poll `GET /struk/order/{orderIdHex}` (`order.struk` → `OrderController::strukOrder()`). It only processes orders whose status is `pending`, so do not set `processing` anywhere before/inside that check.
-- No scheduler/cron exists: expiry is only cleaned when those pages are opened. A scheduled `KedaluwarsaOrder::kadaluarsakanSemua()` is still missing.
-- `orders.tanggal_bayar` is a new column → run `php artisan migrate`; `resources/css/beranda.css` changed → run `npm run build`.
+Konfirmasi pembayaran:
+
+- Timer 20 menit mulai saat halaman pertama dibuka (`orders.tanggal_bayar`, tidak di-reset reload).
+- QRIS: `POST /order/token` -> `snap.pay`; `onSuccess`/`onPending` menunggu status tercatat
+  (retry singkat) lalu pindah ke `/struk/{id}`; `localStorage.clear()` saat sukses. `onClose`
+  hanya cadangan. Finish Redirect URL tetap bisa diatur di dashboard Midtrans.
+- Kasir: `POST /order/konfirmasi/{id}/kasir` -> `status_pembayaran = 'processing'`,
+  `metode_pembayaran = 'kasir'`. Halaman reload menampilkan "Pesanan berhasil" + "Silakan bayar
+  di kasir" (kilat-edit: harga masih perkiraan; kilat-langsung: harga sudah sesuai).
+- `strukOrder()` saat `paid` melepas session alur + `orders.browser_session`.
+
+Skema pembayaran (migration 2026_11_01):
+- `orders.metode_pembayaran` sekarang ENUM(`qris`, `kasir`) NULL.
+- `orders.id_metode_pembayaran` dihapus dan tabel `metode_pembayaran` di-drop.
+- Model `App\Models\MetodePembayaran` + factory-nya sudah tidak terpakai (tabelnya tidak ada).
+
+Yang masih kurang:
+
+- Konfirmasi penjual: belum ada UI/endpoint `processing` -> `paid` untuk kasir. Saat dibuat,
+  file WAJIB dimasukkan ke `file_queue` (pakai `OrderController::addFileQueue()`, masih private).
+- Halaman/lokasi setelah user memilih bayar di kasir (diminta dibuat nanti).
+- Scheduler pembersihan order kedaluwarsa belum ada; masih dicek saat halaman dibuka.
+
+Menjalankan: `php artisan migrate` (kolom `browser_session`), `npm run build` setelah ubah CSS/JS.
+Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"` (30 tes).
 
 ## Detail Perubahan
 
-### `app/Service/KedaluwarsaOrder.php` (new)
-Single place for all expiry logic; previously duplicated as private helpers in `OrderController` (removed).
-- Constants: `BATAS_UPLOAD_MENIT = 60`, `BATAS_BAYAR_MENIT = 20`.
-- `sudahKadaluarsa(Order $order): bool` — true only for `pending` orders past the applicable limit.
-- `pesanKadaluarsa(Order $order): string` — Indonesian message for the user; wording differs for the upload vs payment limit.
-- `kadaluarsakan(Order $order): bool` — atomic claim (`UPDATE ... WHERE status_pembayaran = 'pending'` + matching time condition), then deletes files; returns false if another request already handled it.
-- `kadaluarsakanSemua(): int` — sweeps both rules; used by the dashboard order list.
-- `tandaiBayar(Order $order): void` — writes `orders.tanggal_bayar = now()`; call it right after a Snap token is successfully created.
-- `hapusFile(string $orderId): void` — deletes storage file + `file_queue` + `layanan_terpilih` + `files` rows (configuration cascades). Also used by `OrderController::destroy()`.
-- `cariDariHex(?string $orderIdHex): ?Order` — validates 32-char hex and returns the order or null.
+### `app/Http/Controllers/BerandaController.php` (new)
+- Menggantikan closure `/` di `routes/web.php`.
+- Cari `Order::where('browser_session', $request->session()->getId())` terbaru.
+- Urutan pengecekan: kedaluwarsa -> `kadaluarsakan()` + lepas penanda; `paid` -> beranda;
+  `processing` + kasir -> konfirmasi; `processing` lain -> `/struk/{id}`; failed/refunded ->
+  beranda; `pending` + total > 0 -> konfirmasi; `pending` + total 0 -> formulir.
+- `pulihkanSession()` membangun ulang session `terjadwal_order` (orderid, sessionid, files,
+  localPath) dari tabel `files`.
+- `lupakanOrder()` menghapus session `terjadwal_order` dan meng-null-kan `browser_session`.
 
-### `database/migrations/2026_10_31_120000_add_tanggal_bayar_to_orders_table.php` (new)
-Adds nullable `orders.tanggal_bayar` (timestamp). Run `php artisan migrate`.
+### `database/migrations/2026_11_01_000000_add_browser_session_to_orders_table.php` (new)
+- Menambah `orders.browser_session` VARCHAR(255) NULL + index. Sudah dijalankan di DB dev.
 
-### `app/Models/Order.php`
-`tanggal_bayar` added to `$fillable` and to `$casts` as `datetime`.
+### `database/migrations/2026_11_01_000001_remove_metode_pembayaran_reference.php` (new)
+- `orders.metode_pembayaran` diubah menjadi ENUM(`qris`, `kasir`) NULL.
+- Drop FK + kolom `orders.id_metode_pembayaran`, lalu `Schema::dropIfExists('metode_pembayaran')`.
+- Sudah dijalankan di DB dev. Data lama `metode_pembayaran` semuanya NULL, jadi aman.
 
-### `app/Http/Controllers/OrderController.php`
-- Constructor now injects `KedaluwarsaOrder`; all private expiry/file helpers were deleted in favour of the service.
-- `get()` (dashboard order list): calls `$this->kedaluwarsa->kadaluarsakanSemua()` before querying.
-- `destroy()`: uses `$this->kedaluwarsa->hapusFile($order->id)`.
-- `createorder_terjadwal()`: after the store-schedule check and before the write transaction, rejects expired/missing orders by forgetting the session and redirecting to `/` with `error`.
-- `bayarSekarang()`: rewritten response contract documented in its docblock; expired order → 410 + files deleted; non-`pending` → 409; on success returns `token` + `batas_bayar_menit` and then calls `tandaiBayar($order)`.
-- `strukOrder()` and `addFileQueue()` are unchanged on purpose.
+### `app/Models/Order.php` (changed)
+- `browser_session` masuk `$fillable`; `id_metode_pembayaran` dikeluarkan.
 
-### `app/Http/Controllers/FormulirTerjadwalController.php`
-Injects `KedaluwarsaOrder`; `get()` validates the session order before rendering: missing → forget session + redirect `/`; expired → mark failed, delete files, forget session, redirect `/` with `error`. Valid sessions are re-put into the session as before.
+### `app/Http/Controllers/UploadTerjadwalController.php` (changed)
+- `store()` mengisi `browser_session` dengan `$request->session()->getId()` saat order dibuat.
+- `show()` (mulai order baru) meng-null-kan `browser_session` pada order pending milik sesi ini.
 
-### `routes/web.php`
-The `GET /` closure now receives `KedaluwarsaOrder`. When a `terjadwal_order` session exists: missing order → forget session and show the homepage; expired order → mark failed, delete files, forget session, `redirect('/')->with('error', ...)`; otherwise redirect to `formulir.terjadwal` with the order id.
+### `app/Http/Controllers/KonfirmasiPembayaranController.php` (changed)
+- `show()`: validasi hex; status `paid`/`processing` -> `/struk/{id}` (kecuali processing+kasir
+  yang tetap menampilkan halaman menunggu kasir); status lain -> `/` + error; kedaluwarsa ->
+  `kadaluarsakan()` + hapus session + `/` + error.
+- Timer 20 menit: `tandaiBayar()` saat halaman dibuka; `sisa_detik` dikirim ke view.
+- Biaya admin dari `PengaturanToko::find(1)->biaya_admin` (fallback `orders.biaya_admin`);
+  total = subtotal + admin, dan order disinkronkan bila berbeda (kecuali kilat-edit).
+- `bayarDiKasir()`: klaim atomik pending -> processing, `metode_pembayaran = 'kasir'`.
 
-### `resources/views/beranda.blade.php` + `resources/css/beranda.css`
-Homepage renders `session('error')` in a `.panel-notice` alert box; `.page-main` became a column flex container with a gap. Requires `npm run build` (assets are gitignored).
+### `app/Http/Controllers/OrderController.php` (changed)
+- `createorder_terjadwal()` redirect ke halaman konfirmasi. Halaman custom yang melebihi
+  `total_pages` (mis. "1,2,5" untuk file 3 halaman) melempar exception di dalam transaksi
+  (rollback) dengan pesan "Halaman X melebihi total halaman file".
+- Submit ulang = mode edit: hanya ditolak kalau status bukan `pending`. Di dalam transaksi order
+  dikunci (`lockForUpdate`), `User::updateOrCreate`, `Configuration::updateOrCreate` (per
+  `file_id`), `layanan_terpilih` lama dihapus lalu dibuat ulang -> harga berubah tanpa duplikat.
+- `bayarSekarang()`: key `message` (bukan `messgae`), tanpa `callbacks.finish`; setelah token jadi
+  mengisi `orders.metode_pembayaran = 'qris'`.
+- `strukOrder(Request, string $orderId)`: jika status akhir `paid`, `session()->forget()`
+  `UploadTerjadwalController::SESSION_KEY` dan `browser_session = null`.
+- `addFileQueue()` masih `private`; perlu dipakai juga oleh alur konfirmasi kasir nanti.
 
-### `resources/views/Dashboard/selection/order.blade.php`
-`$badgeBayar` map now includes `failed` (red) and `refunded` (muted) besides the legacy `fail`.
+### `app/Service/KedaluwarsaOrder.php` (changed)
+- `tandaiBayar()` idempoten (tidak menimpa `tanggal_bayar`), jadi reload tidak menambah waktu.
+- Order `processing`/`paid` tidak dianggap kedaluwarsa (hanya `pending`).
 
-### `resources/views/snap.blade.php`
-On non-OK response it now shows `alert(data.message)` in addition to `console.error`. This page is still the temporary manual test page for Snap.
+### `app/Http/Controllers/FormulirTerjadwalController.php` (changed)
+- `pesanFormulir()` mengirim `$pesanFormulir` ke view saat: sesi/order kosong, file kosong,
+  ada `files.total_pages <= 0`, tidak ada paper aktif, atau semua harga paper 0.
+- Formulir menampilkan modal error untuk kondisi di atas; JS formulir juga membuka
+  `modal-subtotal` kalau subtotal awal terhitung 0.
+- Order `processing`/`paid` diarahkan ke halaman konfirmasi (tidak bisa diedit).
+- Order `pending` tetap bisa membuka formulir (mode edit). `orders.tanggal_bayar` direset ke
+  NULL supaya hitung mundur 20 menit baru mulai lagi saat halaman konfirmasi dibuka.
 
-### `databasescheme.md`
-`ORDERS` block documents the new `tanggal_bayar` column.
+### `resources/views/formulir-terjadwal.blade.php` (changed)
+- Modal `modal-formulir` (terbuka otomatis, pesan dari server), `modal-subtotal`, dan
+  `modal-halaman`.
 
-### `tests/Feature/OrderKadaluarsaPembayaranTest.php` (new)
-13 Pest tests: 60-minute upload expiry via dashboard, non-expiry at 30 minutes, 20-minute payment expiry and non-expiry via `tanggal_bayar`, `paid` orders untouched, `tandaiBayar()` shifting the limit, `bayarSekarang()` 410 on both limits, 409 for `failed`, 410 without session, `/` redirect + flash + file deletion for expired order, `/` redirect to form for valid order, form route redirect for expired order.
-Run with: `php artisan test tests/Feature/OrderKadaluarsaPembayaranTest.php`.
+### `resources/js/pages/formulir-terjadwal.js` (changed)
+- Setelah subtotal awal dihitung: kalau hasilnya 0 dan `modal-formulir` belum terbuka,
+  `bukaModal('modal-subtotal')`.
+- Modal dengan atribut `data-upload-redirect` (modal-formulir & modal-subtotal) mengarahkan ke
+  `/upload/terjadwal` saat ditutup (`modal-close`).
+- `validasiHalaman(custom, totalPages)`: format, range, dan nomor halaman tidak boleh melebihi
+  `total_pages`. Dipakai inline (`periksaHalaman`, total halaman file aktif via
+  `totalHalamanAktif`) dan untuk semua file saat tombol "Lanjut proses pembayaran" diklik
+  (modal `modal-halaman`). Klik tombol juga langsung berhenti kalau validasi field gagal.
+- Flag `sedangMengirim` + `tombolBayar.disabled` mencegah klik ganda mengirim dua request.
+
+### `resources/js/pages/order-konfirmasi.js` (changed)
+- Countdown 20 menit; 00:00 -> tombol mati + `modal-kadaluarsa`.
+- QRIS: `POST data-token-url` -> `snap.pay`; 410 memakai pesan server + mematikan pembayaran.
+  `onSuccess`/`onPending` -> `tungguStatusTercatat()` (5x @900ms ke `data-status-url`) lalu
+  `window.location.href = data-struk-url`. `onSuccess` juga `localStorage.clear()`.
+- Kasir: `POST data-kasir-url` -> modal sukses ("Pesanan berhasil") -> reload halaman.
+- Saat `data-menunggu-kasir="1"` timer tidak jalan dan semua aksi pembayaran dikunci.
+
+### `resources/views/test_struk.blade.php` (changed)
+- Saat status `paid`, `localStorage.clear()` (cadangan kalau user mendarat langsung di sini).
+
+### `resources/views/order-konfirmasi.blade.php` (changed)
+- Script Snap sesuai `config('midtrans.is_production')`, `meta csrf-token`.
+- Tombol Kembali: order `terjadwal` yang masih pending diarahkan ke
+  `/formulir/terjadwal?order={id}` (`data-href`, mode edit); selain itu memakai fallback.
+- `main#halaman-konfirmasi` membawa `data-order-id`, `data-token-url`, `data-kasir-url`,
+  `data-status-url`, `data-struk-url`, `data-sisa-detik`, `data-menunggu-kasir`.
+- Timer hanya dirender saat pending; saat menunggu kasir tampil `.status-notice`.
+- Modal: `modal-total` (kilat-edit), `modal-info` (error), `modal-kasir` (petunjuk/sukses),
+  `modal-kadaluarsa`.
+
+### `routes/web.php` (changed)
+- `GET /` -> `BerandaController`.
+- `GET /order/konfirmasi/{order_id}` -> `order.konfirmasi`.
+- `POST /order/konfirmasi/{order_id}/kasir` -> `order.konfirmasi.kasir`.
+
+### `tests/Feature/KonfirmasiPembayaranTest.php`, `OrderKadaluarsaPembayaranTest.php`, `FormulirTerjadwalTest.php`, `CustomHalamanOrderTest.php`
+- 44 tes terkait. Tes `/` memakai cookie `config('session.cookie')` + helper
+  `tandaiSesiBeranda()` supaya id sesi request sama dengan `browser_session` di DB.
+- `FormulirTerjadwalTest`: pesan halaman tidak terbaca, harga kertas 0, dan data siap.
+- `CustomHalamanOrderTest`: "1,2,5" dan range "2-4" untuk file 3 halaman ditolak; "1,2,3"
+  diterima; submit ulang mengubah harga tanpa duplikat; formulir order pending masih bisa dibuka
+  untuk edit (timer direset); order paid tidak bisa diedit.

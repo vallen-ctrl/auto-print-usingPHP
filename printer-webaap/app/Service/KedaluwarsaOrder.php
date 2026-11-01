@@ -12,18 +12,17 @@ use Illuminate\Support\Facades\Storage;
 /**
  * Aturan kedaluwarsa order pada alur pembayaran.
  *
- * Catatan: bagian front-end pembayaran (halaman bayar / popup Midtrans) belum
- * dibuat. Service ini menyiapkan aturan waktunya, jadi saat front-end
- * pembayaran dibuat tinggal memakai method di sini:
- *  - user kembali ke "/" atau membuka formulir → sudahKadaluarsa() lalu kadaluarsakan()
- *  - user menekan "Bayar sekarang"               → sudahKadaluarsa() lalu tandaiBayar()
- *  - admin membuka halaman dashboard order       → kadaluarsakanSemua()
+ * Dipakai oleh:
+ *  - halaman konfirmasi pembayaran (/order/konfirmasi/{id}) → tandaiBayar()
+ *  - endpoint POST /order/token                            → sudahKadaluarsa()
+ *  - user kembali ke "/" atau membuka formulir             → sudahKadaluarsa()
+ *  - admin membuka halaman dashboard order                 → kadaluarsakanSemua()
  *
  * Dua batas waktu yang dipakai:
  *  - BATAS_UPLOAD_MENIT: dihitung dari orders.tanggal_pesan (file baru diupload,
  *    belum pernah menekan "Bayar sekarang").
- *  - BATAS_BAYAR_MENIT: dihitung dari orders.tanggal_bayar (user sudah menekan
- *    "Bayar sekarang", Snap token Midtrans berlaku 15 menit).
+ *  - BATAS_BAYAR_MENIT: dihitung dari orders.tanggal_bayar (halaman konfirmasi
+ *    dibuka atau token Snap dibuat).
  *
  * Order yang lewat batas waktu akan diubah status_pembayaran menjadi "failed"
  * dan file uploadnya dihapus dari server.
@@ -159,17 +158,25 @@ class KedaluwarsaOrder
     }
 
     /**
-     * Catat waktu user menekan "Bayar sekarang" sebagai awal hitung mundur
-     * pembayaran (BATAS_BAYAR_MENIT).
+     * Catat waktu bayar sebagai awal hitung mundur pembayaran
+     * (BATAS_BAYAR_MENIT).
      *
-     * Catatan: dipanggil dari bayarSekarang() yang akan dipakai front-end
-     * pembayaran (belum dibuat).
+     * Dipanggil saat halaman konfirmasi pembayaran pertama kali dibuka dan
+     * saat token Snap berhasil dibuat. Waktu yang sudah tercatat tidak
+     * ditimpa, supaya reload halaman tidak menambah waktu pembayaran.
      */
     public function tandaiBayar(Order $order): void
     {
+        if ($order->tanggal_bayar !== null) {
+            return;
+        }
+
         $sekarang = now();
 
-        Order::where('id', $order->id)->update(['tanggal_bayar' => $sekarang]);
+        // Hanya isi kalau masih kosong (aman dari dua request bersamaan).
+        Order::where('id', $order->id)
+            ->whereNull('tanggal_bayar')
+            ->update(['tanggal_bayar' => $sekarang]);
 
         // Sinkronkan model di memori supaya pengecekan berikutnya memakai nilai baru.
         $order->tanggal_bayar = $sekarang;
