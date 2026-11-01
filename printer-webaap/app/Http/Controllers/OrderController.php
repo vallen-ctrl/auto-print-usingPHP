@@ -301,7 +301,24 @@ class OrderController extends Controller
 
                     $totalPages = $filesOnSession["total_pages"];
 
-                    $totalPagesToPrint = count($this->parseHalaman($value["halaman"] ?? "1-$totalPages"));
+                    $halamanDicetak = $this->parseHalaman($value["halaman"] ?? "1-$totalPages");
+
+                    // Setiap nomor halaman harus ada di file. Contoh: total 3 halaman
+                    // tapi user mengisi "1,2,5" -> halaman 5 tidak ada.
+                    $halamanDiLuarFile = array_values(array_filter(
+                        $halamanDicetak,
+                        fn ($halaman) => $halaman < 1 || $halaman > $totalPages
+                    ));
+
+                    if ($halamanDiLuarFile !== []) {
+                        $daftarHalaman = implode(', ', array_unique($halamanDiLuarFile));
+
+                        throw new \InvalidArgumentException(
+                            "Halaman {$daftarHalaman} melebihi total halaman file ({$totalPages} halaman)."
+                        );
+                    }
+
+                    $totalPagesToPrint = count($halamanDicetak);
 
                     if ($totalPagesToPrint > $totalPages) {
                         return redirect()->back()->with("error", "Jumlah pages yang anda isi di costume halaman tidak sesuai dengan total pages yang akan anda kirim");

@@ -26,6 +26,57 @@ document.querySelectorAll('[data-upload-redirect]').forEach((modal) => {
     });
 });
 
+/* ---------- Validasi custom halaman ---------- */
+
+// Total halaman file yang sedang diatur, diisi dari state per file.
+let totalHalamanAktif = 0;
+
+// Validasi isi custom halaman terhadap total halaman file.
+// Mengembalikan pesan error, atau string kosong kalau valid.
+const validasiHalaman = (custom, totalPages) => {
+    const isi = String(custom || '').replace(/\s/g, '');
+
+    if (isi === '') {
+        return '';
+    }
+
+    if (!/^\d+(-\d+)?(,\d+(-\d+)?)*$/.test(isi)) {
+        return 'Format halaman tidak valid. Contoh: 1-2, 1,2,3, 1-5, 1,4-10.';
+    }
+
+    const total = Number(totalPages) || 0;
+
+    for (const part of isi.split(',')) {
+        if (part.includes('-')) {
+            const [mulai, akhir] = part.split('-').map((n) => parseInt(n, 10));
+
+            if (mulai > akhir) {
+                return "Range '" + part + "' tidak valid (start lebih besar dari end).";
+            }
+
+            if (mulai < 1) {
+                return 'Nomor halaman harus minimal 1.';
+            }
+
+            if (total > 0 && akhir > total) {
+                return 'Halaman ' + akhir + ' melebihi total halaman file (' + total + ' halaman).';
+            }
+        } else {
+            const halaman = parseInt(part, 10);
+
+            if (halaman < 1) {
+                return 'Nomor halaman harus minimal 1.';
+            }
+
+            if (total > 0 && halaman > total) {
+                return 'Halaman ' + halaman + ' melebihi total halaman file (' + total + ' halaman).';
+            }
+        }
+    }
+
+    return '';
+};
+
 /* ---------- Pilih file & pengaturannya di halaman formulir ---------- */
 
 // Pengaturan cetak (orientasi, ukuran, dst.) disimpan per file, dan file yang
@@ -353,6 +404,8 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
     const warnaSah = (warna) => (String(warna || '').toLowerCase() === 'hitam-putih' ? 'hitam putih' : warna);
 
     const tulisPengaturan = (state) => {
+        totalHalamanAktif = Number(state.total_pages) || 0;
+
         kolomPengaturan.orientasi.selected = state.orientasi;
         pilihUkuran(state.ukuran);
         kolomPengaturan.warna.selected = warnaSah(state.warna);
@@ -590,36 +643,10 @@ const periksaPukul = () => {
     return tandaiKolom(inputPukul, '');
 };
 
-// Halaman bersifat opsional. Format mengikuti App\Rules\CustomHalamanRule:
-//   "1" | "1-2" | "1,2,3" | "1-3,5,7-9"
+// Halaman bersifat opsional. Format mengikuti App\Rules\CustomHalamanRule dan
+// nomor halaman tidak boleh melebihi total halaman file yang sedang diatur.
 const periksaHalaman = () => {
-    const isi = (inputHalaman.value || '').replace(/\s/g, '');
-
-    if (isi === '') {
-        return tandaiKolom(inputHalaman, '');
-    }
-
-    if (!/^\d+(-\d+)?(,\d+(-\d+)?)*$/.test(isi)) {
-        return tandaiKolom(inputHalaman, 'Format halaman tidak valid. Contoh: 1-2, 1,2,3, 1-5, 1,4-10.');
-    }
-
-    for (const part of isi.split(',')) {
-        if (part.includes('-')) {
-            const [mulai, akhir] = part.split('-').map((n) => parseInt(n, 10));
-
-            if (mulai > akhir) {
-                return tandaiKolom(inputHalaman, "Range '" + part + "' tidak valid (start lebih besar dari end).");
-            }
-
-            if (mulai < 1) {
-                return tandaiKolom(inputHalaman, 'Nomor halaman harus minimal 1.');
-            }
-        } else if (parseInt(part, 10) < 1) {
-            return tandaiKolom(inputHalaman, 'Nomor halaman harus minimal 1.');
-        }
-    }
-
-    return tandaiKolom(inputHalaman, '');
+    return tandaiKolom(inputHalaman, validasiHalaman(inputHalaman.value, totalHalamanAktif));
 };
 
 // Tanggal & pukul tidak boleh mundur dari hari ini. Batasnya dipasang ulang
@@ -674,18 +701,52 @@ if (inputWhatsapp && inputTanggal && inputPukul && inputHalaman) {
             if (pertamaSalah >= 0) {
                 kolom[pertamaSalah].scrollIntoView({ block: 'center', behavior: 'smooth' });
                 kolom[pertamaSalah].focus();
+                return;
             }
 
             if (cetakForm) {
                 // event.preventDefault();
                 // cetakForm.requestSubmit();
 
+                // Ambil data tersimpan untuk memeriksa custom halaman SEMUA file,
+                // bukan hanya file yang sedang tampil di form.
+                let localStorageSaved = null;
+
+                try {
+                    localStorageSaved = JSON.parse(localStorage.getItem(FORM_STORAGE_KEY));
+                } catch (error) {
+                    localStorageSaved = null;
+                }
+
+                if (!localStorageSaved) {
+                    bukaModal('modal-halaman', {
+                        type: 'error',
+                        title: 'Data formulir tidak ditemukan',
+                        message: 'Silakan isi ulang formulir atau upload ulang file Anda.',
+                    });
+                    return;
+                }
+
+                const berkas = Array.isArray(localStorageSaved.files) ? localStorageSaved.files : [];
+
+                for (const berkasItem of berkas) {
+                    const pesanHalaman = validasiHalaman(berkasItem.halaman, berkasItem.total_pages);
+
+                    if (pesanHalaman) {
+                        bukaModal('modal-halaman', {
+                            type: 'error',
+                            title: 'Custom halaman tidak sesuai',
+                            message: 'File "' + (berkasItem.name || 'tanpa nama') + '": ' + pesanHalaman,
+                        });
+                        return;
+                    }
+                }
+
                 Array.from(cetakForm.elements).forEach(el => {
                     if (el.name && el.name !== '_token' && el.name !== '_method') {
                         el.remove();
                     }
                 });
-                const localStorageSaved = JSON.parse(localStorage.getItem(FORM_STORAGE_KEY))
                 const urlParams = new URLSearchParams(window.location.search);
                 const dataBaru = {
                     orderid: urlParams.get('order'),

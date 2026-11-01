@@ -1,6 +1,6 @@
 Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `d0abf27`)
+Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `bb043e1`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
@@ -77,10 +77,15 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 - `show()` (mulai order baru) meng-null-kan `browser_session` pada order pending milik sesi ini.
 
 ### `app/Http/Controllers/OrderController.php` (changed)
-- `createorder_terjadwal()` redirect ke halaman konfirmasi.
+- `createorder_terjadwal()` redirect ke halaman konfirmasi. Halaman custom yang melebihi
+  `total_pages` (mis. "1,2,5" untuk file 3 halaman) melempar exception di dalam transaksi
+  (rollback) dengan pesan "Halaman X melebihi total halaman file".
 - Formulir terjadwal menampilkan modal error kalau file tidak punya `total_pages` (tidak terbaca)
   atau semua harga kertas 0 (subtotal Rp. 0). JS formulir juga membuka modal yang sama kalau
   subtotal awal terhitung 0. Menutup modal langsung mengarahkan ke `/upload/terjadwal`.
+- Custom halaman divalidasi per file terhadap `total_pages`: inline untuk file aktif, modal untuk
+  file lain saat menekan "Lanjut proses pembayaran", dan server menolak halaman di luar
+  1..total (contoh total 3 diisi "1,2,5" -> error).
 - `bayarSekarang()`: key `message` (bukan `messgae`), tanpa `callbacks.finish`; setelah token jadi
   mengisi `orders.metode_pembayaran = 'qris'`.
 - `strukOrder(Request, string $orderId)`: jika status akhir `paid`, `session()->forget()`
@@ -96,13 +101,18 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
   ada `files.total_pages <= 0`, tidak ada paper aktif, atau semua harga paper 0.
 
 ### `resources/views/formulir-terjadwal.blade.php` (changed)
-- Modal `modal-formulir` (terbuka otomatis, pesan dari server) dan `modal-subtotal`.
+- Modal `modal-formulir` (terbuka otomatis, pesan dari server), `modal-subtotal`, dan
+  `modal-halaman`.
 
 ### `resources/js/pages/formulir-terjadwal.js` (changed)
 - Setelah subtotal awal dihitung: kalau hasilnya 0 dan `modal-formulir` belum terbuka,
   `bukaModal('modal-subtotal')`.
 - Modal dengan atribut `data-upload-redirect` (modal-formulir & modal-subtotal) mengarahkan ke
   `/upload/terjadwal` saat ditutup (`modal-close`).
+- `validasiHalaman(custom, totalPages)`: format, range, dan nomor halaman tidak boleh melebihi
+  `total_pages`. Dipakai inline (`periksaHalaman`, total halaman file aktif via
+  `totalHalamanAktif`) dan untuk semua file saat tombol "Lanjut proses pembayaran" diklik
+  (modal `modal-halaman`). Klik tombol juga langsung berhenti kalau validasi field gagal.
 
 ### `resources/js/pages/order-konfirmasi.js` (changed)
 - Countdown 20 menit; 00:00 -> tombol mati + `modal-kadaluarsa`.
@@ -128,7 +138,8 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 - `GET /order/konfirmasi/{order_id}` -> `order.konfirmasi`.
 - `POST /order/konfirmasi/{order_id}/kasir` -> `order.konfirmasi.kasir`.
 
-### `tests/Feature/KonfirmasiPembayaranTest.php`, `OrderKadaluarsaPembayaranTest.php`, `FormulirTerjadwalTest.php`
-- 33 tes gabungan. Tes `/` memakai cookie `config('session.cookie')` + helper
+### `tests/Feature/KonfirmasiPembayaranTest.php`, `OrderKadaluarsaPembayaranTest.php`, `FormulirTerjadwalTest.php`, `CustomHalamanOrderTest.php`
+- 40 tes terkait. Tes `/` memakai cookie `config('session.cookie')` + helper
   `tandaiSesiBeranda()` supaya id sesi request sama dengan `browser_session` di DB.
 - `FormulirTerjadwalTest`: pesan halaman tidak terbaca, harga kertas 0, dan data siap.
+- `CustomHalamanOrderTest`: "1,2,5" dan range "2-4" untuk file 3 halaman ditolak; "1,2,3" diterima.

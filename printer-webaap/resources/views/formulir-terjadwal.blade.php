@@ -43,6 +43,8 @@
     <x-modal id="modal-subtotal" type="error" title="Subtotal cetak Rp. 0"
         data-upload-redirect="{{ route('upload.terjadwal') }}"
         message="Jumlah halaman file atau harga kertas tidak terbaca, jadi subtotal cetak masih Rp. 0. Silakan upload ulang file Anda atau hubungi admin toko." />
+    <x-modal id="modal-halaman" type="error" title="Custom halaman tidak sesuai"
+        message="Jumlah halaman yang dipilih melebihi total halaman file." />
     <header class="site-header">
         <wired-button roughness="1.2" elevation="1" id="btn-kembali" class="back-button" data-fallback="{{ route('upload.terjadwal') }}" data-href="{{ route('upload.terjadwal') }}">
             <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
