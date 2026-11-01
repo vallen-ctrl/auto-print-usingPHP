@@ -442,6 +442,9 @@ class OrderController extends Controller
 
         $snapToken = \Midtrans\Snap::getSnapToken($params);
 
+        // Catat metode pembayaran yang dipilih (hanya qris/kasir).
+        $order->update(['metode_pembayaran' => 'qris']);
+
         // Token Snap berhasil dibuat: pastikan hitung mundur pembayaran sudah
         // tercatat (tidak menimpa waktu yang dicatat saat halaman konfirmasi
         // dibuka). Snap token Midtrans sendiri kedaluwarsa setelah 15 menit.

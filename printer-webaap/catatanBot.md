@@ -1,6 +1,6 @@
 Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `b3442af`)
+Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `0cd79eb`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
@@ -34,6 +34,11 @@ Konfirmasi pembayaran:
   di kasir" (kilat-edit: harga masih perkiraan; kilat-langsung: harga sudah sesuai).
 - `strukOrder()` saat `paid` melepas session alur + `orders.browser_session`.
 
+Skema pembayaran (migration 2026_11_01):
+- `orders.metode_pembayaran` sekarang ENUM(`qris`, `kasir`) NULL.
+- `orders.id_metode_pembayaran` dihapus dan tabel `metode_pembayaran` di-drop.
+- Model `App\Models\MetodePembayaran` + factory-nya sudah tidak terpakai (tabelnya tidak ada).
+
 Yang masih kurang:
 
 - Konfirmasi penjual: belum ada UI/endpoint `processing` -> `paid` untuk kasir. Saat dibuat,
@@ -59,8 +64,13 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 ### `database/migrations/2026_11_01_000000_add_browser_session_to_orders_table.php` (new)
 - Menambah `orders.browser_session` VARCHAR(255) NULL + index. Sudah dijalankan di DB dev.
 
+### `database/migrations/2026_11_01_000001_remove_metode_pembayaran_reference.php` (new)
+- `orders.metode_pembayaran` diubah menjadi ENUM(`qris`, `kasir`) NULL.
+- Drop FK + kolom `orders.id_metode_pembayaran`, lalu `Schema::dropIfExists('metode_pembayaran')`.
+- Sudah dijalankan di DB dev. Data lama `metode_pembayaran` semuanya NULL, jadi aman.
+
 ### `app/Models/Order.php` (changed)
-- `browser_session` masuk `$fillable`.
+- `browser_session` masuk `$fillable`; `id_metode_pembayaran` dikeluarkan.
 
 ### `app/Http/Controllers/UploadTerjadwalController.php` (changed)
 - `store()` mengisi `browser_session` dengan `$request->session()->getId()` saat order dibuat.
@@ -68,7 +78,8 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 
 ### `app/Http/Controllers/OrderController.php` (changed)
 - `createorder_terjadwal()` redirect ke halaman konfirmasi.
-- `bayarSekarang()`: key `message` (bukan `messgae`), tanpa `callbacks.finish`.
+- `bayarSekarang()`: key `message` (bukan `messgae`), tanpa `callbacks.finish`; setelah token jadi
+  mengisi `orders.metode_pembayaran = 'qris'`.
 - `strukOrder(Request, string $orderId)`: jika status akhir `paid`, `session()->forget()`
   `UploadTerjadwalController::SESSION_KEY` dan `browser_session = null`.
 - `addFileQueue()` masih `private`; perlu dipakai juga oleh alur konfirmasi kasir nanti.

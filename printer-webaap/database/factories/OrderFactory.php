@@ -29,7 +29,6 @@ class OrderFactory extends Factory
             'pengaturan_id' => PengaturanToko::factory(),
             'status_pembayaran' => fake()->randomElement(['pending', 'proccesing ', 'succed', 'fail']),
             'metode_pembayaran' => null,
-            'id_metode_pembayaran' => null,
             'session_id' => User::factory(),
         ];
     }
