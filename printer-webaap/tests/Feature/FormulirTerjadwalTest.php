@@ -59,7 +59,8 @@ test('formulir memberi pesan kalau jumlah halaman file tidak terbaca', function 
         ->get(route('formulir.terjadwal', ['order' => bin2hex($order->id)]))
         ->assertOk()
         ->assertSee('Formulir tidak bisa diproses')
-        ->assertSee('Jumlah halaman file "uji-formulir.pdf" tidak terbaca');
+        ->assertSee('Jumlah halaman file "uji-formulir.pdf" tidak terbaca')
+        ->assertSee('data-upload-redirect="' . route('upload.terjadwal') . '"', false);
 });
 
 test('formulir memberi pesan kalau semua harga kertas masih nol', function () {

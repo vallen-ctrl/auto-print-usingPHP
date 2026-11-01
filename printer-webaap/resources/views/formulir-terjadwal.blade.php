@@ -38,9 +38,10 @@
     @endif
     @if (!empty($pesanFormulir))
     <x-modal id="modal-formulir" type="error" title="Formulir tidak bisa diproses" open
-        :message="$pesanFormulir" />
+        :message="$pesanFormulir" data-upload-redirect="{{ route('upload.terjadwal') }}" />
     @endif
     <x-modal id="modal-subtotal" type="error" title="Subtotal cetak Rp. 0"
+        data-upload-redirect="{{ route('upload.terjadwal') }}"
         message="Jumlah halaman file atau harga kertas tidak terbaca, jadi subtotal cetak masih Rp. 0. Silakan upload ulang file Anda atau hubungi admin toko." />
     <header class="site-header">
         <wired-button roughness="1.2" elevation="1" id="btn-kembali" class="back-button" data-fallback="{{ route('upload.terjadwal') }}" data-href="{{ route('upload.terjadwal') }}">

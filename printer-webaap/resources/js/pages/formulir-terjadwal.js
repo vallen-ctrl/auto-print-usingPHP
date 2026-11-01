@@ -14,6 +14,18 @@ import { bukaModal } from '../shared/modal.js';
 import { FORM_STORAGE_KEY, bacaNamaFile } from '../shared/file-store.js';
 import { pengaturanAwal } from '../shared/form-config.js';
 
+/* ---------- Modal error formulir: setelah ditutup, kembali ke upload ---------- */
+
+document.querySelectorAll('[data-upload-redirect]').forEach((modal) => {
+    modal.addEventListener('modal-close', () => {
+        const tujuan = modal.dataset.uploadRedirect;
+
+        if (tujuan) {
+            window.location.href = tujuan;
+        }
+    });
+});
+
 /* ---------- Pilih file & pengaturannya di halaman formulir ---------- */
 
 // Pengaturan cetak (orientasi, ukuran, dst.) disimpan per file, dan file yang

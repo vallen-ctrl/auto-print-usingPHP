@@ -1,6 +1,6 @@
 Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `39ca8de`)
+Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `d0abf27`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
@@ -80,7 +80,7 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 - `createorder_terjadwal()` redirect ke halaman konfirmasi.
 - Formulir terjadwal menampilkan modal error kalau file tidak punya `total_pages` (tidak terbaca)
   atau semua harga kertas 0 (subtotal Rp. 0). JS formulir juga membuka modal yang sama kalau
-  subtotal awal terhitung 0.
+  subtotal awal terhitung 0. Menutup modal langsung mengarahkan ke `/upload/terjadwal`.
 - `bayarSekarang()`: key `message` (bukan `messgae`), tanpa `callbacks.finish`; setelah token jadi
   mengisi `orders.metode_pembayaran = 'qris'`.
 - `strukOrder(Request, string $orderId)`: jika status akhir `paid`, `session()->forget()`
@@ -101,6 +101,8 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 ### `resources/js/pages/formulir-terjadwal.js` (changed)
 - Setelah subtotal awal dihitung: kalau hasilnya 0 dan `modal-formulir` belum terbuka,
   `bukaModal('modal-subtotal')`.
+- Modal dengan atribut `data-upload-redirect` (modal-formulir & modal-subtotal) mengarahkan ke
+  `/upload/terjadwal` saat ditutup (`modal-close`).
 
 ### `resources/js/pages/order-konfirmasi.js` (changed)
 - Countdown 20 menit; 00:00 -> tombol mati + `modal-kadaluarsa`.
