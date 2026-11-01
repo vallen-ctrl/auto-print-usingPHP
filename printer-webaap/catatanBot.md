@@ -1,71 +1,78 @@
 Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `b6fade8`)
+Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `888815a`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
 
 ## Ringkasan
 
-**Target feature: menyambungkan halaman konfirmasi pembayaran ke data order asli dan ke popup Midtrans Snap. Belum dikerjakan.**
+**Target feature: alur pembuatan order kilat (backend formulir kilat) dan aturan pembayaran "Bayar di Kasir". Belum ada.**
 
-UI halaman `/order/konfirmasi/{order_id}` sudah ada dan bisa dipratinjau. Datanya masih
-contoh (`KonfirmasiPembayaranController`), karena integrasi database/API wajib menunggu izin
-Vallen. Yang belum ada: pembacaan Order + File asli, tombol CTA ke `POST /order/token`, dan
-pemanggilan `window.snap.pay()`.
+Halaman `/order/konfirmasi/{order_id}` sekarang terintegrasi penuh dengan backend:
 
-Aturan metode bayar per `files.layanan` (sudah diterapkan di UI):
+- Data order, file, warna, ukuran, dan biaya dibaca dari database (`KonfirmasiPembayaranController`).
+- Hitung mundur 20 menit dimulai saat halaman pertama kali dibuka. Waktu disimpan di
+  `orders.tanggal_bayar` dan TIDAK di-reset saat reload (`KedaluwarsaOrder::tandaiBayar()`).
+- Tombol QRIS memanggil `POST /order/token` lalu `window.snap.pay()` (pola sama dengan
+  `resources/views/snap.blade.php`). Setelah sukses/pending, status dicek ke `/struk/order/{id}`
+  lalu fallback redirect ke `/struk/{id}`. Finish Redirect URL pembayaran dikonfigurasi Vallen
+  di dashboard Midtrans, jadi JANGAN hardcode `callbacks.finish` di token.
+- `POST /order/token` masih mensyaratkan session `terjadwal_order` (orderid harus sama).
+  Alur kilat nanti perlu mekanisme sesi sendiri.
+- `createorder_terjadwal()` sekarang redirect ke halaman konfirmasi, bukan kembali ke formulir.
+- Order kedaluwarsa / sudah dibayar / status lain ditangani di controller: redirect ke `/`
+  dengan pesan, atau ke `/struk/{id}` untuk status `paid`/`processing`.
 
-- `kilat-langsung`: pilihan QRIS atau Bayar di Kasir.
-- `kilat-edit`: hanya Bayar di Kasir. Total, subtotal cetak, dan harga per file kosong
-  (`Rp. —`) karena file masih bisa diedit; tombol total membuka `<x-modal id="modal-total">`.
-- `terjadwal`: hanya QRIS.
+Yang masih kurang:
 
-Kontrak backend pembayaran yang masih berlaku (dari `app/Service/KedaluwarsaOrder.php`):
+- `GET /formulir/kilat` masih `Route::view()` statis; belum ada endpoint yang membuat order kilat.
+- Pilihan "Bayar di Kasir" baru menampilkan modal petunjuk. Order tetap `pending`, tetap kena
+  batas 20 menit, dan filenya dihapus saat kedaluwarsa. Perlu keputusan bisnis: apakah order
+  kasir harus menandai `metode_pembayaran`, melewati kedaluwarsa, dan langsung masuk antrean?
+- Scheduler pembersihan order kedaluwarsa masih belum ada (tetap dicek saat halaman dibuka).
 
-- `POST /order/token` (`create.snap.token`) mengembalikan `200 { token, batas_bayar_menit: 20 }`,
-  `410` order kedaluwarsa (file sudah dihapus), `409` status bukan `pending`, `404` session/order
-  tidak cocok. Untuk non-200 tampilkan `message` dan arahkan user ke `/`.
-- Order `pending` tanpa `tanggal_bayar` kedaluwarsa 60 menit setelah `orders.tanggal_pesan`;
-  dengan `tanggal_bayar` kedaluwarsa 20 menit setelahnya (`tanggal_bayar` diisi saat token dibuat).
-- Setelah callback Snap, polling `GET /struk/order/{orderIdHex}` (`order.struk`). Jangan pernah
-  set `processing` sebelum pengecekan di `OrderController::strukOrder()`.
-- Tidak ada scheduler; kedaluwarsa hanya dibersihkan saat halaman terkait dibuka.
-
-Catatan build: CSS/JS halaman baru terdaftar di `vite.config.js`, jadi jalankan `npm run build`
-setelah mengubahnya.
+Menjalankan: `php artisan serve` + `npm run dev` (atau `npm run build` setelah mengubah CSS/JS).
+Tes kedaluwarsa: `php artisan test --filter=OrderKadaluarsaPembayaran` (13 tes, SQLite).
 
 ## Detail Perubahan
 
-### `app/Http/Controllers/KonfirmasiPembayaranController.php` (new)
-- `show(Request, string $order_id)` merakit `$order`, `$files`, `$metode` untuk view.
-- Data masih placeholder; parameter `?layanan=kilat-langsung|kilat-edit|terjadwal` hanya untuk
-  pratinjau ketiga alur. Ganti isi `$order`/`$files` dengan `Order` + `File` asli saat sudah
-  diizinkan; struktur data ke view tidak perlu berubah.
-- `$order['harga_menyesuaikan']` = true untuk `kilat-edit` dan mengatur tampilan total kosong.
+### `app/Http/Controllers/KonfirmasiPembayaranController.php` (changed)
+- `show(Request, string $order_id)` validasi hex lewat `KedaluwarsaOrder::cariDariHex()`.
+- `paid`/`processing` → redirect `struk.render`; status lain → `/` + `error`; kedaluwarsa →
+  `kadaluarsakan()` + hapus session `terjadwal_order` + `/` + `error`.
+- Memanggil `tandaiBayar()` saat halaman dibuka, lalu mengirim `sisa_detik` ke view.
+- Menyusun `$files` dari tabel `files` + `configuration` + `paper`; `layanan` diambil dari file
+  pertama. `harga_menyesuaikan` = `kilat-edit`. Biaya penanganan = sisa total setelah subtotal
+  dan biaya admin (0 = baris disembunyikan).
+- `formatUkuran()` mengubah byte menjadi "400 KB" / "0,4 MB".
 
-### `resources/views/order-konfirmasi.blade.php` (new)
-- Struktur: header (tombol Kembali di kiri, logo jasa + "nama print" di kanan, sama seperti
-  `/formulir/terjadwal`), judul halaman di dalam isi, badge pengambilan, kartu Rincian dokumen,
-  kartu Pilih Metode Pembayaran, kartu Ringkasan Pembayaran, bilah Total Bayar + CTA.
-- Metode bayar dirender dari `$metode`; opsi pertama otomatis terpilih (`role="radio"`).
-- `<x-modal id="modal-total">` hanya dirender untuk `kilat-edit`, dibuka lewat `data-modal-open`.
-- Butuh `@stack('scripts')` karena komponen modal mem-push script-nya.
+### `app/Service/KedaluwarsaOrder.php` (changed)
+- `tandaiBayar()` tidak menimpa `tanggal_bayar` yang sudah ada, jadi reload tidak menambah waktu.
+- Komentar kelas diperbarui: halaman konfirmasi memakai service ini.
 
-### `resources/css/order-konfirmasi.css` (new)
-- Mobile-first, breakpoint 768px dan 1024px (dua kolom di desktop). Token warna/ukuran sama
-  dengan halaman sketsa lain; `--color-chip` untuk latar opsi terpilih.
-- Label CTA ditumpuk (`.cta-labels`) supaya lebar tombol tidak berubah saat metode diganti.
+### `app/Http/Controllers/OrderController.php` (changed)
+- `createorder_terjadwal()` → `redirect()->route('order.konfirmasi', ['order_id' => $orderid])`.
+- `bayarSekarang()`: respons sukses memakai key `message` (sebelumnya typo `messgae`);
+  tidak lagi mengirim `callbacks.finish` (redirect diatur di dashboard Midtrans).
 
-### `resources/js/pages/order-konfirmasi.js` (new)
-- Klik/Enter/Space/panah pada `.pay-option` memindahkan pilihan, mengubah `aria-checked` dan
-  `tabindex`, lalu menampilkan label CTA yang cocok (`data-cta`).
+### `resources/views/order-konfirmasi.blade.php` (changed)
+- `meta csrf-token` + script Snap sesuai `config('midtrans.is_production')`.
+- `main#halaman-konfirmasi` membawa `data-order-id`, `data-token-url`, `data-status-url`,
+  `data-struk-url`, `data-sisa-detik`.
+- Timer `#timer-bayar` / `#sisa-waktu`, modal `modal-info`, `modal-kasir`, `modal-kadaluarsa`
+  (dan `modal-total` untuk kilat-edit).
 
-### `routes/web.php` (changed)
-- Tambah `GET /order/konfirmasi/{order_id}` dengan nama `order.konfirmasi`.
+### `resources/js/pages/order-konfirmasi.js` (changed)
+- Countdown dari `data-sisa-detik`; saat 00:00 tombol dinonaktifkan dan `modal-kadaluarsa` dibuka.
+- QRIS: `POST data-token-url` → `snap.pay`; 410 memakai pesan server + mematikan pembayaran;
+  409/404/error lain tampil di `modal-info`.
+- `onSuccess`/`onPending` → cek `data-status-url`; `onClose` → redirect `data-struk-url`.
+- Kasir: membuka `modal-kasir`, tidak memanggil Midtrans.
 
-### `vite.config.js` (changed)
-- Tambah entry `resources/css/order-konfirmasi.css` dan `resources/js/pages/order-konfirmasi.js`.
+### `resources/css/order-konfirmasi.css` (changed)
+- Tambah `.timer-bayar` (chip hitung mundur) dan state `.is-habis` (merah).
 
-### `app/Service/KedaluwarsaOrder.php` (existing, unchanged)
-- Sumber aturan kedaluwarsa order; dipakai juga oleh halaman order lain. Jangan duplikasi logikanya.
+### `routes/web.php` & `vite.config.js` (changed)
+- Route `GET /order/konfirmasi/{order_id}` → `order.konfirmasi`.
+- Entry Vite `resources/css/order-konfirmasi.css` dan `resources/js/pages/order-konfirmasi.js`.

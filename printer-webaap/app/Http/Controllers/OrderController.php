@@ -367,22 +367,21 @@ class OrderController extends Controller
                         "session_id" => $orderSession["sessionid"]
                     ]);
             });
-            return redirect()->back()->with("success", "hehe");
+            return redirect()->route('order.konfirmasi', ['order_id' => $orderid]);
         } catch (\Exception $e) {
             return redirect()->back()->with("error", $e->getMessage());
         }
     }
 
     /**
-     * Buat Snap token pembayaran untuk order terjadwal.
+     * Buat Snap token pembayaran untuk order.
      *
-     * Catatan: ini titik masuk pembayaran yang nanti dipakai oleh front-end
-     * pembayaran (halaman bayar / popup Midtrans) yang belum dibuat. Kontrak
-     * responsnya:
-     *  - 200 { token, batas_bayar_menit } → buka popup Snap
-     *  - 410 { message, error }          → order kedaluwarsa, file sudah dihapus
-     *  - 409 { message, error }          → status order bukan pending
-     *  - 404 { message, error }          → session/order tidak cocok
+     * Dipakai oleh tombol CTA di halaman konfirmasi pembayaran
+     * (/order/konfirmasi/{order_id}). Kontrak responsnya:
+     *  - 200 { token, batas_bayar_menit, message } → buka popup Snap
+     *  - 410 { message, error }                    → order kedaluwarsa, file sudah dihapus
+     *  - 409 { message, error }                    → status order bukan pending
+     *  - 404 { message, error }                    → session/order tidak cocok
      *
      * Saat token berhasil dibuat, waktu bayar dicatat (orders.tanggal_bayar)
      * sebagai awal hitung mundur KedaluwarsaOrder::BATAS_BAYAR_MENIT.
@@ -432,6 +431,8 @@ class OrderController extends Controller
             );
         }
 
+        // Catatan: URL redirect setelah pembayaran (Finish Redirect URL)
+        // dikonfigurasi di dashboard Midtrans, jadi tidak di-hardcode di sini.
         $params = array(
             'transaction_details' => array(
                 'order_id' => bin2hex($order->id),
@@ -441,15 +442,15 @@ class OrderController extends Controller
 
         $snapToken = \Midtrans\Snap::getSnapToken($params);
 
-        // Token Snap berhasil dibuat: hitung mundur pembayaran mulai dari sini
-        // (Snap token Midtrans sendiri kedaluwarsa setelah 15 menit).
-        // Catatan: dipakai front-end pembayaran yang belum dibuat.
+        // Token Snap berhasil dibuat: pastikan hitung mundur pembayaran sudah
+        // tercatat (tidak menimpa waktu yang dicatat saat halaman konfirmasi
+        // dibuka). Snap token Midtrans sendiri kedaluwarsa setelah 15 menit.
         $this->kedaluwarsa->tandaiBayar($order);
 
         return response()->json([
             "token" => $snapToken,
             "batas_bayar_menit" => KedaluwarsaOrder::BATAS_BAYAR_MENIT,
-            "messgae" => "sukes generated snap token"
+            "message" => "Token pembayaran berhasil dibuat."
         ]);
     }
 

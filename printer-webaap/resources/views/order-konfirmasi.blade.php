@@ -8,11 +8,17 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Konfirmasi Pembayaran</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Patrick+Hand&display=swap" rel="stylesheet">
+
+    {{-- Popup pembayaran Midtrans Snap (sandbox saat is_production=false). --}}
+    <script
+        src="{{ config('midtrans.is_production') ? 'https://app.midtrans.com/snap/snap.js' : 'https://app.sandbox.midtrans.com/snap/snap.js' }}"
+        data-client-key="{{ config('midtrans.client_key') }}"></script>
 
     @vite(['resources/css/order-konfirmasi.css', 'resources/js/pages/order-konfirmasi.js'])
 </head>
@@ -26,6 +32,34 @@
             title="Harga akan menyesuaikan"
             message="File kamu masih bisa diedit setelah dipesan, jadi jumlah halaman dan harga cetaknya belum pasti. Total pembayaran baru dihitung di kasir setelah file selesai diedit. Biaya admin dan biaya penanganan tetap seperti yang tertera." />
     @endif
+
+    {{-- Pesan kesalahan saat meminta token pembayaran. --}}
+    <x-modal
+        id="modal-info"
+        type="error"
+        title="Gagal memulai pembayaran"
+        message="Silakan coba lagi beberapa saat lagi." />
+
+    {{-- Petunjuk pembayaran di kasir (kilat-langsung & kilat-edit). --}}
+    <x-modal
+        id="modal-kasir"
+        type="info"
+        title="Bayar di kasir"
+        message="Tunjukkan halaman ini ke kasir. Pesanan dengan ID {{ $order['id'] }} akan dibayar langsung di kasir setelah cetakan siap." />
+
+    {{-- Waktu pembayaran habis. --}}
+    <x-modal
+        id="modal-kadaluarsa"
+        type="error"
+        title="Waktu pembayaran habis"
+        :dismissible="false">
+        Waktu pembayaran sudah habis. File Anda dihapus dari server, silakan upload ulang file Anda.
+        <x-slot:actions>
+            <wired-button roughness="1.2" elevation="1" data-href="{{ url('/') }}">
+                Kembali ke beranda
+            </wired-button>
+        </x-slot:actions>
+    </x-modal>
 
     <header class="site-header">
         <wired-button
@@ -46,8 +80,24 @@
         </div>
     </header>
 
-    <main class="page-main">
+    <main
+        class="page-main"
+        id="halaman-konfirmasi"
+        data-order-id="{{ $order['id'] }}"
+        data-token-url="{{ route('create.snap.token') }}"
+        data-status-url="{{ route('order.struk', ['id' => $order['id']]) }}"
+        data-struk-url="{{ route('struk.render', ['id' => $order['id']]) }}"
+        data-sisa-detik="{{ $order['sisa_detik'] }}">
         <h1 class="page-title">Konfirmasi Pembayaran</h1>
+
+        <p class="timer-bayar" id="timer-bayar" role="timer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="8.5" />
+                <path d="M12 7.5V12l3 2" />
+            </svg>
+            <span>Sisa waktu pembayaran</span>
+            <strong id="sisa-waktu">{{ gmdate('i:s', $order['sisa_detik']) }}</strong>
+        </p>
 
         <div class="content">
             <div class="kolom">
@@ -163,10 +213,12 @@
                                 <dt>Biaya Admin</dt>
                                 <dd>{{ $rupiah($order['biaya_admin']) }}</dd>
                             </div>
-                            <div class="summary-row">
-                                <dt>Biaya Penanganan</dt>
-                                <dd>{{ $rupiah($order['biaya_penanganan']) }}</dd>
-                            </div>
+                            @if ($order['biaya_penanganan'] > 0)
+                                <div class="summary-row">
+                                    <dt>Biaya Penanganan</dt>
+                                    <dd>{{ $rupiah($order['biaya_penanganan']) }}</dd>
+                                </div>
+                            @endif
                         </dl>
 
                         @if ($order['harga_menyesuaikan'])
