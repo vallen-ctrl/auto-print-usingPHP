@@ -2,6 +2,7 @@
 
 use App\Models\File;
 use App\Models\Order;
+use App\Models\PengaturanToko;
 use App\Service\KedaluwarsaOrder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -107,6 +108,24 @@ test('layanan kilat-langsung menawarkan QRIS dan bayar di kasir', function () {
     expect(substr_count($html, 'data-metode="'))->toBe(2)
         ->and($html)->toContain('data-metode="qris"')
         ->and($html)->toContain('data-metode="kasir"');
+});
+
+test('biaya admin memakai pengaturan toko terbaru', function () {
+    $this->withoutVite();
+
+    PengaturanToko::factory()->create(['id' => 1, 'biaya_admin' => 4000]);
+
+    // Order lama: admin tersimpan 2000, total 57000 (subtotal file 55000).
+    $order = buatOrderKonfirmasiPembayaran();
+    fileKonfirmasiPembayaran($order, 'orders/konfirmasi/admin.pdf', 'terjadwal');
+
+    $this->get(route('order.konfirmasi', ['order_id' => bin2hex($order->id)]))
+        ->assertOk()
+        ->assertSee('Rp. 4.000')
+        ->assertSee('Rp. 59.000');
+
+    expect((int) $order->fresh()->biaya_admin)->toBe(4000)
+        ->and((int) $order->fresh()->total_pembayaran)->toBe(59000);
 });
 
 test('order yang sudah dibayar diarahkan ke halaman status pembayaran', function () {

@@ -6,6 +6,7 @@ use App\Models\Configuration;
 use App\Models\File;
 use App\Models\Order;
 use App\Models\Paper;
+use App\Models\PengaturanToko;
 use App\Service\KedaluwarsaOrder;
 use Illuminate\Http\Request;
 
@@ -110,12 +111,29 @@ class KonfirmasiPembayaranController extends Controller
         $hargaMenyesuaikan = $layanan === 'kilat-edit';
 
         $subtotal = (int) $files->sum('subtotal');
-        $biayaAdmin = (int) $model->biaya_admin;
-        $total = (int) $model->total_pembayaran;
 
-        // Biaya penanganan tidak disimpan terpisah di orders; selisih total
-        // dengan subtotal + biaya admin dianggap biaya penanganan.
+        // Biaya admin mengikuti pengaturan toko (bukan snapshot di orders),
+        // supaya perubahan biaya di dashboard langsung terpakai.
+        $pengaturan = PengaturanToko::find(1);
+        $biayaAdmin = $pengaturan !== null
+            ? (int) $pengaturan->biaya_admin
+            : (int) $model->biaya_admin;
+
+        $total = $subtotal + $biayaAdmin;
+
+        // Biaya penanganan tidak disimpan terpisah; total saat ini selalu
+        // subtotal + biaya admin.
         $biayaPenanganan = max(0, $total - $subtotal - $biayaAdmin);
+
+        // Sinkronkan order supaya nominal Midtrans sama dengan yang tampil.
+        // kilat-edit belum punya harga pasti, jadi order-nya tidak diubah.
+        if (! $hargaMenyesuaikan
+            && ((int) $model->biaya_admin !== $biayaAdmin || (int) $model->total_pembayaran !== $total)) {
+            Order::where('id', $model->id)->update([
+                'biaya_admin' => $biayaAdmin,
+                'total_pembayaran' => $total,
+            ]);
+        }
 
         $order = [
             'id'                 => $orderHex,

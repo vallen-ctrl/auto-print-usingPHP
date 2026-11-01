@@ -1,6 +1,6 @@
 Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `6b2f584`)
+Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `1feaeb4`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
@@ -76,6 +76,15 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 - `store()` mengisi `browser_session` dengan `$request->session()->getId()` saat order dibuat.
 - `show()` (mulai order baru) meng-null-kan `browser_session` pada order pending milik sesi ini.
 
+### `app/Http/Controllers/KonfirmasiPembayaranController.php` (changed)
+- `show()`: validasi hex; status `paid`/`processing` -> `/struk/{id}` (kecuali processing+kasir
+  yang tetap menampilkan halaman menunggu kasir); status lain -> `/` + error; kedaluwarsa ->
+  `kadaluarsakan()` + hapus session + `/` + error.
+- Timer 20 menit: `tandaiBayar()` saat halaman dibuka; `sisa_detik` dikirim ke view.
+- Biaya admin dari `PengaturanToko::find(1)->biaya_admin` (fallback `orders.biaya_admin`);
+  total = subtotal + admin, dan order disinkronkan bila berbeda (kecuali kilat-edit).
+- `bayarDiKasir()`: klaim atomik pending -> processing, `metode_pembayaran = 'kasir'`.
+
 ### `app/Http/Controllers/OrderController.php` (changed)
 - `createorder_terjadwal()` redirect ke halaman konfirmasi. Halaman custom yang melebihi
   `total_pages` (mis. "1,2,5" untuk file 3 halaman) melempar exception di dalam transaksi
@@ -83,16 +92,6 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 - Submit ulang = mode edit: hanya ditolak kalau status bukan `pending`. Di dalam transaksi order
   dikunci (`lockForUpdate`), `User::updateOrCreate`, `Configuration::updateOrCreate` (per
   `file_id`), `layanan_terpilih` lama dihapus lalu dibuat ulang -> harga berubah tanpa duplikat.
-- Formulir terjadwal menampilkan modal error kalau file tidak punya `total_pages` (tidak terbaca)
-  atau semua harga kertas 0 (subtotal Rp. 0). JS formulir juga membuka modal yang sama kalau
-  subtotal awal terhitung 0. Menutup modal langsung mengarahkan ke `/upload/terjadwal`.
-- Custom halaman divalidasi per file terhadap `total_pages`: inline untuk file aktif, modal untuk
-  file lain saat menekan "Lanjut proses pembayaran", dan server menolak halaman di luar
-  1..total (contoh total 3 diisi "1,2,5" -> error).
-- Submit ulang = mode edit: selama order masih `pending`, tombol back di halaman konfirmasi
-  membuka formulir lagi, hitung mundur pembayaran direset, dan submit ulang menghitung ulang
-  harga (subtotal/total) tanpa menggandakan user/configuration. Order `processing`/`paid`
-  tidak bisa diedit.
 - `bayarSekarang()`: key `message` (bukan `messgae`), tanpa `callbacks.finish`; setelah token jadi
   mengisi `orders.metode_pembayaran = 'qris'`.
 - `strukOrder(Request, string $orderId)`: jika status akhir `paid`, `session()->forget()`
@@ -106,6 +105,8 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 ### `app/Http/Controllers/FormulirTerjadwalController.php` (changed)
 - `pesanFormulir()` mengirim `$pesanFormulir` ke view saat: sesi/order kosong, file kosong,
   ada `files.total_pages <= 0`, tidak ada paper aktif, atau semua harga paper 0.
+- Formulir menampilkan modal error untuk kondisi di atas; JS formulir juga membuka
+  `modal-subtotal` kalau subtotal awal terhitung 0.
 - Order `processing`/`paid` diarahkan ke halaman konfirmasi (tidak bisa diedit).
 - Order `pending` tetap bisa membuka formulir (mode edit). `orders.tanggal_bayar` direset ke
   NULL supaya hitung mundur 20 menit baru mulai lagi saat halaman konfirmasi dibuka.
@@ -152,7 +153,7 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 - `POST /order/konfirmasi/{order_id}/kasir` -> `order.konfirmasi.kasir`.
 
 ### `tests/Feature/KonfirmasiPembayaranTest.php`, `OrderKadaluarsaPembayaranTest.php`, `FormulirTerjadwalTest.php`, `CustomHalamanOrderTest.php`
-- 43 tes terkait. Tes `/` memakai cookie `config('session.cookie')` + helper
+- 44 tes terkait. Tes `/` memakai cookie `config('session.cookie')` + helper
   `tandaiSesiBeranda()` supaya id sesi request sama dengan `browser_session` di DB.
 - `FormulirTerjadwalTest`: pesan halaman tidak terbaca, harga kertas 0, dan data siap.
 - `CustomHalamanOrderTest`: "1,2,5" dan range "2-4" untuk file 3 halaman ditolak; "1,2,3"
