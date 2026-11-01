@@ -41,10 +41,17 @@ class FormulirTerjadwalController extends Controller
                 return redirect('/')->with('error', $pesan);
             }
 
-            // Order sudah disubmit (sudah sampai tahap pembayaran): jangan
-            // tampilkan formulir lagi, misalnya setelah user menekan tombol back.
-            if ($orderModel->session_id !== null || (int) $orderModel->total_pembayaran > 0) {
+            // Order yang sudah dibayar/diproses tidak boleh diedit lagi.
+            if ($orderModel->status_pembayaran !== 'pending') {
                 return redirect()->route('order.konfirmasi', ['order_id' => bin2hex($orderModel->id)]);
+            }
+
+            // Kembali ke formulir berarti mode edit. Hentikan hitung mundur
+            // pembayaran dulu supaya user punya waktu mengubah pesanan; timer
+            // 20 menit mulai lagi saat halaman konfirmasi dibuka.
+            if ($orderModel->tanggal_bayar !== null) {
+                Order::where('id', $orderModel->id)->update(['tanggal_bayar' => null]);
+                $orderModel->tanggal_bayar = null;
             }
 
             // Order id disimpan/segarkan di session supaya order ini tetap

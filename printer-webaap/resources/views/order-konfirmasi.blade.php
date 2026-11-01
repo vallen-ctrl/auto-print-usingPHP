@@ -1,6 +1,11 @@
 @php
     $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
-    $kembali = $order['layanan'] === 'terjadwal' ? route('upload.terjadwal') : route('formulir.kilat');
+    $bisaEditFormulir = $order['layanan'] === 'terjadwal' && !$order['menunggu_kasir'];
+    $kembali = match (true) {
+        $bisaEditFormulir => route('formulir.terjadwal', ['order' => $order['id']]),
+        $order['layanan'] === 'terjadwal' => route('upload.terjadwal'),
+        default => route('formulir.kilat'),
+    };
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -67,7 +72,8 @@
             elevation="1"
             id="btn-kembali"
             class="back-button"
-            data-fallback="{{ $kembali }}">
+            data-fallback="{{ $kembali }}"
+            @if ($bisaEditFormulir) data-href="{{ $kembali }}" @endif>
             <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M15 5 8 12l7 7" />
             </svg>

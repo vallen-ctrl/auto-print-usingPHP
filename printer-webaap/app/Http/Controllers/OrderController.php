@@ -281,9 +281,9 @@ class OrderController extends Controller
                 return redirect('/')->with("error", $pesan);
             }
 
-            // Order yang sudah pernah disubmit jangan diproses ulang, misalnya
-            // saat user menekan tombol back lalu "Lanjut proses pembayaran" lagi.
-            if ($orderModel->session_id !== null || (int) $orderModel->total_pembayaran > 0) {
+            // Order yang sudah dibayar/diproses tidak boleh diubah lagi lewat
+            // formulir. Order pending tetap boleh disubmit ulang (mode edit).
+            if ($orderModel->status_pembayaran !== 'pending') {
                 return redirect()->route('order.konfirmasi', ['order_id' => $orderid]);
             }
 
@@ -292,10 +292,12 @@ class OrderController extends Controller
                     ->lockForUpdate()
                     ->first();
 
-                // Sudah disubmit oleh request lain (mis. klik ganda): hentikan.
-                if ($orderTerkunci === null
-                    || $orderTerkunci->session_id !== null
-                    || (int) $orderTerkunci->total_pembayaran > 0) {
+                if ($orderTerkunci === null) {
+                    throw new \RuntimeException("Order tidak ditemukan.");
+                }
+
+                // Sudah dibayar/diproses oleh request lain: jangan timpa.
+                if ($orderTerkunci->status_pembayaran !== 'pending') {
                     return;
                 }
 

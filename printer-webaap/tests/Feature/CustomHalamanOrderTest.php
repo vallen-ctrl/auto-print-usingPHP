@@ -2,7 +2,10 @@
 
 use App\Http\Controllers\UploadTerjadwalController;
 use App\Models\Configuration;
+use App\Models\File;
+use App\Models\Order;
 use App\Models\Paper;
+use App\Models\PengaturanToko;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -126,26 +129,55 @@ test('range halaman yang melewati total halaman file ditolak', function () {
     expect(session('error'))->toContain('melebihi total halaman file');
 });
 
-test('submit ulang setelah berhasil tidak membuat user dan konfigurasi ganda', function () {
+test('submit ulang memperbarui harga tanpa menggandakan data', function () {
     [$orderHex, $fileHex, $session] = siapkanOrderHalaman(3);
-    $payload = payloadOrderHalaman($orderHex, $fileHex, '1,2,3');
 
-    $this->withSession($session)->post(route('create.order'), $payload)
+    $this->withSession($session)
+        ->post(route('create.order'), payloadOrderHalaman($orderHex, $fileHex, '1,2,3'))
         ->assertRedirect(route('order.konfirmasi', ['order_id' => $orderHex]));
 
-    // Simulasi user menekan back lalu "Lanjut proses pembayaran" lagi.
-    $this->withSession($session)->post(route('create.order'), $payload)
+    // Edit: cetak halaman 1-2, jumlah 2 (harga grayscale 500 -> 500 x 2 x 2 = 2000).
+    $payloadEdit = payloadOrderHalaman($orderHex, $fileHex, '1-2');
+    $payloadEdit['files'][0]['jumlah'] = 2;
+
+    $this->withSession($session)->post(route('create.order'), $payloadEdit)
         ->assertRedirect(route('order.konfirmasi', ['order_id' => $orderHex]));
 
-    expect(User::where('sessionid', 'sesi-uji')->count())->toBe(1)
-        ->and(Configuration::count())->toBe(1);
+    $admin = (int) PengaturanToko::findOrFail(1)->biaya_admin;
+    $file = File::where('order_id', hex2bin($orderHex))->firstOrFail();
+    $order = Order::findOrFail(hex2bin($orderHex));
+
+    expect((int) $file->subtotal)->toBe(2000)
+        ->and((int) $order->total_pembayaran)->toBe($admin + 2000)
+        ->and(Configuration::first()->pages_toprint)->toBe(2)
+        ->and(Configuration::count())->toBe(1)
+        ->and(User::where('sessionid', 'sesi-uji')->count())->toBe(1);
 });
 
-test('formulir order yang sudah disubmit diarahkan ke halaman konfirmasi', function () {
+test('formulir order pending yang sudah disubmit masih bisa dibuka untuk edit', function () {
     [$orderHex, $fileHex, $session] = siapkanOrderHalaman(3);
 
     $this->withSession($session)
         ->post(route('create.order'), payloadOrderHalaman($orderHex, $fileHex, '1,2,3'));
+
+    // Timer pembayaran sempat berjalan saat halaman konfirmasi dibuka.
+    DB::table('orders')->where('id', hex2bin($orderHex))->update(['tanggal_bayar' => now()]);
+
+    $this->withSession($session)
+        ->get(route('formulir.terjadwal', ['order' => $orderHex]))
+        ->assertOk();
+
+    // Mode edit: hitung mundur pembayaran direset, input file masih bisa diubah.
+    expect(DB::table('orders')->where('id', hex2bin($orderHex))->value('tanggal_bayar'))->toBeNull();
+});
+
+test('formulir order yang sudah dibayar tidak bisa diedit', function () {
+    [$orderHex, $fileHex, $session] = siapkanOrderHalaman(3);
+
+    $this->withSession($session)
+        ->post(route('create.order'), payloadOrderHalaman($orderHex, $fileHex, '1,2,3'));
+
+    DB::table('orders')->where('id', hex2bin($orderHex))->update(['status_pembayaran' => 'paid']);
 
     $this->withSession($session)
         ->get(route('formulir.terjadwal', ['order' => $orderHex]))

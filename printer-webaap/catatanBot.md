@@ -1,6 +1,6 @@
 Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `d7a05dd`)
+Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `6b2f584`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
@@ -80,19 +80,19 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 - `createorder_terjadwal()` redirect ke halaman konfirmasi. Halaman custom yang melebihi
   `total_pages` (mis. "1,2,5" untuk file 3 halaman) melempar exception di dalam transaksi
   (rollback) dengan pesan "Halaman X melebihi total halaman file".
-- Submit ulang: order yang sudah punya `session_id`/`total_pembayaran > 0` langsung diarahkan ke
-  konfirmasi; di dalam transaksi order dikunci (`lockForUpdate`) lalu dicek lagi.
-  `User::updateOrCreate` dan `Configuration::updateOrCreate` (per `file_id`) mencegah duplikat;
-  `layanan_terpilih` lama dihapus sebelum dibuat ulang.
+- Submit ulang = mode edit: hanya ditolak kalau status bukan `pending`. Di dalam transaksi order
+  dikunci (`lockForUpdate`), `User::updateOrCreate`, `Configuration::updateOrCreate` (per
+  `file_id`), `layanan_terpilih` lama dihapus lalu dibuat ulang -> harga berubah tanpa duplikat.
 - Formulir terjadwal menampilkan modal error kalau file tidak punya `total_pages` (tidak terbaca)
   atau semua harga kertas 0 (subtotal Rp. 0). JS formulir juga membuka modal yang sama kalau
   subtotal awal terhitung 0. Menutup modal langsung mengarahkan ke `/upload/terjadwal`.
 - Custom halaman divalidasi per file terhadap `total_pages`: inline untuk file aktif, modal untuk
   file lain saat menekan "Lanjut proses pembayaran", dan server menolak halaman di luar
   1..total (contoh total 3 diisi "1,2,5" -> error).
-- Submit ulang aman (tombol back atau klik ganda): formulir order yang sudah disubmit langsung
-  diarahkan ke halaman konfirmasi, tombol dikunci saat mengirim, dan data ditulis dengan
-  `updateOrCreate` (user & configuration) supaya tidak ada duplikat/error PRIMARY.
+- Submit ulang = mode edit: selama order masih `pending`, tombol back di halaman konfirmasi
+  membuka formulir lagi, hitung mundur pembayaran direset, dan submit ulang menghitung ulang
+  harga (subtotal/total) tanpa menggandakan user/configuration. Order `processing`/`paid`
+  tidak bisa diedit.
 - `bayarSekarang()`: key `message` (bukan `messgae`), tanpa `callbacks.finish`; setelah token jadi
   mengisi `orders.metode_pembayaran = 'qris'`.
 - `strukOrder(Request, string $orderId)`: jika status akhir `paid`, `session()->forget()`
@@ -106,8 +106,9 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 ### `app/Http/Controllers/FormulirTerjadwalController.php` (changed)
 - `pesanFormulir()` mengirim `$pesanFormulir` ke view saat: sesi/order kosong, file kosong,
   ada `files.total_pages <= 0`, tidak ada paper aktif, atau semua harga paper 0.
-- Order yang sudah disubmit (`session_id` terisi atau `total_pembayaran > 0`) langsung
-  diarahkan ke halaman konfirmasi, jadi tombol back tidak menampilkan formulir lagi.
+- Order `processing`/`paid` diarahkan ke halaman konfirmasi (tidak bisa diedit).
+- Order `pending` tetap bisa membuka formulir (mode edit). `orders.tanggal_bayar` direset ke
+  NULL supaya hitung mundur 20 menit baru mulai lagi saat halaman konfirmasi dibuka.
 
 ### `resources/views/formulir-terjadwal.blade.php` (changed)
 - Modal `modal-formulir` (terbuka otomatis, pesan dari server), `modal-subtotal`, dan
@@ -137,6 +138,8 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 
 ### `resources/views/order-konfirmasi.blade.php` (changed)
 - Script Snap sesuai `config('midtrans.is_production')`, `meta csrf-token`.
+- Tombol Kembali: order `terjadwal` yang masih pending diarahkan ke
+  `/formulir/terjadwal?order={id}` (`data-href`, mode edit); selain itu memakai fallback.
 - `main#halaman-konfirmasi` membawa `data-order-id`, `data-token-url`, `data-kasir-url`,
   `data-status-url`, `data-struk-url`, `data-sisa-detik`, `data-menunggu-kasir`.
 - Timer hanya dirender saat pending; saat menunggu kasir tampil `.status-notice`.
@@ -149,9 +152,9 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran"
 - `POST /order/konfirmasi/{order_id}/kasir` -> `order.konfirmasi.kasir`.
 
 ### `tests/Feature/KonfirmasiPembayaranTest.php`, `OrderKadaluarsaPembayaranTest.php`, `FormulirTerjadwalTest.php`, `CustomHalamanOrderTest.php`
-- 42 tes terkait. Tes `/` memakai cookie `config('session.cookie')` + helper
+- 43 tes terkait. Tes `/` memakai cookie `config('session.cookie')` + helper
   `tandaiSesiBeranda()` supaya id sesi request sama dengan `browser_session` di DB.
 - `FormulirTerjadwalTest`: pesan halaman tidak terbaca, harga kertas 0, dan data siap.
 - `CustomHalamanOrderTest`: "1,2,5" dan range "2-4" untuk file 3 halaman ditolak; "1,2,3"
-  diterima; submit ulang tidak menggandakan user/configuration; formulir order yang sudah
-  disubmit redirect ke konfirmasi.
+  diterima; submit ulang mengubah harga tanpa duplikat; formulir order pending masih bisa dibuka
+  untuk edit (timer direset); order paid tidak bisa diedit.

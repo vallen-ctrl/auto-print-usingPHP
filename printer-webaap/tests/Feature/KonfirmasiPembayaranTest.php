@@ -61,7 +61,8 @@ test('halaman konfirmasi memuat data order dan memulai hitung mundur pembayaran'
         ->assertSee('dokumen-uji.pdf')
         ->assertSee('Rp. 55.000')
         ->assertSee('id="timer-bayar"', false)
-        ->assertSee('data-sisa-detik=', false);
+        ->assertSee('data-sisa-detik=', false)
+        ->assertSee('data-href="' . route('formulir.terjadwal', ['order' => bin2hex($order->id)]) . '"', false);
 
     expect($order->fresh()->tanggal_bayar)->not->toBeNull();
 });
