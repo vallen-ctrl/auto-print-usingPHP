@@ -94,7 +94,14 @@
 
         @if ($order['menunggu_kasir'])
             <p class="status-notice" role="status">
-                Pesanan sudah diteruskan ke kasir. Pembayaran dikonfirmasi langsung oleh penjual.
+                Pesanan berhasil.
+                @if ($order['harga_menyesuaikan'])
+                    Silakan bayar di kasir. Harga cetak masih perkiraan karena file masih bisa
+                    diedit, jadi totalnya bisa berubah saat dihitung di kasir.
+                @else
+                    Silakan bayar di kasir. Harga sudah sesuai rincian pesanan dan pembayaran
+                    dikonfirmasi langsung oleh penjual.
+                @endif
             </p>
         @else
             <p class="timer-bayar" id="timer-bayar" role="timer">

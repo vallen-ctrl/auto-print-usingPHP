@@ -288,8 +288,8 @@ const bayarDiKasir = async () => {
 
         bukaModal('modal-kasir', {
             type: 'success',
-            title: 'Pesanan diteruskan ke kasir',
-            message: data.message || 'Pembayaran dikonfirmasi langsung oleh penjual.',
+            title: 'Pesanan berhasil',
+            message: data.message || 'Silakan bayar di kasir.',
         });
     } catch (error) {
         tampilkanGagal('Tidak dapat menghubungi server. Periksa koneksi Anda lalu coba lagi.');

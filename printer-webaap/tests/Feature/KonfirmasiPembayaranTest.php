@@ -165,9 +165,49 @@ test('order yang sudah dipilih bayar di kasir menampilkan keadaan menunggu kasir
     $response = $this->get(route('order.konfirmasi', ['order_id' => bin2hex($order->id)]));
 
     $response->assertOk()
-        ->assertSee('Pesanan sudah diteruskan ke kasir')
+        ->assertSee('Pesanan berhasil')
+        ->assertSee('Silakan bayar di kasir')
+        ->assertSee('Harga sudah sesuai rincian pesanan')
+        ->assertDontSee('perkiraan')
         ->assertSee('Menunggu konfirmasi kasir')
         ->assertDontSee('id="timer-bayar"', false);
+});
+
+test('keadaan menunggu kasir untuk kilat-edit menjelaskan harga masih perkiraan', function () {
+    $this->withoutVite();
+
+    $order = buatOrderKonfirmasiPembayaran('processing');
+    DB::table('orders')->where('id', $order->id)->update(['metode_pembayaran' => 'kasir']);
+    fileKonfirmasiPembayaran($order, 'orders/konfirmasi/edit.pdf', 'kilat-edit');
+
+    $this->get(route('order.konfirmasi', ['order_id' => bin2hex($order->id)]))
+        ->assertOk()
+        ->assertSee('Silakan bayar di kasir')
+        ->assertSee('Harga cetak masih perkiraan');
+});
+
+test('pesan bayar di kasir untuk kilat-edit menyebut harga masih perkiraan', function () {
+    $order = buatOrderKonfirmasiPembayaran();
+    fileKonfirmasiPembayaran($order, 'orders/konfirmasi/edit.pdf', 'kilat-edit');
+    $hex = bin2hex($order->id);
+
+    $this->withSession(['terjadwal_order' => ['orderid' => $hex]])
+        ->postJson(route('order.konfirmasi.kasir', ['order_id' => $hex]))
+        ->assertOk()
+        ->assertJsonPath('status', 'processing')
+        ->assertJsonPath('message', fn ($pesan) => str_contains($pesan, 'perkiraan'));
+});
+
+test('pesan bayar di kasir untuk kilat-langsung tidak menyebut harga perkiraan', function () {
+    $order = buatOrderKonfirmasiPembayaran();
+    fileKonfirmasiPembayaran($order, 'orders/konfirmasi/kilat.pdf', 'kilat-langsung');
+    $hex = bin2hex($order->id);
+
+    $this->withSession(['terjadwal_order' => ['orderid' => $hex]])
+        ->postJson(route('order.konfirmasi.kasir', ['order_id' => $hex]))
+        ->assertOk()
+        ->assertJsonPath('status', 'processing')
+        ->assertJsonPath('message', fn ($pesan) => str_contains($pesan, 'sesuai') && !str_contains($pesan, 'perkiraan'));
 });
 
 test('bayar di kasir tanpa sesi pembayaran ditolak', function () {

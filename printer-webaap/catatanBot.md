@@ -1,6 +1,6 @@
 Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `cc109e9`)
+Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `9695662`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
@@ -21,8 +21,10 @@ Yang sudah berjalan di halaman `/order/konfirmasi/{order_id}`:
 - QRIS: `POST /order/token` -> `window.snap.pay()` -> cek `/struk/order/{id}` -> fallback ke
   `/struk/{id}`. Finish Redirect URL diatur di dashboard Midtrans, bukan `callbacks.finish` di kode.
 - Bayar di Kasir: `POST /order/konfirmasi/{order_id}/kasir` mengubah
-  `status_pembayaran = 'processing'` dan `metode_pembayaran = 'kasir'`. Halaman lalu dimuat ulang
-  dan tampil "Menunggu konfirmasi kasir" (tanpa timer, CTA nonaktif).
+  `status_pembayaran = 'processing'` dan `metode_pembayaran = 'kasir'`. Halaman lalu dimuat ulang,
+  menampilkan "Pesanan berhasil" + "Silakan bayar di kasir", tanpa timer, CTA nonaktif
+  ("Menunggu konfirmasi kasir"). Pesan dibedakan: kilat-edit menegaskan harga cetak masih
+  perkiraan/bisa berubah, kilat-langsung menegaskan harga sudah sesuai rincian pesanan.
 - `createorder_terjadwal()` redirect ke halaman konfirmasi.
 
 Yang masih kurang:
@@ -49,7 +51,8 @@ Tes terkait: `php artisan test --filter=KonfirmasiPembayaran` (11 tes) dan
   ke view. Data file diambil dari `files` + `configuration` + `paper`.
 - `bayarDiKasir()`: syarat session `terjadwal_order`, klaim atomik `pending` -> `processing`,
   set `metode_pembayaran = 'kasir'` dan `tanggal_bayar` bila kosong. Respons JSON
-  `{ status, message }`; 403 sesi, 404 order, 409 status, 410 kedaluwarsa.
+  `{ status, message }`; 403 sesi, 404 order, 409 status, 410 kedaluwarsa. `message` dibedakan
+  per `files.layanan`: kilat-edit = harga masih perkiraan, kilat-langsung = harga sudah sesuai.
 - `formatUkuran()` byte -> "400 KB" / "0,4 MB".
 
 ### `app/Http/Controllers/OrderController.php` (changed)

@@ -186,11 +186,19 @@ class KonfirmasiPembayaranController extends Controller
             );
         }
 
+        // Pesan dibedakan per layanan: kilat-edit masih bisa diedit sehingga
+        // harga cetaknya hanya perkiraan, sedangkan kilat-langsung sudah pasti.
+        $layanan = (string) File::where('order_id', $model->id)->value('layanan');
+
+        $pesanKasir = $layanan === 'kilat-edit'
+            ? 'Silakan bayar di kasir. Harga cetak masih perkiraan karena file masih bisa diedit, jadi totalnya bisa berubah saat dihitung di kasir.'
+            : 'Silakan bayar di kasir. Harga sudah sesuai rincian pesanan dan pembayaran dikonfirmasi langsung oleh penjual.';
+
         // Sudah dipilih sebelumnya: jangan ubah apa-apa lagi.
         if ($model->status_pembayaran === 'processing' && $model->metode_pembayaran === 'kasir') {
             return response()->json([
                 'status' => 'processing',
-                'message' => 'Pesanan sudah diteruskan ke kasir.',
+                'message' => $pesanKasir,
             ]);
         }
 
@@ -225,7 +233,7 @@ class KonfirmasiPembayaranController extends Controller
 
         return response()->json([
             'status' => 'processing',
-            'message' => 'Pesanan diteruskan ke kasir. Pembayaran dikonfirmasi langsung oleh penjual.',
+            'message' => $pesanKasir,
         ]);
     }
 
