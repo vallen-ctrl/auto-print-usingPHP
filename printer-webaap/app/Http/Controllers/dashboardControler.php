@@ -24,10 +24,10 @@ class dashboardControler extends Controller
             ->count();
 
         $pendapatanHariIni = (int) Order::whereDate('tanggal_pesan', $hariIni)
-            ->where("status_pembayaran","=", "succed")
+            ->where("status_pembayaran","=", "paid")
             ->sum('total_pembayaran');
         $pendapatanKemarin = (int) Order::whereDate('tanggal_pesan', $kemarin)
-            ->where("status_pembayaran","=", "succed")
+            ->where("status_pembayaran","=", "paid")
             ->sum('total_pembayaran');
 
         $persenPendapatan = $this->persentase($pendapatanHariIni, $pendapatanKemarin);
@@ -152,7 +152,7 @@ class dashboardControler extends Controller
         $jumlahHari = Carbon::create($tahun, $bulan, 1)->daysInMonth;
 
         $perHari = Order::whereYear('tanggal_pesan', $tahun)
-            ->where("status_pembayaran","=", "succed")
+            ->where("status_pembayaran","=", "paid")
             ->whereMonth('tanggal_pesan', $bulan)
             ->selectRaw('DAY(tanggal_pesan) as hari, SUM(total_pembayaran) as total')
             ->groupBy('hari')
