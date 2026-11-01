@@ -176,6 +176,17 @@ wired-button.back-button {
     color: var(--color-error);
 }
 
+/* Keadaan setelah user memilih bayar di kasir. */
+.status-notice {
+    margin: 0 0 var(--space-4);
+    padding: var(--space-2) var(--space-3);
+    border: 1.5px solid var(--color-border);
+    border-radius: 10px 12px 10px 12px;
+    background: var(--color-chip);
+    font-size: var(--fs-caption);
+    line-height: 1.4;
+}
+
 /* ---------- Isi halaman ---------- */
 
 .page-main {

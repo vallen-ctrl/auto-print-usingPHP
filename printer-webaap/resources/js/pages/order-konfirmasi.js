@@ -16,18 +16,31 @@ const sisaWaktu = document.getElementById('sisa-waktu');
 
 const orderId = halaman?.dataset.orderId ?? '';
 const tokenUrl = halaman?.dataset.tokenUrl ?? '';
+const kasirUrl = halaman?.dataset.kasirUrl ?? '';
 const statusUrl = halaman?.dataset.statusUrl ?? '';
 const strukUrl = halaman?.dataset.strukUrl ?? '';
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 
 let metodeTerpilih = document.querySelector('.pay-option.is-selected')?.dataset.metode ?? 'qris';
+let menungguKasir = halaman?.dataset.menungguKasir === '1';
 let waktuHabis = false;
 let sedangMemproses = false;
 let pembayaranSelesai = false;
+let kasirDikonfirmasi = false;
+
+const kunciTombol = () => {
+    if (tombolBayar) {
+        tombolBayar.disabled = true;
+    }
+};
 
 /* ---------- Pilih metode pembayaran ---------- */
 
 const pilihOpsi = (opsi, fokus = false) => {
+    if (menungguKasir) {
+        return;
+    }
+
     daftarOpsi.forEach((item) => {
         const aktif = item === opsi;
 
@@ -93,11 +106,7 @@ const formatDurasi = (detik) => {
 
 const matikanPembayaran = () => {
     waktuHabis = true;
-
-    if (tombolBayar) {
-        tombolBayar.disabled = true;
-    }
-
+    kunciTombol();
     timer?.classList.add('is-habis');
 };
 
@@ -113,7 +122,8 @@ const hentikanPembayaran = () => {
 let sisaDetik = Math.max(0, Number(halaman?.dataset.sisaDetik ?? 0) || 0);
 
 const jalankanTimer = () => {
-    if (!sisaWaktu) {
+    // Saat order sudah diteruskan ke kasir, tidak ada hitung mundur lagi.
+    if (!sisaWaktu || menungguKasir) {
         return;
     }
 
@@ -131,6 +141,10 @@ const jalankanTimer = () => {
 
     render();
 };
+
+if (menungguKasir) {
+    kunciTombol();
+}
 
 jalankanTimer();
 
@@ -185,7 +199,7 @@ const bukaSnap = (token) => {
 };
 
 const mulaiPembayaranQris = async () => {
-    if (sedangMemproses || waktuHabis) {
+    if (sedangMemproses || waktuHabis || menungguKasir) {
         return;
     }
 
@@ -238,15 +252,73 @@ const mulaiPembayaranQris = async () => {
     }
 };
 
+const bayarDiKasir = async () => {
+    if (sedangMemproses || waktuHabis || menungguKasir) {
+        return;
+    }
+
+    sedangMemproses = true;
+    kunciTombol();
+
+    try {
+        const respons = await fetch(kasirUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify({ orderid: orderId }),
+        });
+
+        const data = await respons.json().catch(() => ({}));
+
+        if (!respons.ok) {
+            if (respons.status === 410) {
+                matikanPembayaran();
+            }
+
+            tampilkanGagal(data.message || 'Gagal memilih pembayaran di kasir. Silakan coba lagi.');
+            return;
+        }
+
+        menungguKasir = true;
+        kasirDikonfirmasi = true;
+        kunciTombol();
+
+        bukaModal('modal-kasir', {
+            type: 'success',
+            title: 'Pesanan diteruskan ke kasir',
+            message: data.message || 'Pembayaran dikonfirmasi langsung oleh penjual.',
+        });
+    } catch (error) {
+        tampilkanGagal('Tidak dapat menghubungi server. Periksa koneksi Anda lalu coba lagi.');
+    } finally {
+        sedangMemproses = false;
+
+        if (!waktuHabis && !menungguKasir && tombolBayar) {
+            tombolBayar.disabled = false;
+        }
+    }
+};
+
 tombolBayar?.addEventListener('click', () => {
-    if (waktuHabis) {
+    if (waktuHabis || menungguKasir) {
         return;
     }
 
     if (metodeTerpilih === 'kasir') {
-        bukaModal('modal-kasir');
+        bayarDiKasir();
         return;
     }
 
     mulaiPembayaranQris();
+});
+
+// Setelah pesanan diteruskan ke kasir, muat ulang halaman supaya tampil
+// keadaan "menunggu konfirmasi kasir" dari server (tanpa hitung mundur).
+document.getElementById('modal-kasir')?.addEventListener('modal-close', () => {
+    if (kasirDikonfirmasi) {
+        window.location.reload();
+    }
 });

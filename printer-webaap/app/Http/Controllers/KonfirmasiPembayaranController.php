@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Configuration;
 use App\Models\File;
+use App\Models\Order;
 use App\Models\Paper;
 use App\Service\KedaluwarsaOrder;
 use Illuminate\Http\Request;
@@ -34,46 +35,55 @@ class KonfirmasiPembayaranController extends Controller
 
         $orderHex = bin2hex($model->id);
 
-        // Order yang sudah dibayar (atau sedang diverifikasi) langsung menuju
-        // halaman status pembayaran, bukan halaman bayar lagi.
-        if (in_array($model->status_pembayaran, ['paid', 'processing'], true)) {
-            return redirect()->route('struk.render', ['id' => $orderHex]);
-        }
+        // Order yang sudah memilih bayar di kasir tetap boleh melihat halaman
+        // ini dalam keadaan menunggu konfirmasi penjual (belum ada halaman
+        // tujuan lain). Order lain yang sudah diproses langsung ke halaman
+        // status pembayaran.
+        $menungguKasir = $model->status_pembayaran === 'processing'
+            && $model->metode_pembayaran === 'kasir';
 
-        if ($model->status_pembayaran !== 'pending') {
-            return redirect('/')->with(
-                'error',
-                'Order ini sudah tidak bisa dibayar karena statusnya "' . $model->status_pembayaran . '".'
-            );
-        }
+        if ($menungguKasir) {
+            $sisaDetik = 0;
+        } else {
+            if (in_array($model->status_pembayaran, ['paid', 'processing'], true)) {
+                return redirect()->route('struk.render', ['id' => $orderHex]);
+            }
 
-        // Order yang sudah lewat batas waktu tidak boleh dibayar: file sudah
-        // dihapus dari server, jadi user dikembalikan ke beranda.
-        if ($this->kedaluwarsa->sudahKadaluarsa($model)) {
-            $pesan = $this->kedaluwarsa->pesanKadaluarsa($model);
-            $this->kedaluwarsa->kadaluarsakan($model);
-            $request->session()->forget(UploadTerjadwalController::SESSION_KEY);
+            if ($model->status_pembayaran !== 'pending') {
+                return redirect('/')->with(
+                    'error',
+                    'Order ini sudah tidak bisa dibayar karena statusnya "' . $model->status_pembayaran . '".'
+                );
+            }
 
-            return redirect('/')->with('error', $pesan);
-        }
+            // Order yang sudah lewat batas waktu tidak boleh dibayar: file sudah
+            // dihapus dari server, jadi user dikembalikan ke beranda.
+            if ($this->kedaluwarsa->sudahKadaluarsa($model)) {
+                $pesan = $this->kedaluwarsa->pesanKadaluarsa($model);
+                $this->kedaluwarsa->kadaluarsakan($model);
+                $request->session()->forget(UploadTerjadwalController::SESSION_KEY);
 
-        // Hitung mundur 20 menit dimulai saat halaman konfirmasi dibuka.
-        // tandaiBayar() tidak menimpa waktu yang sudah tercatat, jadi reload
-        // halaman tidak menambah waktu bayar.
-        $this->kedaluwarsa->tandaiBayar($model);
-        $model->refresh();
+                return redirect('/')->with('error', $pesan);
+            }
 
-        $batasBayar = $model->tanggal_bayar
-            ? $model->tanggal_bayar->copy()->addMinutes(KedaluwarsaOrder::BATAS_BAYAR_MENIT)
-            : null;
+            // Hitung mundur 20 menit dimulai saat halaman konfirmasi dibuka.
+            // tandaiBayar() tidak menimpa waktu yang sudah tercatat, jadi reload
+            // halaman tidak menambah waktu bayar.
+            $this->kedaluwarsa->tandaiBayar($model);
+            $model->refresh();
 
-        $sisaDetik = $batasBayar ? max(0, $batasBayar->getTimestamp() - now()->getTimestamp()) : 0;
+            $batasBayar = $model->tanggal_bayar
+                ? $model->tanggal_bayar->copy()->addMinutes(KedaluwarsaOrder::BATAS_BAYAR_MENIT)
+                : null;
 
-        if ($sisaDetik <= 0) {
-            $pesan = $this->kedaluwarsa->pesanKadaluarsa($model);
-            $this->kedaluwarsa->kadaluarsakan($model);
+            $sisaDetik = $batasBayar ? max(0, $batasBayar->getTimestamp() - now()->getTimestamp()) : 0;
 
-            return redirect('/')->with('error', $pesan);
+            if ($sisaDetik <= 0) {
+                $pesan = $this->kedaluwarsa->pesanKadaluarsa($model);
+                $this->kedaluwarsa->kadaluarsakan($model);
+
+                return redirect('/')->with('error', $pesan);
+            }
         }
 
         $files = File::where('order_id', $model->id)
@@ -118,6 +128,8 @@ class KonfirmasiPembayaranController extends Controller
             'total'              => $total,
             'sisa_detik'         => $sisaDetik,
             'tanggal_ambil'      => $model->tanggal_ambil?->translatedFormat('d M Y, H:i'),
+            'menunggu_kasir'     => $menungguKasir,
+            'metode_terpilih'    => $menungguKasir ? 'kasir' : null,
         ];
 
         $semuaMetode = [
@@ -148,6 +160,73 @@ class KonfirmasiPembayaranController extends Controller
         };
 
         return view('order-konfirmasi', compact('order', 'files', 'metode'));
+    }
+
+    /**
+     * Pilihan "Bayar di Kasir": order langsung dipindahkan ke status
+     * "processing" dan pembayarannya dikonfirmasi langsung oleh penjual.
+     *
+     * Halaman/tujuan setelah ini belum dibuat; untuk sekarang cukup status
+     * order yang berubah.
+     */
+    public function bayarDiKasir(Request $request, string $order_id)
+    {
+        $model = $this->kedaluwarsa->cariDariHex($order_id);
+
+        if ($model === null) {
+            return response()->json(['message' => 'Order tidak ditemukan.'], 404);
+        }
+
+        $session = $request->session()->get(UploadTerjadwalController::SESSION_KEY);
+
+        if (!is_array($session) || ($session['orderid'] ?? null) !== $order_id) {
+            return response()->json(
+                ['message' => 'Sesi pembayaran tidak cocok. Silakan upload ulang file Anda.'],
+                403
+            );
+        }
+
+        // Sudah dipilih sebelumnya: jangan ubah apa-apa lagi.
+        if ($model->status_pembayaran === 'processing' && $model->metode_pembayaran === 'kasir') {
+            return response()->json([
+                'status' => 'processing',
+                'message' => 'Pesanan sudah diteruskan ke kasir.',
+            ]);
+        }
+
+        if ($this->kedaluwarsa->sudahKadaluarsa($model)) {
+            $pesan = $this->kedaluwarsa->pesanKadaluarsa($model);
+            $this->kedaluwarsa->kadaluarsakan($model);
+
+            return response()->json(['message' => 'Tidak bisa memilih bayar di kasir. ' . $pesan], 410);
+        }
+
+        if ($model->status_pembayaran !== 'pending') {
+            return response()->json([
+                'message' => 'Order ini tidak bisa dibayar karena statusnya "' . $model->status_pembayaran . '".',
+            ], 409);
+        }
+
+        // Klaim atomik: hanya order yang masih pending yang diubah.
+        $diubah = Order::where('id', $model->id)
+            ->where('status_pembayaran', 'pending')
+            ->update([
+                'status_pembayaran' => 'processing',
+                'metode_pembayaran' => 'kasir',
+                'tanggal_bayar' => $model->tanggal_bayar ?? now(),
+            ]);
+
+        if ($diubah === 0) {
+            return response()->json(
+                ['message' => 'Status order sudah berubah. Silakan muat ulang halaman.'],
+                409
+            );
+        }
+
+        return response()->json([
+            'status' => 'processing',
+            'message' => 'Pesanan diteruskan ke kasir. Pembayaran dikonfirmasi langsung oleh penjual.',
+        ]);
     }
 
     /**

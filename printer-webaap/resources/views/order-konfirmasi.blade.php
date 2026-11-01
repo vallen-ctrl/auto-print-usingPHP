@@ -85,19 +85,27 @@
         id="halaman-konfirmasi"
         data-order-id="{{ $order['id'] }}"
         data-token-url="{{ route('create.snap.token') }}"
+        data-kasir-url="{{ route('order.konfirmasi.kasir', ['order_id' => $order['id']]) }}"
         data-status-url="{{ route('order.struk', ['id' => $order['id']]) }}"
         data-struk-url="{{ route('struk.render', ['id' => $order['id']]) }}"
-        data-sisa-detik="{{ $order['sisa_detik'] }}">
+        data-sisa-detik="{{ $order['sisa_detik'] }}"
+        data-menunggu-kasir="{{ $order['menunggu_kasir'] ? '1' : '0' }}">
         <h1 class="page-title">Konfirmasi Pembayaran</h1>
 
-        <p class="timer-bayar" id="timer-bayar" role="timer">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="8.5" />
-                <path d="M12 7.5V12l3 2" />
-            </svg>
-            <span>Sisa waktu pembayaran</span>
-            <strong id="sisa-waktu">{{ gmdate('i:s', $order['sisa_detik']) }}</strong>
-        </p>
+        @if ($order['menunggu_kasir'])
+            <p class="status-notice" role="status">
+                Pesanan sudah diteruskan ke kasir. Pembayaran dikonfirmasi langsung oleh penjual.
+            </p>
+        @else
+            <p class="timer-bayar" id="timer-bayar" role="timer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="8.5" />
+                    <path d="M12 7.5V12l3 2" />
+                </svg>
+                <span>Sisa waktu pembayaran</span>
+                <strong id="sisa-waktu">{{ gmdate('i:s', $order['sisa_detik']) }}</strong>
+            </p>
+        @endif
 
         <div class="content">
             <div class="kolom">
@@ -151,11 +159,12 @@
 
                         <div class="pay-list" role="radiogroup" aria-labelledby="judul-metode">
                             @foreach ($metode as $opsi)
+                                @php $aktif = ($order['metode_terpilih'] ?? $metode[0]['id']) === $opsi['id']; @endphp
                                 <div
-                                    class="pay-option {{ $loop->first ? 'is-selected' : '' }}"
+                                    class="pay-option {{ $aktif ? 'is-selected' : '' }}"
                                     role="radio"
-                                    aria-checked="{{ $loop->first ? 'true' : 'false' }}"
-                                    tabindex="{{ $loop->first ? '0' : '-1' }}"
+                                    aria-checked="{{ $aktif ? 'true' : 'false' }}"
+                                    tabindex="{{ $aktif ? '0' : '-1' }}"
                                     data-metode="{{ $opsi['id'] }}"
                                     data-label-cta="{{ $opsi['cta'] }}">
 
@@ -257,11 +266,15 @@
                 @endif
             </div>
 
-            <wired-button roughness="1.2" elevation="2" class="btn-bayar" id="btn-bayar">
+            <wired-button roughness="1.2" elevation="2" class="btn-bayar" id="btn-bayar" @if ($order['menunggu_kasir']) disabled @endif>
                 <span class="cta-labels">
-                    @foreach ($metode as $opsi)
-                        <span class="cta-label" data-cta="{{ $opsi['id'] }}" @if (!$loop->first) data-nonaktif="true" @endif>{{ $opsi['cta'] }}</span>
-                    @endforeach
+                    @if ($order['menunggu_kasir'])
+                        <span class="cta-label">Menunggu konfirmasi kasir</span>
+                    @else
+                        @foreach ($metode as $opsi)
+                            <span class="cta-label" data-cta="{{ $opsi['id'] }}" @if (!$loop->first) data-nonaktif="true" @endif>{{ $opsi['cta'] }}</span>
+                        @endforeach
+                    @endif
                 </span>
             </wired-button>
         </div>

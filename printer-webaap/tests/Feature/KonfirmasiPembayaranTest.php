@@ -139,3 +139,62 @@ test('order id yang tidak dikenal kembali ke beranda', function () {
         ->assertRedirect('/')
         ->assertSessionHas('error');
 });
+
+test('memilih bayar di kasir mengubah status order menjadi processing', function () {
+    $order = buatOrderKonfirmasiPembayaran();
+    $hex = bin2hex($order->id);
+
+    $this->withSession(['terjadwal_order' => ['orderid' => $hex]])
+        ->postJson(route('order.konfirmasi.kasir', ['order_id' => $hex]))
+        ->assertOk()
+        ->assertJsonPath('status', 'processing');
+
+    $tersimpan = $order->fresh();
+
+    expect($tersimpan->status_pembayaran)->toBe('processing')
+        ->and($tersimpan->metode_pembayaran)->toBe('kasir');
+});
+
+test('order yang sudah dipilih bayar di kasir menampilkan keadaan menunggu kasir', function () {
+    $this->withoutVite();
+
+    $order = buatOrderKonfirmasiPembayaran('processing');
+    DB::table('orders')->where('id', $order->id)->update(['metode_pembayaran' => 'kasir']);
+    fileKonfirmasiPembayaran($order, 'orders/konfirmasi/kasir.pdf', 'kilat-langsung');
+
+    $response = $this->get(route('order.konfirmasi', ['order_id' => bin2hex($order->id)]));
+
+    $response->assertOk()
+        ->assertSee('Pesanan sudah diteruskan ke kasir')
+        ->assertSee('Menunggu konfirmasi kasir')
+        ->assertDontSee('id="timer-bayar"', false);
+});
+
+test('bayar di kasir tanpa sesi pembayaran ditolak', function () {
+    $order = buatOrderKonfirmasiPembayaran();
+
+    $this->postJson(route('order.konfirmasi.kasir', ['order_id' => bin2hex($order->id)]))
+        ->assertStatus(403);
+
+    expect($order->fresh()->status_pembayaran)->toBe('pending');
+});
+
+test('bayar di kasir pada order kedaluwarsa ditolak dan file dihapus', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('orders/konfirmasi/lama.pdf', 'isi pdf');
+
+    $order = buatOrderKonfirmasiPembayaran(
+        'pending',
+        now()->subMinutes(KedaluwarsaOrder::BATAS_BAYAR_MENIT + 1)
+    );
+    $file = fileKonfirmasiPembayaran($order, 'orders/konfirmasi/lama.pdf');
+    $hex = bin2hex($order->id);
+
+    $this->withSession(['terjadwal_order' => ['orderid' => $hex]])
+        ->postJson(route('order.konfirmasi.kasir', ['order_id' => $hex]))
+        ->assertStatus(410);
+
+    expect($order->fresh()->status_pembayaran)->toBe('failed')
+        ->and(File::find($file->id))->toBeNull();
+    Storage::disk('local')->assertMissing('orders/konfirmasi/lama.pdf');
+});
