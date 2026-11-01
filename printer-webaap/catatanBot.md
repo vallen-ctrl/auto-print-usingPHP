@@ -1,6 +1,6 @@
 Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/struk-wired` (commit `b90217d`)
+Branch at time of writing: `fitur/struk-wired` (commit `30aa474`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
@@ -129,6 +129,10 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran|
   `totalHalamanAktif`) dan untuk semua file saat tombol "Lanjut proses pembayaran" diklik
   (modal `modal-halaman`). Klik tombol juga langsung berhenti kalau validasi field gagal.
 - Flag `sedangMengirim` + `tombolBayar.disabled` mencegah klik ganda mengirim dua request.
+- `id_paper` diisi dari radio ukuran yang cocok saat inisialisasi (data upload tidak membawa
+  id_paper), plus cadangan saat submit; kalau tetap kosong muncul modal "Ukuran kertas belum
+  dipilih" (sebelumnya server menolak dengan "files.0.id_paper required"). Warna default/fallback
+  selalu `hitam putih`.
 
 ### `resources/js/pages/order-konfirmasi.js` (changed)
 - Countdown 20 menit; 00:00 -> tombol mati + `modal-kadaluarsa`.

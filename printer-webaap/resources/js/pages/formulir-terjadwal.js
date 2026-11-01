@@ -443,7 +443,20 @@ if (fileCombo && fileKosong && kolomPengaturan.orientasi) {
 
         // Gabungkan konfigurasi tersimpan (termasuk id & total_pages dari server)
         // dengan nilai awal, supaya kolom yang belum tersimpan tetap punya default.
-        pengaturanPerFile.set(name, { ...pengaturanAwal(), ...(simpanan[name] || {}) });
+        const awal = { ...pengaturanAwal(), ...(simpanan[name] || {}) };
+
+        // id_paper tidak disimpan oleh halaman upload. Ambil dari radio ukuran
+        // yang namanya cocok dengan pilihan ukuran file ini, supaya validasi
+        // "files.*.id_paper required" tidak gagal saat user tidak mengubah apa pun.
+        if (!awal.id_paper) {
+            const radio = cariRadioUkuran(awal.ukuran);
+            awal.id_paper = radio ? radio.id : null;
+        }
+
+        // Warna default selalu hitam putih kalau data lama tidak valid/kosong.
+        awal.warna = warnaSah(awal.warna) || 'hitam putih';
+
+        pengaturanPerFile.set(name, awal);
     });
 
     if (namaFile.length > 0) {
@@ -733,7 +746,29 @@ if (inputWhatsapp && inputTanggal && inputPukul && inputHalaman) {
 
                 const berkas = Array.isArray(localStorageSaved.files) ? localStorageSaved.files : [];
 
+                // Cadangan: kalau data lama belum punya id_paper, cocokkan dari
+                // nama ukuran pada radio kertas.
+                const petaPaper = new Map(
+                    Array.from(document.querySelectorAll('#grup-ukuran wired-radio')).map((radio) => [
+                        (radio.getAttribute('name') || '').toLowerCase(),
+                        radio.id,
+                    ])
+                );
+
                 for (const berkasItem of berkas) {
+                    if (!berkasItem.id_paper) {
+                        berkasItem.id_paper = petaPaper.get(String(berkasItem.ukuran || '').toLowerCase()) || null;
+                    }
+
+                    if (!berkasItem.id_paper) {
+                        bukaModal('modal-halaman', {
+                            type: 'error',
+                            title: 'Ukuran kertas belum dipilih',
+                            message: 'Pilih ukuran kertas untuk file "' + (berkasItem.name || 'tanpa nama') + '".',
+                        });
+                        return;
+                    }
+
                     const pesanHalaman = validasiHalaman(berkasItem.halaman, berkasItem.total_pages);
 
                     if (pesanHalaman) {
