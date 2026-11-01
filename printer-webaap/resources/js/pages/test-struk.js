@@ -1,8 +1,7 @@
 import 'wired-elements/lib/wired-card.js';
 import 'wired-elements/lib/wired-button.js';
 import 'wired-elements/lib/wired-divider.js';
-import '../wired/sketch.js';
-import '../shared/navigate.js';
+import { refreshSketches } from '../wired/sketch.js';
 import { bukaModal } from '../shared/modal.js';
 
 /* ---------- Elemen halaman ---------- */
@@ -24,6 +23,8 @@ const statusText = document.getElementById('statusText');
 const errorText = document.getElementById('errorText');
 const orderIdEl = document.getElementById('orderId');
 const btnUnduh = document.getElementById('btn-unduh');
+const btnSalin = document.getElementById('btn-salin');
+const salinStatus = document.getElementById('salin-status');
 
 const pathParts = window.location.pathname.split('/');
 const orderId = pathParts[pathParts.length - 1];
@@ -85,6 +86,38 @@ const gambarQr = () => {
         });
     } catch (error) {
         // QR gagal dibuat (mis. CDN tidak termuat): struk tetap tampil.
+    }
+};
+
+const salinUrlStruk = async () => {
+    const url = window.location.href;
+
+    try {
+        await navigator.clipboard.writeText(url);
+    } catch (error) {
+        // Fallback untuk browser yang tidak memberi izin clipboard.
+        const area = document.createElement('textarea');
+        area.value = url;
+        area.setAttribute('readonly', '');
+        area.style.position = 'fixed';
+        area.style.opacity = '0';
+        document.body.appendChild(area);
+        area.select();
+
+        try {
+            document.execCommand('copy');
+        } catch (fallbackError) {
+            // Gagal menyalin: biarkan saja.
+        }
+
+        area.remove();
+    }
+
+    if (salinStatus) {
+        salinStatus.hidden = false;
+        window.setTimeout(() => {
+            salinStatus.hidden = true;
+        }, 2500);
     }
 };
 
@@ -155,6 +188,11 @@ const tampilkanStruk = (data) => {
 
     strukCard.hidden = false;
     btnUnduh.hidden = false;
+    btnSalin.hidden = false;
+
+    // Wired elements sempat digambar saat kartu masih tersembunyi (lebar 0),
+    // jadi gambar ulang setelah kartu tampil supaya garis divider ikut muncul.
+    requestAnimationFrame(refreshSketches);
 
     // Ingatkan user menyimpan struknya.
     bukaModal('modal-struk');
@@ -222,6 +260,16 @@ const poll = async () => {
 };
 
 /* ---------- Mulai ---------- */
+
+document.getElementById('btn-kembali')?.addEventListener('click', () => {
+    bukaModal('modal-keluar');
+});
+
+document.getElementById('btn-keluar')?.addEventListener('click', () => {
+    window.location.href = '/';
+});
+
+btnSalin?.addEventListener('click', salinUrlStruk);
 
 if (!orderId || orderId === 'struk' || orderId === '') {
     tampilkanError('Order ID tidak ditemukan di URL');

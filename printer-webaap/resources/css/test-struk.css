@@ -61,44 +61,64 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-/* ---------- Kepala halaman ---------- */
+/* ---------- Kepala halaman: kembali + logo jasa & nama print ---------- */
 
 .site-header {
     width: 100%;
-    max-width: 420px;
-    margin: 0 auto;
     padding: var(--space-4);
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: var(--space-3);
+}
+
+.site-header-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-left: auto;
 }
 
 wired-button.back-button {
     flex: none;
     display: inline-grid;
     place-items: center;
-    min-width: 44px;
     min-height: 44px;
     color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--fs-caption);
 }
 
 .back-icon {
-    width: 20px;
-    height: 20px;
+    width: 14px;
+    height: 14px;
+    margin-right: var(--space-1);
+    vertical-align: -2px;
 }
 
 .logo-placeholder {
-    display: inline-flex;
+    flex: none;
+    display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 64px;
-    height: 36px;
-    padding: 0 var(--space-2);
-    border: 1.5px solid var(--color-border);
+    width: 52px;
+    height: 46px;
+    padding: var(--space-1);
+    border: 1px solid var(--color-border);
     border-radius: 10px;
     color: var(--color-muted);
     font-size: var(--fs-label);
     line-height: 1.2;
+    letter-spacing: 0.03em;
+    text-align: center;
+}
+
+.brand-name {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: var(--fs-h3);
+    line-height: 1.3;
+    letter-spacing: -0.005em;
 }
 
 /* ---------- Isi ---------- */
@@ -197,7 +217,12 @@ wired-card.status-card {
 wired-divider.divider {
     display: block;
     width: 100%;
-    margin: var(--space-3) 0;
+    height: 0;
+    margin: var(--space-4) 0;
+    border-top: 1.5px dashed var(--color-border);
+    /* Garis sketsa bawaan dibuat transparan; yang tampil garis putus-putus
+       seperti desain struk. */
+    color: transparent;
 }
 
 /* ---------- Daftar file ---------- */
@@ -239,13 +264,20 @@ wired-divider.divider {
 
 /* ---------- Tombol ---------- */
 
+.actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-1);
+}
+
 wired-button.btn-unduh {
-    align-self: center;
     display: inline-grid;
     place-items: center;
-    min-width: 200px;
+    width: 100%;
+    max-width: 320px;
     min-height: 44px;
-    margin-top: var(--space-1);
     color: var(--color-text);
     font-family: var(--font-body);
     font-size: var(--fs-body);
@@ -256,6 +288,13 @@ wired-button.btn-unduh {
 .btn-label {
     text-transform: none;
     letter-spacing: 0.01em;
+}
+
+.copy-status {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: var(--fs-caption);
+    text-align: center;
 }
 
 /* ---------- Status / error ---------- */
@@ -313,8 +352,35 @@ wired-button:not(.wired-rendered) {
 
 /* ---------- Tablet ---------- */
 
+@media (min-width: 560px) {
+    .actions {
+        flex-direction: row;
+        justify-content: center;
+    }
+
+    wired-button.btn-unduh {
+        width: auto;
+        min-width: 200px;
+    }
+}
+
 @media (min-width: 768px) {
-    .site-header,
+    .site-header {
+        gap: var(--space-4);
+        padding: var(--space-6) var(--space-8);
+    }
+
+    .logo-placeholder {
+        width: 64px;
+        height: 56px;
+        border-radius: 12px;
+        font-size: var(--fs-caption);
+    }
+
+    .brand-name {
+        font-size: var(--fs-h2);
+    }
+
     .page {
         max-width: 480px;
     }
@@ -329,12 +395,43 @@ wired-button:not(.wired-rendered) {
 
 @media print {
     .site-header,
-    wired-button.btn-unduh {
+    .actions,
+    .copy-status {
         display: none !important;
     }
 
+    body {
+        min-height: auto;
+        background: #fff;
+    }
+
     .page {
-        max-width: none;
-        padding: 0;
+        max-width: 480px;
+        margin: 0 auto;
+        padding: 0 var(--space-4);
+    }
+
+    /* SVG sketsa wired terskala beda saat print, jadi garis kartu diganti
+       border CSS. Warna host dibuat transparan supaya sketsa lama tidak
+       ikut tercetak, lalu isi kartu dikembalikan ke warna teks. */
+    wired-card.struk {
+        color: transparent;
+        border: 1px solid #000;
+        border-radius: 12px;
+    }
+
+    .struk-body {
+        color: var(--color-text);
+        padding: var(--space-4);
+    }
+
+    .qr-wrap #qrcode img,
+    .qr-wrap #qrcode canvas {
+        width: 150px !important;
+        height: 150px !important;
+    }
+
+    wired-divider.divider {
+        border-top: 1px dashed #000;
     }
 }

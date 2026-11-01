@@ -23,20 +23,33 @@
         title="Simpan struk ini"
         message="Unduh atau screenshot struk ini sekarang. Tanpa struk, file yang sudah dipesan akan sulit untuk dicari kembali." />
 
+    {{-- Konfirmasi sebelum keluar dari halaman struk. --}}
+    <x-modal id="modal-keluar" type="warning" title="Keluar dari struk?">
+        Pastikan kamu sudah screenshot atau menyimpan struk ini, atau salin URL-nya. Kalau keluar
+        tanpa menyimpannya, pesanan akan sulit dicari.
+        <x-slot:actions>
+            <wired-button roughness="1.2" elevation="1" data-modal-close>Tetap di sini</wired-button>
+            <wired-button roughness="1.2" elevation="2" id="btn-keluar">Ya, keluar</wired-button>
+        </x-slot:actions>
+    </x-modal>
+
     <header class="site-header">
         <wired-button
             roughness="1.2"
             elevation="1"
             id="btn-kembali"
             class="back-button"
-            data-href="{{ url('/') }}"
             aria-label="Kembali">
             <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M15 5 8 12l7 7" />
             </svg>
+            Kembali
         </wired-button>
 
-        <span class="logo-placeholder" role="img" aria-label="Logo jasa">logo jasa</span>
+        <div class="site-header-brand">
+            <span class="logo-placeholder" role="img" aria-label="Logo jasa">logo jasa</span>
+            <p class="brand-name">nama print</p>
+        </div>
     </header>
 
     <main class="page">
@@ -125,9 +138,17 @@
             </div>
         </wired-card>
 
-        <wired-button roughness="1.2" elevation="2" id="btn-unduh" class="btn-unduh" hidden>
-            <span class="btn-label">Unduh Sekarang</span>
-        </wired-button>
+        <div class="actions">
+            <wired-button roughness="1.2" elevation="2" id="btn-unduh" class="btn-unduh" hidden>
+                <span class="btn-label">Unduh Sekarang</span>
+            </wired-button>
+
+            <wired-button roughness="1.2" elevation="1" id="btn-salin" class="btn-unduh" hidden>
+                <span class="btn-label">Salin URL Struk</span>
+            </wired-button>
+        </div>
+
+        <p class="copy-status" id="salin-status" role="status" hidden>URL struk disalin.</p>
     </main>
 
     @stack('scripts')

@@ -1,6 +1,6 @@
 Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/struk-wired` (commit `9448a7b`)
+Branch at time of writing: `fitur/struk-wired` (commit `b90217d`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
@@ -165,12 +165,19 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran|
   untuk edit (timer direset); order paid tidak bisa diedit.
 
 ### `resources/views/test_struk.blade.php` (redesigned)
+- Header mengikuti `upload-terjadwal`: tombol "Kembali" di kiri, logo jasa + "nama print" di kanan.
 - Memakai `wired-card`, `wired-button`, `wired-divider`; CSS/JS lewat Vite
   (`resources/css/test-struk.css`, `resources/js/pages/test-struk.js`).
 - QR dibuat di browser dengan qrcodejs (CDN), berisi URL halaman struk.
-- Modal `x-modal` `modal-struk` ("Simpan struk ini") dibuka otomatis saat struk tampil.
+- Modal `x-modal` `modal-struk` ("Simpan struk ini") dibuka otomatis saat struk tampil;
+  `modal-keluar` ("Keluar dari struk?") dibuka dari tombol Kembali, aksi "Ya, keluar" ke `/`.
+- Tombol "Salin URL Struk" menyalin `window.location.href` (clipboard + fallback) dan menampilkan
+  status "URL struk disalin.".
 - Order ID memakai `--fs-body` + `word-break: break-all` (sebelumnya terlalu kecil).
+- Garis pemisah: `wired-divider` dengan garis putus-putus CSS (sketsa bawaan dibuat transparan).
 - Tombol "Unduh Sekarang" memanggil `window.print()` (simpan PDF/screenshot).
+- Print: header/tombol disembunyikan, `.page` max 480px, border kartu memakai CSS
+  (SVG sketsa wired terskala beda saat print), QR 150px, divider tetap putus-putus.
 
 ### `resources/css/test-struk.css` (new)
 - Token & font sama dengan halaman sketsa lain; mobile-first; aturan print menyembunyikan
@@ -179,6 +186,13 @@ Tes: `php artisan test --filter="KonfirmasiPembayaran|OrderKadaluarsaPembayaran|
 ### `resources/js/pages/test-struk.js` (new)
 - Poll `/struk/order/{id}` tiap 3 detik; toleransi 404 maksimal 5x; render struk saat `paid`;
   tampilkan error saat failed/refunded; `localStorage.clear()` saat paid; buka `modal-struk` sekali.
+- Setelah kartu struk ditampilkan, `refreshSketches()` dipanggil supaya garis `wired-divider`
+  (yang sempat digambar saat kartu tersembunyi) ikut muncul.
+- Klik Kembali membuka `modal-keluar`; aksi "Ya, keluar" ke `/`. Tombol "Salin URL Struk"
+  menyalin URL dengan `navigator.clipboard` + fallback `execCommand`.
+
+### `resources/js/wired/sketch.js` (changed)
+- `wired-divider` ditambahkan ke `sketsaSelector` supaya ikut digambar ulang saat ukuran berubah.
 
 ### `vite.config.js` (changed)
 - Entry `resources/css/test-struk.css` dan `resources/js/pages/test-struk.js`.
