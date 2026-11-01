@@ -690,9 +690,13 @@ if (inputWhatsapp && inputTanggal && inputPukul && inputHalaman) {
 
     const tombolBayar = document.getElementById('btn-pembayaran');
     const cetakForm = document.getElementById('form-cetak');
+    let sedangMengirim = false;
 
     if (tombolBayar) {
         tombolBayar.addEventListener('click', (event) => {
+            if (sedangMengirim) {
+                return;
+            }
 
             const kolom = [inputWhatsapp, inputTanggal, inputPukul, inputHalaman];
             const hasil = [periksaWhatsapp(), periksaTanggal(), periksaPukul(), periksaHalaman()];
@@ -747,6 +751,11 @@ if (inputWhatsapp && inputTanggal && inputPukul && inputHalaman) {
                         el.remove();
                     }
                 });
+
+                // Kunci tombol supaya klik ganda tidak mengirim dua request.
+                sedangMengirim = true;
+                tombolBayar.disabled = true;
+
                 const urlParams = new URLSearchParams(window.location.search);
                 const dataBaru = {
                     orderid: urlParams.get('order'),

@@ -41,6 +41,12 @@ class FormulirTerjadwalController extends Controller
                 return redirect('/')->with('error', $pesan);
             }
 
+            // Order sudah disubmit (sudah sampai tahap pembayaran): jangan
+            // tampilkan formulir lagi, misalnya setelah user menekan tombol back.
+            if ($orderModel->session_id !== null || (int) $orderModel->total_pembayaran > 0) {
+                return redirect()->route('order.konfirmasi', ['order_id' => bin2hex($orderModel->id)]);
+            }
+
             // Order id disimpan/segarkan di session supaya order ini tetap
             // melekat selama user belum membuka halaman upload.
             $request->session()->put(UploadTerjadwalController::SESSION_KEY, $order);

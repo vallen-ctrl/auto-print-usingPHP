@@ -281,7 +281,24 @@ class OrderController extends Controller
                 return redirect('/')->with("error", $pesan);
             }
 
+            // Order yang sudah pernah disubmit jangan diproses ulang, misalnya
+            // saat user menekan tombol back lalu "Lanjut proses pembayaran" lagi.
+            if ($orderModel->session_id !== null || (int) $orderModel->total_pembayaran > 0) {
+                return redirect()->route('order.konfirmasi', ['order_id' => $orderid]);
+            }
+
             DB::transaction(function () use (&$TotalSemua, &$validated, $files, $request, $orderSession, $getBiaya) {
+                $orderTerkunci = Order::whereKey(hex2bin($orderSession["orderid"]))
+                    ->lockForUpdate()
+                    ->first();
+
+                // Sudah disubmit oleh request lain (mis. klik ganda): hentikan.
+                if ($orderTerkunci === null
+                    || $orderTerkunci->session_id !== null
+                    || (int) $orderTerkunci->total_pembayaran > 0) {
+                    return;
+                }
+
                 $filesOnRequest = $validated["files"];
 
                 $TotalSemua = 0 + $getBiaya->biaya_admin;
@@ -295,8 +312,8 @@ class OrderController extends Controller
                     $filesId = $value["id"];
                     $filesOnSession = $orderSession["files"][$filesId] ?? null;
 
-                    if ($filesOnSession["id"] == null) {
-                        return redirect()->back()->with("error", "Id di filessession yang tersimpan tidak sama");
+                    if (($filesOnSession["id"] ?? null) === null) {
+                        throw new \InvalidArgumentException("Id di filessession yang tersimpan tidak sama");
                     }
 
                     $totalPages = $filesOnSession["total_pages"];
@@ -321,7 +338,9 @@ class OrderController extends Controller
                     $totalPagesToPrint = count($halamanDicetak);
 
                     if ($totalPagesToPrint > $totalPages) {
-                        return redirect()->back()->with("error", "Jumlah pages yang anda isi di costume halaman tidak sesuai dengan total pages yang akan anda kirim");
+                        throw new \InvalidArgumentException(
+                            "Jumlah pages yang anda isi di costume halaman tidak sesuai dengan total pages yang akan anda kirim"
+                        );
                     }
 
                     $paper = Paper::findOrFail($value["id_paper"]);
@@ -336,6 +355,9 @@ class OrderController extends Controller
                             $subTotal += ($paper->harga_grayscale * $banyakHalaman);
                             break;
                     }
+
+                    // Buang pilihan paket lama supaya submit ulang tidak menggandakan.
+                    LayananTerpilih::where("files_id", hex2bin($value["id"]))->delete();
 
                     foreach (($value["paket"] ?? []) as $idLayanan) {
                         $layanan = Layanan::findOrFail($idLayanan);
@@ -353,28 +375,34 @@ class OrderController extends Controller
                             "subtotal" => $subTotal,
                         ]);
 
-                    Configuration::create([
-                        'file_id' => hex2bin($value["id"]),
-                        'orientasi' => $value["orientasi"],
-                        'warna' => $value["warna"],
-                        'ukuran' => $paper->name,
-                        'kualitas' => $value["kualitas"],
-                        'jumlah_cetak' => $value["jumlah"],
-                        'custom_halaman' => $value["halaman"],
-                        'catatan_tambahan' => $value["catatan"],
-                        'paper_id' => $value["id_paper"],
-                        'pages_toprint' => $totalPagesToPrint,
-                    ]);
+                    Configuration::updateOrCreate(
+                        ['file_id' => hex2bin($value["id"])],
+                        [
+                            'orientasi' => $value["orientasi"],
+                            'warna' => $value["warna"],
+                            'ukuran' => $paper->name,
+                            'kualitas' => $value["kualitas"],
+                            'jumlah_cetak' => $value["jumlah"],
+                            'custom_halaman' => $value["halaman"],
+                            'catatan_tambahan' => $value["catatan"],
+                            'paper_id' => $value["id_paper"],
+                            'pages_toprint' => $totalPagesToPrint,
+                        ]
+                    );
 
                     $TotalSemua += $subTotal;
                     $validated["files"][$index]["subtotal"] = $subTotal;
                 }
 
-                User::create([
-                    "sessionid" => $orderSession["sessionid"],
-                    "name" => $validated["nama"],
-                    "no_wa" => $validated["no_wa"]
-                ]);
+                // updateOrCreate: submit ulang (back button/klik ganda) tidak
+                // boleh gagal karena user dengan sessionid yang sama sudah ada.
+                User::updateOrCreate(
+                    ["sessionid" => $orderSession["sessionid"]],
+                    [
+                        "name" => $validated["nama"],
+                        "no_wa" => $validated["no_wa"]
+                    ]
+                );
 
                 Order::findOrFail(hex2bin($orderSession["orderid"]))
                     ->update([

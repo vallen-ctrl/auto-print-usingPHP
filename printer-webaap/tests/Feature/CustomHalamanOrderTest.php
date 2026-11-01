@@ -3,6 +3,7 @@
 use App\Http\Controllers\UploadTerjadwalController;
 use App\Models\Configuration;
 use App\Models\Paper;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -123,4 +124,30 @@ test('range halaman yang melewati total halaman file ditolak', function () {
     $response->assertRedirect()->assertSessionHas('error');
 
     expect(session('error'))->toContain('melebihi total halaman file');
+});
+
+test('submit ulang setelah berhasil tidak membuat user dan konfigurasi ganda', function () {
+    [$orderHex, $fileHex, $session] = siapkanOrderHalaman(3);
+    $payload = payloadOrderHalaman($orderHex, $fileHex, '1,2,3');
+
+    $this->withSession($session)->post(route('create.order'), $payload)
+        ->assertRedirect(route('order.konfirmasi', ['order_id' => $orderHex]));
+
+    // Simulasi user menekan back lalu "Lanjut proses pembayaran" lagi.
+    $this->withSession($session)->post(route('create.order'), $payload)
+        ->assertRedirect(route('order.konfirmasi', ['order_id' => $orderHex]));
+
+    expect(User::where('sessionid', 'sesi-uji')->count())->toBe(1)
+        ->and(Configuration::count())->toBe(1);
+});
+
+test('formulir order yang sudah disubmit diarahkan ke halaman konfirmasi', function () {
+    [$orderHex, $fileHex, $session] = siapkanOrderHalaman(3);
+
+    $this->withSession($session)
+        ->post(route('create.order'), payloadOrderHalaman($orderHex, $fileHex, '1,2,3'));
+
+    $this->withSession($session)
+        ->get(route('formulir.terjadwal', ['order' => $orderHex]))
+        ->assertRedirect(route('order.konfirmasi', ['order_id' => $orderHex]));
 });
