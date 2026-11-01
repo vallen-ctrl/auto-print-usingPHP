@@ -158,41 +158,69 @@ const tampilkanGagal = (pesan) => {
     });
 };
 
-// Setelah popup Snap selesai, minta server memverifikasi transaksi ke Midtrans
-// (halaman status juga mengecek ulang setelah redirect).
+// Setelah popup Snap selesai, minta server memverifikasi transaksi ke Midtrans.
+// Endpoint sesekali belum menemukan transaksi tepat setelah pembayaran, jadi
+// dicoba beberapa kali sebelum pindah halaman.
 const cekStatusPembayaran = async () => {
     if (!statusUrl) {
-        return;
+        return null;
     }
 
     try {
-        await fetch(statusUrl, {
+        const respons = await fetch(statusUrl, {
             headers: { Accept: 'application/json' },
             cache: 'no-store',
         });
+
+        if (!respons.ok) {
+            return null;
+        }
+
+        const data = await respons.json().catch(() => null);
+
+        return data?.status ?? null;
     } catch (error) {
-        // Diabaikan: halaman status akan mengecek ulang.
+        return null;
     }
+};
+
+const tungguStatusTercatat = async (maksimalPercobaan = 5) => {
+    for (let percobaan = 0; percobaan < maksimalPercobaan; percobaan += 1) {
+        const status = await cekStatusPembayaran();
+
+        if (status) {
+            return status;
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 900));
+    }
+
+    return null;
+};
+
+const keHalamanStatus = () => {
+    window.location.href = strukUrl || '/';
 };
 
 const bukaSnap = (token) => {
     window.snap.pay(token, {
         onSuccess: async () => {
             pembayaranSelesai = true;
-            await cekStatusPembayaran();
+            await tungguStatusTercatat();
+            keHalamanStatus();
         },
         onPending: async () => {
             pembayaranSelesai = true;
-            await cekStatusPembayaran();
+            await tungguStatusTercatat();
+            keHalamanStatus();
         },
         onError: () => {
             tampilkanGagal('Pembayaran gagal diproses oleh Midtrans. Silakan coba lagi.');
         },
         onClose: () => {
-            // Kalau Midtrans tidak melakukan redirect sendiri, pindah ke halaman
-            // status pembayaran setelah pembayarannya berhasil.
-            if (pembayaranSelesai && strukUrl) {
-                window.location.href = strukUrl;
+            // Cadangan kalau popup ditutup sebelum onSuccess selesai memproses.
+            if (pembayaranSelesai) {
+                keHalamanStatus();
             }
         },
     });

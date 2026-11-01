@@ -1,6 +1,6 @@
 Last updated: 2026-11-01
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `9695662`)
+Branch at time of writing: `fitur/konfirmasi-pembayaran` (commit `b77207e`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
@@ -18,8 +18,9 @@ Yang sudah berjalan di halaman `/order/konfirmasi/{order_id}`:
 
 - Data order/file/biaya dibaca dari database (`KonfirmasiPembayaranController`).
 - Timer 20 menit mulai saat halaman pertama dibuka (`orders.tanggal_bayar`, tidak di-reset reload).
-- QRIS: `POST /order/token` -> `window.snap.pay()` -> cek `/struk/order/{id}` -> fallback ke
-  `/struk/{id}`. Finish Redirect URL diatur di dashboard Midtrans, bukan `callbacks.finish` di kode.
+- QRIS: `POST /order/token` -> `window.snap.pay()`. `onSuccess`/`onPending` menunggu status
+  tercatat (retry singkat ke `/struk/order/{id}`) lalu langsung pindah ke `/struk/{id}`;
+  `onClose` hanya cadangan. Finish Redirect URL tetap bisa diatur di dashboard Midtrans.
 - Bayar di Kasir: `POST /order/konfirmasi/{order_id}/kasir` mengubah
   `status_pembayaran = 'processing'` dan `metode_pembayaran = 'kasir'`. Halaman lalu dimuat ulang,
   menampilkan "Pesanan berhasil" + "Silakan bayar di kasir", tanpa timer, CTA nonaktif
@@ -75,6 +76,8 @@ Tes terkait: `php artisan test --filter=KonfirmasiPembayaran` (11 tes) dan
 ### `resources/js/pages/order-konfirmasi.js` (changed)
 - Countdown 20 menit; 00:00 -> tombol mati + `modal-kadaluarsa`.
 - QRIS: `POST data-token-url` -> `snap.pay`; 410 memakai pesan server + mematikan pembayaran.
+  `onSuccess`/`onPending` -> `tungguStatusTercatat()` (retry 5x @900ms ke `data-status-url`) lalu
+  `window.location.href = data-struk-url`. `onClose` hanya cadangan kalau popup ditutup cepat.
 - Kasir: `POST data-kasir-url` -> modal sukses -> reload halaman (server merender keadaan menunggu).
 - `onSuccess`/`onPending` cek `data-status-url`; `onClose` fallback ke `data-struk-url`.
 - Saat `data-menunggu-kasir="1"` timer tidak jalan dan semua aksi pembayaran dikunci.
