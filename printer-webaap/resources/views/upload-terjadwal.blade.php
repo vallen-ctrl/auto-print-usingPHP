@@ -73,5 +73,20 @@
             </div>
         </div>
     </main>
+
+    {{-- Lapisan loading: ditampilkan selama file dikirim ke server supaya user
+         tahu unggahan benar-benar sedang berjalan. --}}
+    <div class="upload-overlay" id="upload-overlay" role="status" aria-live="polite" hidden>
+        <wired-card roughness="1.2" class="upload-overlay-card">
+            <span class="upload-spinner" aria-hidden="true"></span>
+            <p class="upload-title">Mengunggah file…</p>
+            <p class="upload-sub" id="upload-sub">Mohon tunggu, jangan tutup halaman ini.</p>
+
+            <div class="upload-bar" id="upload-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden>
+                <span class="upload-bar-fill" id="upload-bar-fill"></span>
+            </div>
+            <p class="upload-percent" id="upload-percent" aria-hidden="true" hidden>0%</p>
+        </wired-card>
+    </div>
 </body>
 </html>
