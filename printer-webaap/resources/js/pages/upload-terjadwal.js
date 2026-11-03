@@ -154,9 +154,107 @@ if (pickButton && pdfInput && pdfCount && pdfList && pdfWarning) {
     /* ---------- Lanjutkan ke halaman formulir ---------- */
 
     const lanjutButton = document.getElementById('btn-lanjutkan');
+    const uploadOverlay = document.getElementById('upload-overlay');
+    const uploadSub = document.getElementById('upload-sub');
+    const uploadBar = document.getElementById('upload-bar');
+    const uploadBarFill = document.getElementById('upload-bar-fill');
+    const uploadPercent = document.getElementById('upload-percent');
 
     if (lanjutButton) {
+        const labelAwal = lanjutButton.textContent.trim();
         let mengirim = false;
+
+        // Tampilkan lapisan loading dan ubah tombol, supaya user melihat bahwa
+        // file memang sedang dikirim ke server.
+        const mulaiLoading = (jumlahFile) => {
+            mengirim = true;
+
+            if (uploadOverlay) {
+                uploadSub.textContent = 'Mengunggah ' + jumlahFile + ' file PDF. Jangan tutup halaman ini.';
+                uploadBar.hidden = true;
+                uploadPercent.hidden = true;
+                uploadBarFill.style.width = '0%';
+                uploadBar.setAttribute('aria-valuenow', '0');
+                uploadPercent.textContent = '0%';
+                uploadOverlay.hidden = false;
+            }
+
+            lanjutButton.textContent = 'Mengunggah…';
+            lanjutButton.setAttribute('aria-busy', 'true');
+            lanjutButton.disabled = true;
+        };
+
+        const perbaruiProgres = (persen) => {
+            if (!uploadOverlay) {
+                return;
+            }
+
+            uploadBar.hidden = false;
+            uploadPercent.hidden = false;
+            uploadBarFill.style.width = persen + '%';
+            uploadBar.setAttribute('aria-valuenow', String(persen));
+            uploadPercent.textContent = persen + '%';
+
+            if (persen >= 100) {
+                uploadSub.textContent = 'File terkirim. Menyiapkan halaman formulir…';
+            } else {
+                uploadSub.textContent = 'Mengunggah ' + persen + '% — jangan tutup halaman ini.';
+            }
+        };
+
+        const selesaiLoading = () => {
+            mengirim = false;
+
+            if (uploadOverlay) {
+                uploadOverlay.hidden = true;
+            }
+
+            lanjutButton.textContent = labelAwal;
+            lanjutButton.removeAttribute('aria-busy');
+            lanjutButton.disabled = false;
+            refreshSketches();
+        };
+
+        // fetch tidak memberi progres unggahan, jadi pengiriman memakai XHR
+        // supaya persentase file yang sudah terkirim bisa ditampilkan.
+        const kirimFile = (action, formData) => new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+
+            xhr.open('POST', action, true);
+            xhr.setRequestHeader('X-CSRF-TOKEN', lanjutButton.dataset.token || '');
+            xhr.setRequestHeader('Accept', 'application/json');
+
+            xhr.upload.addEventListener('progress', (event) => {
+                if (event.lengthComputable && event.total > 0) {
+                    // Sisakan 99% sampai server selesai memproses.
+                    perbaruiProgres(Math.min(99, Math.round((event.loaded / event.total) * 100)));
+                }
+            });
+
+            xhr.upload.addEventListener('load', () => perbaruiProgres(100));
+
+            xhr.addEventListener('load', () => {
+                let data = null;
+
+                try {
+                    data = JSON.parse(xhr.responseText);
+                } catch (error) {
+                    data = null;
+                }
+
+                resolve({
+                    ok: xhr.status >= 200 && xhr.status < 300,
+                    status: xhr.status,
+                    url: xhr.responseURL,
+                    data: data || {},
+                });
+            });
+
+            xhr.addEventListener('error', () => reject(new Error('jaringan')));
+            xhr.addEventListener('abort', () => reject(new Error('dibatalkan')));
+
+            xhr.send(formData);
+        });
 
         lanjutButton.addEventListener('click', async () => {
             if (mengirim) {
@@ -188,46 +286,41 @@ if (pickButton && pdfInput && pdfCount && pdfList && pdfWarning) {
 
             chosen.forEach((file) => formData.append('files[]', file));
 
-            mengirim = true;
+            mulaiLoading(chosen.length);
 
             try {
-                const response = await fetch(action, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': lanjutButton.dataset.token || '',
-                        Accept: 'application/json',
-                    },
-                    body: formData,
-                });
+                const hasil = await kirimFile(action, formData);
 
-                // Server mengarahkan ke halaman berikutnya dengan order id.
-                if (response.redirected) {
-                    window.location.href = response.url;
+                // Server kadang menjawab dengan redirect (bukan JSON); ikuti tujuannya.
+                if (!hasil.data || Object.keys(hasil.data).length === 0) {
+                    if (hasil.ok && hasil.url) {
+                        window.location.href = hasil.url;
+                        return;
+                    }
+
+                    throw new Error('respons tidak dikenali');
+                }
+
+                if (!hasil.ok) {
+                    const pesan = hasil.data.message
+                        || (hasil.data.errors ? Object.values(hasil.data.errors).flat()[0] : null)
+                        || 'Upload gagal. Coba lagi.';
+
+                    selesaiLoading();
+                    pdfWarning.textContent = pesan;
+                    pdfWarning.hidden = false;
                     return;
                 }
 
-                const data = await response.json().catch(() => ({}));
+                // Gabungkan data file dari server (id, name, total_pages) ke
+                // konfigurasi formulir di localStorage (printer:formulir-terjadwal).
+                gabungFileKeFormulir(hasil.data.callback);
 
-                if (response.ok) {
-                    // Gabungkan data file dari server (id, name, total_pages) ke
-                    // konfigurasi formulir di localStorage (printer:formulir-terjadwal).
-                    gabungFileKeFormulir(data.callback);
-
-                    window.location.href = data.redirect || lanjutButton.dataset.next;
-                    return;
-                }
-
-                const pesan = data.message
-                    || (data.errors ? Object.values(data.errors).flat()[0] : null)
-                    || 'Upload gagal. Coba lagi.';
-
-                pdfWarning.textContent = pesan;
-                pdfWarning.hidden = false;
+                window.location.href = hasil.data.redirect || lanjutButton.dataset.next;
             } catch (error) {
+                selesaiLoading();
                 pdfWarning.textContent = 'Tidak bisa menghubungi server. Coba lagi.';
                 pdfWarning.hidden = false;
-            } finally {
-                mengirim = false;
             }
         });
     }
