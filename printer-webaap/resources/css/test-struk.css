@@ -1,0 +1,437 @@
+/* Halaman struk pembayaran (/struk/{order-id}).
+   Gaya sketsa tangan memakai wired-elements. Mobile-first. */
+
+:root {
+    --font-heading: "Caveat", "Patrick Hand", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+    --font-body: "Patrick Hand", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+
+    --fs-display: clamp(2.25rem, 1.6rem + 3vw, 3.06rem);
+    --fs-h1: clamp(1.9rem, 1.4rem + 2.2vw, 2.44rem);
+    --fs-h2: clamp(1.6rem, 1.3rem + 1.4vw, 1.94rem);
+    --fs-h3: 1.56rem;
+    --fs-sub: 1.25rem;
+    --fs-body: 1.0625rem;
+    --fs-caption: 0.8125rem;
+    --fs-label: 0.75rem;
+
+    --color-bg: #ffffff;
+    --color-surface: #ffffff;
+    --color-text: #1b1b1b;
+    --color-muted: #5f5f5f;
+    --color-border: #1b1b1b;
+    --color-line: #d8d8d8;
+    --color-chip: #f4f2ec;
+    --color-error: #b3261e;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-12: 48px;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--fs-body);
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Kepala halaman: kembali + logo jasa & nama print ---------- */
+
+.site-header {
+    width: 100%;
+    padding: var(--space-4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.site-header-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-left: auto;
+}
+
+wired-button.back-button {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    min-height: 44px;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--fs-caption);
+}
+
+.back-icon {
+    width: 14px;
+    height: 14px;
+    margin-right: var(--space-1);
+    vertical-align: -2px;
+}
+
+.logo-placeholder {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 46px;
+    padding: var(--space-1);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    color: var(--color-muted);
+    font-size: var(--fs-label);
+    line-height: 1.2;
+    letter-spacing: 0.03em;
+    text-align: center;
+}
+
+.brand-name {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: var(--fs-h3);
+    line-height: 1.3;
+    letter-spacing: -0.005em;
+}
+
+/* ---------- Isi ---------- */
+
+.page {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 0 var(--space-4) var(--space-8);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+wired-card.struk,
+wired-card.status-card {
+    display: block;
+    width: 100%;
+}
+
+.struk-body {
+    padding: var(--space-4);
+}
+
+.status-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    min-height: 260px;
+    padding: var(--space-8) var(--space-4);
+    text-align: center;
+}
+
+/* ---------- QR ---------- */
+
+.qr-wrap {
+    display: flex;
+    justify-content: center;
+    padding: var(--space-2) 0 var(--space-4);
+}
+
+.qr-wrap #qrcode {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 176px;
+    height: 176px;
+}
+
+.qr-wrap #qrcode img,
+.qr-wrap #qrcode canvas {
+    display: block;
+}
+
+/* ---------- Baris data ---------- */
+
+.rows {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: 0;
+}
+
+.rows > div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.rows dt {
+    flex: 0 0 auto;
+    color: var(--color-text);
+}
+
+.rows dd {
+    margin: 0;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.rows .order-id {
+    font-size: var(--fs-body);
+    line-height: 1.3;
+    letter-spacing: 0.01em;
+    word-break: break-all;
+}
+
+.rows.small {
+    font-size: var(--fs-caption);
+}
+
+wired-divider.divider {
+    display: block;
+    width: 100%;
+    height: 0;
+    margin: var(--space-4) 0;
+    border-top: 1.5px dashed var(--color-border);
+    /* Garis sketsa bawaan dibuat transparan; yang tampil garis putus-putus
+       seperti desain struk. */
+    color: transparent;
+}
+
+/* ---------- Daftar file ---------- */
+
+.files {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.file {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.file-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.file-name {
+    overflow-wrap: anywhere;
+    line-height: 1.3;
+}
+
+.file-meta {
+    color: var(--color-muted);
+    font-size: var(--fs-caption);
+    line-height: 1.3;
+}
+
+.file-price {
+    flex: none;
+    white-space: nowrap;
+}
+
+/* ---------- Tombol ---------- */
+
+.actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-1);
+}
+
+wired-button.btn-unduh {
+    display: inline-grid;
+    place-items: center;
+    width: 100%;
+    max-width: 320px;
+    min-height: 44px;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--fs-body);
+}
+
+/* Teks wired-button di shadow DOM selalu uppercase; label dikembalikan
+   ke huruf normal sesuai desain. */
+.btn-label {
+    text-transform: none;
+    letter-spacing: 0.01em;
+}
+
+.copy-status {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: var(--fs-caption);
+    text-align: center;
+}
+
+/* ---------- Status / error ---------- */
+
+.spinner {
+    width: 44px;
+    height: 44px;
+    border: 3px solid var(--color-line);
+    border-top-color: var(--color-border);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.status-text {
+    margin: 0;
+    font-size: var(--fs-sub);
+}
+
+.status-order {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: var(--fs-label);
+    word-break: break-all;
+}
+
+.error-icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 2px solid var(--color-error);
+    border-radius: 50%;
+    color: var(--color-error);
+    font-size: var(--fs-sub);
+}
+
+.error-text {
+    margin: 0;
+    color: var(--color-error);
+    font-size: var(--fs-sub);
+}
+
+/* Wired elements menyembunyikan diri sampai sketsanya selesai digambar. */
+wired-button:not(.wired-rendered) {
+    opacity: 1;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+
+/* ---------- Tablet ---------- */
+
+@media (min-width: 560px) {
+    .actions {
+        flex-direction: row;
+        justify-content: center;
+    }
+
+    wired-button.btn-unduh {
+        width: auto;
+        min-width: 200px;
+    }
+}
+
+@media (min-width: 768px) {
+    .site-header {
+        gap: var(--space-4);
+        padding: var(--space-6) var(--space-8);
+    }
+
+    .logo-placeholder {
+        width: 64px;
+        height: 56px;
+        border-radius: 12px;
+        font-size: var(--fs-caption);
+    }
+
+    .brand-name {
+        font-size: var(--fs-h2);
+    }
+
+    .page {
+        max-width: 480px;
+    }
+
+    .struk-body,
+    .status-body {
+        padding: var(--space-6);
+    }
+}
+
+/* ---------- Cetak / simpan PDF ---------- */
+
+@media print {
+    .site-header,
+    .actions,
+    .copy-status {
+        display: none !important;
+    }
+
+    body {
+        min-height: auto;
+        background: #fff;
+    }
+
+    .page {
+        max-width: 480px;
+        margin: 0 auto;
+        padding: 0 var(--space-4);
+    }
+
+    /* SVG sketsa wired terskala beda saat print, jadi garis kartu diganti
+       border CSS. Warna host dibuat transparan supaya sketsa lama tidak
+       ikut tercetak, lalu isi kartu dikembalikan ke warna teks. */
+    wired-card.struk {
+        color: transparent;
+        border: 1px solid #000;
+        border-radius: 12px;
+    }
+
+    .struk-body {
+        color: var(--color-text);
+        padding: var(--space-4);
+    }
+
+    .qr-wrap #qrcode img,
+    .qr-wrap #qrcode canvas {
+        width: 150px !important;
+        height: 150px !important;
+    }
+
+    wired-divider.divider {
+        border-top: 1px dashed #000;
+    }
+}

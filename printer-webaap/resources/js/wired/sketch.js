@@ -2,7 +2,7 @@
 // dan tidak selalu menggambar ulang saat ukurannya berubah (misalnya saat lebar
 // layar melewati breakpoint, atau saat daftar file membuat panel jadi lebih tinggi).
 // Jadi gambar ulang kita minta dari luar.
-const sketsaSelector = 'wired-card, wired-button, wired-input, wired-radio, wired-radio-group, wired-checkbox, wired-combo';
+const sketsaSelector = 'wired-card, wired-button, wired-input, wired-radio, wired-radio-group, wired-checkbox, wired-combo, wired-divider';
 const sketched = document.querySelectorAll(sketsaSelector);
 
 export function refreshSketches() {

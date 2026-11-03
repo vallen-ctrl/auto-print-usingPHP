@@ -1,201 +1,157 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Status Pembayaran</title>
-<style>
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #0f172a;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #e2e8f0;
-  }
-  .card {
-    width: 100%;
-    max-width: 420px;
-    margin: 20px;
-    padding: 40px 32px;
-    background: #1e293b;
-    border-radius: 20px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.45);
-    text-align: center;
-  }
-  .spinner {
-    width: 56px;
-    height: 56px;
-    margin: 0 auto 28px;
-    border: 4px solid rgba(148,163,184,.25);
-    border-top-color: #38bdf8;
-    border-radius: 50%;
-    animation: spin 0.9s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .status-text {
-    font-size: 18px;
-    font-weight: 600;
-    line-height: 1.5;
-    min-height: 54px;
-    transition: color .3s ease;
-  }
-  .order-id {
-    margin-top: 24px;
-    font-size: 12px;
-    color: #64748b;
-    word-break: break-all;
-  }
-  .done .spinner {
-    border-color: #22c55e;
-    border-top-color: #22c55e;
-    animation: none;
-    position: relative;
-  }
-  .done .spinner::after {
-    content: "✓";
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    color: #22c55e;
-  }
-  .done .status-text { color: #4ade80; }
-  .error .spinner {
-    border-color: #ef4444;
-    border-top-color: #ef4444;
-    animation: none;
-    position: relative;
-  }
-  .error .spinner::after {
-    content: "!";
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    color: #ef4444;
-  }
-  .error .status-text { color: #f87171; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Struk Pembayaran</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Patrick+Hand&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+
+    @vite(['resources/css/test-struk.css', 'resources/js/pages/test-struk.js'])
 </head>
+
 <body>
-  <div class="card" id="card">
-    <div class="spinner"></div>
-    <div class="status-text" id="statusText">Memferivikasi pembayaran…</div>
-    <div class="order-id" id="orderId"></div>
-  </div>
+    {{-- Ingatkan user menyimpan struk. Dibuka otomatis saat struk tampil. --}}
+    <x-modal
+        id="modal-struk"
+        type="warning"
+        title="Simpan struk ini"
+        message="Unduh atau screenshot struk ini sekarang. Tanpa struk, file yang sudah dipesan akan sulit untuk dicari kembali." />
 
-<script>
-(function() {
-    const STATUS_FLOW = [
-        "Memferivikasi pembayaran",
-        "Menunggu pembayaran",
-        "Mendapatkan pembayaran",
-        "Pembayaran berhasil diverifikasi"
-    ];
+    {{-- Konfirmasi sebelum keluar dari halaman struk. --}}
+    <x-modal id="modal-keluar" type="warning" title="Keluar dari struk?">
+        Pastikan kamu sudah screenshot atau menyimpan struk ini, atau salin URL-nya. Kalau keluar
+        tanpa menyimpannya, pesanan akan sulit dicari.
+        <x-slot:actions>
+            <wired-button roughness="1.2" elevation="1" data-modal-close>Tetap di sini</wired-button>
+            <wired-button roughness="1.2" elevation="2" id="btn-keluar">Ya, keluar</wired-button>
+        </x-slot:actions>
+    </x-modal>
 
-    const POLL_INTERVAL = 3000; // Cek status tiap 3 detik
+    <header class="site-header">
+        <wired-button
+            roughness="1.2"
+            elevation="1"
+            id="btn-kembali"
+            class="back-button"
+            aria-label="Kembali">
+            <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M15 5 8 12l7 7" />
+            </svg>
+            Kembali
+        </wired-button>
 
-    const card = document.getElementById("card");
-    const statusText = document.getElementById("statusText");
-    const orderIdEl = document.getElementById("orderId");
+        <div class="site-header-brand">
+            <span class="logo-placeholder" role="img" aria-label="Logo jasa">logo jasa</span>
+            <p class="brand-name">nama print</p>
+        </div>
+    </header>
 
-    // 1. Ambil Order ID dari URL Path (contoh: /struk/01a171f...)
-    const pathParts = window.location.pathname.split('/');
-    const orderId = pathParts[pathParts.length - 1]; 
+    <main class="page">
+        <wired-card roughness="1.2" elevation="1" id="status-card" class="status-card" role="status">
+            <div class="status-body">
+                <div class="spinner" aria-hidden="true"></div>
+                <p class="status-text" id="statusText">Memferivikasi pembayaran…</p>
+                <p class="status-order" id="orderId"></p>
+            </div>
+        </wired-card>
 
-    if (!orderId || orderId === 'struk' || orderId === '') {
-        card.classList.add("error");
-        statusText.textContent = "Order ID tidak ditemukan di URL";
-        return;
-    }
+        <wired-card roughness="1.2" elevation="1" id="error-card" class="status-card" hidden>
+            <div class="status-body">
+                <div class="error-icon" aria-hidden="true">!</div>
+                <p class="error-text" id="errorText">Pembayaran gagal / dikembalikan</p>
+            </div>
+        </wired-card>
 
-    // 2. URL API
-    const API_BASE = window.location.origin;
-    const url = API_BASE + "/struk/order/" + encodeURIComponent(orderId);
+        <wired-card roughness="1.2" elevation="1" id="struk-card" class="struk" hidden>
+            <div class="struk-body">
+                <div class="qr-wrap">
+                    <div id="qrcode"></div>
+                </div>
 
-    orderIdEl.textContent = "Order: " + orderId;
+                <dl class="rows">
+                    <div>
+                        <dt>Order ID</dt>
+                        <dd class="order-id" id="s-orderid"></dd>
+                    </div>
+                    <div>
+                        <dt>Pelanggan</dt>
+                        <dd id="s-pelanggan"></dd>
+                    </div>
+                    <div>
+                        <dt>Tanggal Pesan</dt>
+                        <dd id="s-pesan"></dd>
+                    </div>
+                    <div>
+                        <dt>Tanggal Ambil</dt>
+                        <dd id="s-ambil"></dd>
+                    </div>
+                </dl>
 
-    // 3. Animasi teks loading
-    let step = 0;
-    statusText.textContent = STATUS_FLOW[0];
-    const rotator = setInterval(() => {
-        // Hanya muter di 3 teks pertama. Teks ke-4 ("berhasil") hanya muncul jika API balas "paid"
-        step = (step + 1) % (STATUS_FLOW.length - 1);
-        statusText.textContent = STATUS_FLOW[step];
-    }, 2500);
+                <wired-divider roughness="1.2" class="divider"></wired-divider>
 
-    let stopped = false;
+                <div class="files" id="s-files"></div>
 
-    function finish(success, message) {
-        if (stopped) return;
-        stopped = true;
-        clearInterval(rotator);
-        card.classList.remove("done", "error");
-        card.classList.add(success ? "done" : "error");
-        statusText.textContent = message;
-    }
+                <wired-divider roughness="1.2" class="divider"></wired-divider>
 
-    async function poll() {
-        if (stopped) return;
+                <dl class="rows small">
+                    <div>
+                        <dt>Biaya Admin</dt>
+                        <dd id="s-admin"></dd>
+                    </div>
+                    <div id="row-penanganan" hidden>
+                        <dt>Biaya Penanganan</dt>
+                        <dd id="s-penanganan"></dd>
+                    </div>
+                </dl>
 
-        try {
-            const res = await fetch(url, {
-                headers: { "Accept": "application/json" },
-                cache: "no-store"
-            });
+                <wired-divider roughness="1.2" class="divider"></wired-divider>
 
-            if (!res.ok) {
-                if (res.status === 404 || res.status === 410) {
-                    finish(false, "Order tidak ditemukan / kedaluwarsa");
-                    return;
-                }
-            } else {
-                let data = null;
-                try {
-                    data = await res.json(); 
-                } catch {
-                    data = null;
-                }
+                <dl class="rows">
+                    <div>
+                        <dt>Total Pembayaran</dt>
+                        <dd id="s-total"></dd>
+                    </div>
+                    <div>
+                        <dt>Dibayar</dt>
+                        <dd id="s-dibayar"></dd>
+                    </div>
+                </dl>
 
-                // Mengambil string dari JSON { "status": "paid" }
-                const status = data && data.status ? data.status.toLowerCase() : "";
+                <wired-divider roughness="1.2" class="divider"></wired-divider>
 
-                if (status === "paid") {
-                    // Pembayaran lunas: bersihkan data alur di browser.
-                    try {
-                        window.localStorage.clear();
-                    } catch (err) {
-                        // Penyimpanan browser tidak tersedia.
-                    }
-                    finish(true, "Pembayaran berhasil diverifikasi");
-                    return;
-                }
-                
-                if (status === "failed" || status === "refunded") {
-                    finish(false, "Pembayaran gagal / dikembalikan");
-                    return;
-                }
-                
-                // Jika "pending" atau "processing", kode akan lanjut ke bawah (polling lagi)
-            }
-        } catch (err) {
-            console.warn("Koneksi terputus, mencoba lagi...", err);
-        }
+                <dl class="rows small">
+                    <div>
+                        <dt>Catatan</dt>
+                        <dd id="s-catatan">-</dd>
+                    </div>
+                    <div>
+                        <dt>Item</dt>
+                        <dd id="s-item">-</dd>
+                    </div>
+                </dl>
+            </div>
+        </wired-card>
 
-        if (!stopped) setTimeout(poll, POLL_INTERVAL);
-    }
+        <div class="actions">
+            <wired-button roughness="1.2" elevation="2" id="btn-unduh" class="btn-unduh" hidden>
+                <span class="btn-label">Unduh Sekarang</span>
+            </wired-button>
 
-    // Jalankan polling pertama kali
-    poll();
-})();
-</script>
+            <wired-button roughness="1.2" elevation="1" id="btn-salin" class="btn-unduh" hidden>
+                <span class="btn-label">Salin URL Struk</span>
+            </wired-button>
+        </div>
+
+        <p class="copy-status" id="salin-status" role="status" hidden>URL struk disalin.</p>
+    </main>
+
+    @stack('scripts')
 </body>
+
 </html>
