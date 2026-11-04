@@ -72,6 +72,13 @@ class UploadTerjadwalController extends Controller
                 $fileid = Str::uuid7()->getBytes();
                 $filename = $file->getClientOriginalName();
 
+                if($pages <= 0){
+                    return response()->json([
+                        "error" => true,
+                        "message" => "cant parse many pages on this files -> $filename"
+                    ], 304);
+                }
+
                 $files[bin2hex($fileid)] = [
                     "id" => bin2hex($fileid),
                     "name" => $filename,
