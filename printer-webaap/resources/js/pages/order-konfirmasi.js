@@ -405,6 +405,13 @@ tombolBayar?.addEventListener('click', () => {
 
 tombolLanjutBayar?.addEventListener('click', () => {
     tutupModal('modal-bayar');
+
+    // Setelah memastikan lanjut bayar, tombol kembali dihilangkan supaya tidak
+    // ada jalan balik untuk mengubah file/konfigurasi yang membuat pembayaran gagal.
+    if (tombolKembali) {
+        tombolKembali.hidden = true;
+    }
+
     lanjutkanPembayaran();
 });
 
