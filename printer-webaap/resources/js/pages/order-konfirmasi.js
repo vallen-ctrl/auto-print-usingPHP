@@ -3,7 +3,7 @@ import 'wired-elements/lib/wired-button.js';
 import '../wired/sketch.js';
 import '../shared/back-button.js';
 import '../shared/navigate.js';
-import { bukaModal } from '../shared/modal.js';
+import { bukaModal, tutupModal } from '../shared/modal.js';
 
 /* ---------- Data halaman ---------- */
 
@@ -358,8 +358,9 @@ const bayarDiKasir = async () => {
     }
 };
 
-tombolBayar?.addEventListener('click', () => {
-    if (waktuHabis || menungguKasir) {
+// Lanjutkan ke permintaan token (QRIS) atau ke alur bayar di kasir.
+const lanjutkanPembayaran = () => {
+    if (waktuHabis || menungguKasir || sedangMemproses) {
         return;
     }
 
@@ -367,6 +368,7 @@ tombolBayar?.addEventListener('click', () => {
         bayarDiKasir();
         return;
     }
+
     tampilLoader();
     const snapToken = localStorage.getItem("snap-token");
     console.log(snapToken);
@@ -376,6 +378,41 @@ tombolBayar?.addEventListener('click', () => {
     setTimeout(() => {
         mulaiPembayaranQris();
     }, 1000);
+};
+
+// Sebelum token diminta, beri tahu akibatnya kalau user kembali dan mengubah
+// file/konfigurasi: server pembayaran menolak pesanan dan upload harus diulang.
+// "Ya, lanjutkan" memproses pembayaran; tombol lain hanya menutup dialog.
+const modalBayar = document.getElementById('modal-bayar');
+const tombolLanjutBayar = document.getElementById('btn-lanjut-bayar');
+
+const pesanKonfirmasiBayar = () => (metodeTerpilih === 'kasir'
+    ? 'Kalau kamu kembali ke halaman sebelumnya untuk mengubah file atau konfigurasi, pesanan ini bisa tidak cocok dengan data di kasir dan kamu harus mengulangi upload dari awal. Pastikan file dan pengaturan cetak sudah benar.'
+    : 'Kalau kamu kembali ke halaman sebelumnya untuk mengubah file atau konfigurasi, server pembayaran akan menolak pesanan ini dan kamu harus mengulangi upload dari awal. Pastikan file dan pengaturan cetak sudah benar.');
+
+tombolBayar?.addEventListener('click', () => {
+    if (waktuHabis || menungguKasir || sedangMemproses) {
+        return;
+    }
+
+    // Jangan menumpuk dialog kalau tombol terklik lagi saat dialog masih terbuka.
+    if (modalBayar?.open) {
+        return;
+    }
+
+    bukaModal('modal-bayar', { message: pesanKonfirmasiBayar() });
+});
+
+tombolLanjutBayar?.addEventListener('click', () => {
+    tutupModal('modal-bayar');
+
+    // Setelah memastikan lanjut bayar, tombol kembali dihilangkan supaya tidak
+    // ada jalan balik untuk mengubah file/konfigurasi yang membuat pembayaran gagal.
+    if (tombolKembali) {
+        tombolKembali.hidden = true;
+    }
+
+    lanjutkanPembayaran();
 });
 
 // Setelah pesanan diteruskan ke kasir, muat ulang halaman supaya tampil

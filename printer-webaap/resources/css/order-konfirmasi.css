@@ -119,6 +119,12 @@ wired-button.back-button {
     font-size: var(--fs-caption);
 }
 
+/* Tombol kembali dihilangkan setelah user memastikan lanjut bayar. Aturan
+   display di atas menang atas gaya bawaan [hidden], jadi perlu ditegaskan. */
+wired-button.back-button[hidden] {
+    display: none;
+}
+
 .back-icon {
     width: 14px;
     height: 14px;

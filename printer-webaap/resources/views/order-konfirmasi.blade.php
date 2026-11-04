@@ -49,6 +49,21 @@ default => route('formulir.kilat'),
         title="Gagal memulai pembayaran"
         message="Silakan coba lagi beberapa saat lagi." />
 
+    {{-- Konfirmasi sebelum meminta token pembayaran. Tombol "Tidak", ikon tutup,
+         klik latar gelap, atau Escape hanya menutup dialog tanpa memproses apa pun. --}}
+    <x-modal
+        id="modal-bayar"
+        type="warning"
+        title="Lanjut ke pembayaran?">
+        Kalau kamu kembali ke halaman sebelumnya untuk mengubah file atau konfigurasi, server
+        pembayaran akan menolak pesanan ini dan kamu harus mengulangi upload dari awal.
+        Pastikan file dan pengaturan cetak sudah benar.
+        <x-slot:actions>
+            <wired-button roughness="1.2" elevation="1" data-modal-close>Tidak</wired-button>
+            <wired-button roughness="1.2" elevation="2" id="btn-lanjut-bayar">Ya, lanjutkan</wired-button>
+        </x-slot:actions>
+    </x-modal>
+
     {{-- Petunjuk pembayaran di kasir (kilat-langsung & kilat-edit). --}}
     <x-modal
         id="modal-kasir"
