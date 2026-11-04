@@ -47,7 +47,7 @@ Boost replaces these bootstrap instructions with guidelines tailored to the appl
 </laravel-boost-guidelines>
 
 ## find DOCS about package
-you have to use contex7 mcp that already installed on yours. this mcp helps you to know update about new package.
+you have to use contex7 mcp that already installed on yours. this mcp helps you to know update about new package. and then **USE CODEGRAPH MCP** for you to find a file or function. 
 
 ## Checking User Prompt
 
