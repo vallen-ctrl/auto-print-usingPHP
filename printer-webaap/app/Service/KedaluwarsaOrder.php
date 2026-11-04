@@ -45,6 +45,7 @@ class KedaluwarsaOrder
      * Catatan: fungsi ini disiapkan untuk alur pembayaran di front-end yang
      * belum dibuat; sekarang dipakai halaman "/", formulir, dan bayarSekarang().
      */
+
     public function sudahKadaluarsa(Order $order): bool
     {
         // Hanya order yang belum dibayar yang punya batas waktu.
@@ -61,9 +62,9 @@ class KedaluwarsaOrder
 
         return $order->tanggal_pesan !== null
             && $order->tanggal_pesan
-                ->copy()
-                ->addMinutes(self::BATAS_UPLOAD_MENIT)
-                ->isPast();
+            ->copy()
+            ->addMinutes(self::BATAS_UPLOAD_MENIT)
+            ->isPast();
     }
 
     /**
@@ -155,6 +156,19 @@ class KedaluwarsaOrder
         }
 
         return $jumlah;
+    }
+
+    /**
+     * Sisa detik sampai order kedaluwarsa. Negatif/0 kalau sudah lewat.
+     * Pakai setelah tandaiBayar(), jadi tanggal_bayar sudah terisi.
+     */
+    public function sisaDetik(Order $order): int
+    {
+        $deadline = $order->tanggal_bayar !== null
+            ? $order->tanggal_bayar->copy()->addMinutes(self::BATAS_BAYAR_MENIT)
+            : $order->tanggal_pesan->copy()->addMinutes(self::BATAS_UPLOAD_MENIT);
+
+        return (int) now()->diffInSeconds($deadline, false);
     }
 
     /**

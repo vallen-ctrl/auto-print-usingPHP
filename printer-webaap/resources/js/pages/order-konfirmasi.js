@@ -13,6 +13,8 @@ const daftarLabel = Array.from(document.querySelectorAll('.cta-label'));
 const tombolBayar = document.getElementById('btn-bayar');
 const timer = document.getElementById('timer-bayar');
 const sisaWaktu = document.getElementById('sisa-waktu');
+const loader = document.getElementById("bgRolling");
+const tombolKembali = document.getElementById("btn-kembali");
 
 const orderId = halaman?.dataset.orderId ?? '';
 const tokenUrl = halaman?.dataset.tokenUrl ?? '';
@@ -32,6 +34,14 @@ const kunciTombol = () => {
     if (tombolBayar) {
         tombolBayar.disabled = true;
     }
+};
+
+const tampilLoader = () => {
+    loader.style.display = "flex"
+};
+
+const sembunyiLoader = () => {
+    loader.style.display = "none"
 };
 
 /* ---------- Pilih metode pembayaran ---------- */
@@ -151,11 +161,16 @@ jalankanTimer();
 /* ---------- Pembayaran ---------- */
 
 const tampilkanGagal = (pesan) => {
-    bukaModal('modal-info', {
+    const modal = bukaModal('modal-info', {
         type: 'error',
         title: 'Gagal memulai pembayaran',
         message: pesan,
     });
+
+    modal.addEventListener('modal-close', () => {
+        console.log('onClose terpanggil');
+        window.location.replace('/');
+    }, { once: true });
 };
 
 // Setelah popup Snap selesai, minta server memverifikasi transaksi ke Midtrans.
@@ -213,26 +228,27 @@ const bersihkanPenyimpananBrowser = () => {
 };
 
 const bukaSnap = (token) => {
+    localStorage.setItem("snap-token", token);
+    sembunyiLoader();
     window.snap.pay(token, {
         onSuccess: async () => {
             pembayaranSelesai = true;
             bersihkanPenyimpananBrowser();
-            await tungguStatusTercatat();
+            // await tungguStatusTercatat();
             keHalamanStatus();
         },
         onPending: async () => {
             pembayaranSelesai = true;
-            await tungguStatusTercatat();
-            keHalamanStatus();
+            console.log("pending status");
+            // await tungguStatusTercatat();
+            // keHalamanStatus();
         },
         onError: () => {
+            bersihkanPenyimpananBrowser();
             tampilkanGagal('Pembayaran gagal diproses oleh Midtrans. Silakan coba lagi.');
         },
         onClose: () => {
-            // Cadangan kalau popup ditutup sebelum onSuccess selesai memproses.
-            if (pembayaranSelesai) {
-                keHalamanStatus();
-            }
+            console.log("close")
         },
     });
 };
@@ -267,6 +283,7 @@ const mulaiPembayaranQris = async () => {
         const data = await respons.json().catch(() => ({}));
 
         if (!respons.ok || !data.token) {
+            sembunyiLoader();
             // 410 = order sudah kedaluwarsa (file sudah dihapus) atau sesi
             // pembayaran hilang. Tampilkan pesan dari server apa adanya.
             if (respons.status === 410) {
@@ -350,8 +367,15 @@ tombolBayar?.addEventListener('click', () => {
         bayarDiKasir();
         return;
     }
-
-    mulaiPembayaranQris();
+    tampilLoader();
+    const snapToken = localStorage.getItem("snap-token");
+    console.log(snapToken);
+    if (snapToken) {
+        return bukaSnap(snapToken);
+    }
+    setTimeout(() => {
+        mulaiPembayaranQris();
+    }, 1000);
 });
 
 // Setelah pesanan diteruskan ke kasir, muat ulang halaman supaya tampil

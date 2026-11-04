@@ -1,11 +1,11 @@
 @php
-    $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
-    $bisaEditFormulir = $order['layanan'] === 'terjadwal' && !$order['menunggu_kasir'];
-    $kembali = match (true) {
-        $bisaEditFormulir => route('formulir.terjadwal', ['order' => $order['id']]),
-        $order['layanan'] === 'terjadwal' => route('upload.terjadwal'),
-        default => route('formulir.kilat'),
-    };
+$rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
+$bisaEditFormulir = $order['layanan'] === 'terjadwal' && !$order['menunggu_kasir'];
+$kembali = match (true) {
+$bisaEditFormulir => route('formulir.terjadwal', ['order' => $order['id']]),
+$order['layanan'] === 'terjadwal' => route('upload.terjadwal'),
+default => route('formulir.kilat'),
+};
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -29,13 +29,17 @@
 </head>
 
 <body>
+    <div id="bgRolling" style="position:fixed;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:oklch(55.2% 0.016 285.938 / 0.6);">
+        <x-loader />
+        <p style="color:#000;font-weight:600;letter-spacing:0.1em;font-size:1.2em">Mohon tunggu..</p>
+    </div>
     {{-- Total untuk kilat-edit kosong karena harga menyesuaikan setelah diedit. --}}
     @if ($order['harga_menyesuaikan'])
-        <x-modal
-            id="modal-total"
-            type="warning"
-            title="Harga akan menyesuaikan"
-            message="File kamu masih bisa diedit setelah dipesan, jadi jumlah halaman dan harga cetaknya belum pasti. Total pembayaran baru dihitung di kasir setelah file selesai diedit. Biaya admin dan biaya penanganan tetap seperti yang tertera." />
+    <x-modal
+        id="modal-total"
+        type="warning"
+        title="Harga akan menyesuaikan"
+        message="File kamu masih bisa diedit setelah dipesan, jadi jumlah halaman dan harga cetaknya belum pasti. Total pembayaran baru dihitung di kasir setelah file selesai diedit. Biaya admin dan biaya penanganan tetap seperti yang tertera." />
     @endif
 
     {{-- Pesan kesalahan saat meminta token pembayaran. --}}
@@ -99,25 +103,25 @@
         <h1 class="page-title">Konfirmasi Pembayaran</h1>
 
         @if ($order['menunggu_kasir'])
-            <p class="status-notice" role="status">
-                Pesanan berhasil.
-                @if ($order['harga_menyesuaikan'])
-                    Silakan bayar di kasir. Harga cetak masih perkiraan karena file masih bisa
-                    diedit, jadi totalnya bisa berubah saat dihitung di kasir.
-                @else
-                    Silakan bayar di kasir. Harga sudah sesuai rincian pesanan dan pembayaran
-                    dikonfirmasi langsung oleh penjual.
-                @endif
-            </p>
+        <p class="status-notice" role="status">
+            Pesanan berhasil.
+            @if ($order['harga_menyesuaikan'])
+            Silakan bayar di kasir. Harga cetak masih perkiraan karena file masih bisa
+            diedit, jadi totalnya bisa berubah saat dihitung di kasir.
+            @else
+            Silakan bayar di kasir. Harga sudah sesuai rincian pesanan dan pembayaran
+            dikonfirmasi langsung oleh penjual.
+            @endif
+        </p>
         @else
-            <p class="timer-bayar" id="timer-bayar" role="timer">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="12" r="8.5" />
-                    <path d="M12 7.5V12l3 2" />
-                </svg>
-                <span>Sisa waktu pembayaran</span>
-                <strong id="sisa-waktu">{{ gmdate('i:s', $order['sisa_detik']) }}</strong>
-            </p>
+        <p class="timer-bayar" id="timer-bayar" role="timer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="8.5" />
+                <path d="M12 7.5V12l3 2" />
+            </svg>
+            <span>Sisa waktu pembayaran</span>
+            <strong id="sisa-waktu">{{ gmdate('i:s', $order['sisa_detik']) }}</strong>
+        </p>
         @endif
 
         <div class="content">
@@ -131,23 +135,23 @@
 
                         <ul class="doc-list" aria-labelledby="judul-dokumen">
                             @foreach ($files as $file)
-                                <li class="doc-item">
-                                    <span class="doc-icon" aria-hidden="true">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-                                            <path d="M14 3v5h5" />
-                                        </svg>
-                                    </span>
+                            <li class="doc-item">
+                                <span class="doc-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                                        <path d="M14 3v5h5" />
+                                    </svg>
+                                </span>
 
-                                    <span class="doc-info">
-                                        <span class="doc-name" title="{{ $file['name'] }}">{{ $file['name'] }}</span>
-                                        <span class="doc-meta">{{ $file['pages'] }} halaman &bull; {{ $file['size'] }} &bull; {{ $file['warna'] }}</span>
-                                    </span>
+                                <span class="doc-info">
+                                    <span class="doc-name" title="{{ $file['name'] }}">{{ $file['name'] }}</span>
+                                    <span class="doc-meta">{{ $file['pages'] }} halaman &bull; {{ $file['size'] }} &bull; {{ $file['warna'] }}</span>
+                                </span>
 
-                                    <span class="doc-price">
-                                        {{ $order['harga_menyesuaikan'] ? 'Menyesuaikan' : $rupiah($file['subtotal']) }}
-                                    </span>
-                                </li>
+                                <span class="doc-price">
+                                    {{ $order['harga_menyesuaikan'] ? 'Menyesuaikan' : $rupiah($file['subtotal']) }}
+                                </span>
+                            </li>
                             @endforeach
                         </ul>
                     </div>
@@ -172,51 +176,51 @@
 
                         <div class="pay-list" role="radiogroup" aria-labelledby="judul-metode">
                             @foreach ($metode as $opsi)
-                                @php $aktif = ($order['metode_terpilih'] ?? $metode[0]['id']) === $opsi['id']; @endphp
-                                <div
-                                    class="pay-option {{ $aktif ? 'is-selected' : '' }}"
-                                    role="radio"
-                                    aria-checked="{{ $aktif ? 'true' : 'false' }}"
-                                    tabindex="{{ $aktif ? '0' : '-1' }}"
-                                    data-metode="{{ $opsi['id'] }}"
-                                    data-label-cta="{{ $opsi['cta'] }}">
+                            @php $aktif = ($order['metode_terpilih'] ?? $metode[0]['id']) === $opsi['id']; @endphp
+                            <div
+                                class="pay-option {{ $aktif ? 'is-selected' : '' }}"
+                                role="radio"
+                                aria-checked="{{ $aktif ? 'true' : 'false' }}"
+                                tabindex="{{ $aktif ? '0' : '-1' }}"
+                                data-metode="{{ $opsi['id'] }}"
+                                data-label-cta="{{ $opsi['cta'] }}">
 
-                                    <span class="pay-icon" aria-hidden="true">
-                                        @if ($opsi['id'] === 'qris')
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                                <rect x="4" y="4" width="6" height="6" rx="1" />
-                                                <rect x="14" y="4" width="6" height="6" rx="1" />
-                                                <rect x="4" y="14" width="6" height="6" rx="1" />
-                                                <path d="M14 14h3v3h-3zM20 14h.01M14 20h.01M20 20h.01" />
-                                            </svg>
-                                        @else
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                                <rect x="3" y="7" width="18" height="11" rx="2" />
-                                                <path d="M3 11h18" />
-                                                <circle cx="17" cy="15" r="1.2" />
-                                            </svg>
+                                <span class="pay-icon" aria-hidden="true">
+                                    @if ($opsi['id'] === 'qris')
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="4" y="4" width="6" height="6" rx="1" />
+                                        <rect x="14" y="4" width="6" height="6" rx="1" />
+                                        <rect x="4" y="14" width="6" height="6" rx="1" />
+                                        <path d="M14 14h3v3h-3zM20 14h.01M14 20h.01M20 20h.01" />
+                                    </svg>
+                                    @else
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="7" width="18" height="11" rx="2" />
+                                        <path d="M3 11h18" />
+                                        <circle cx="17" cy="15" r="1.2" />
+                                    </svg>
+                                    @endif
+                                </span>
+
+                                <span class="pay-text">
+                                    <span class="pay-name">
+                                        {{ $opsi['nama'] }}
+                                        @if ($opsi['rekomendasi'])
+                                        <span class="tag">Recommended</span>
                                         @endif
                                     </span>
+                                    <span class="pay-desc">{{ $opsi['deskripsi'] }}</span>
+                                </span>
 
-                                    <span class="pay-text">
-                                        <span class="pay-name">
-                                            {{ $opsi['nama'] }}
-                                            @if ($opsi['rekomendasi'])
-                                                <span class="tag">Recommended</span>
-                                            @endif
-                                        </span>
-                                        <span class="pay-desc">{{ $opsi['deskripsi'] }}</span>
-                                    </span>
-
-                                    <span class="pay-ring" aria-hidden="true"></span>
-                                </div>
+                                <span class="pay-ring" aria-hidden="true"></span>
+                            </div>
                             @endforeach
                         </div>
 
                         @if ($order['harga_menyesuaikan'])
-                            <p class="pay-note">
-                                Harga akan menyesuaikan setelah file selesai diedit. Pembayaran dilakukan di kasir.
-                            </p>
+                        <p class="pay-note">
+                            Harga akan menyesuaikan setelah file selesai diedit. Pembayaran dilakukan di kasir.
+                        </p>
                         @endif
                     </div>
                 </wired-card>
@@ -236,27 +240,27 @@
                                 <dd>{{ $rupiah($order['biaya_admin']) }}</dd>
                             </div>
                             @if ($order['biaya_penanganan'] > 0)
-                                <div class="summary-row">
-                                    <dt>Biaya Penanganan</dt>
-                                    <dd>{{ $rupiah($order['biaya_penanganan']) }}</dd>
-                                </div>
+                            <div class="summary-row">
+                                <dt>Biaya Penanganan</dt>
+                                <dd>{{ $rupiah($order['biaya_penanganan']) }}</dd>
+                            </div>
                             @endif
                         </dl>
 
                         @if ($order['harga_menyesuaikan'])
-                            <button type="button" class="total-box total-box--tanya" data-modal-open="modal-total">
-                                <span>Total Pembayaran</span>
-                                <span class="total-value">
-                                    Rp. &mdash;
-                                    <span class="tanya" aria-hidden="true">?</span>
-                                    <span class="visually-hidden">, lihat penjelasan harga</span>
-                                </span>
-                            </button>
+                        <button type="button" class="total-box total-box--tanya" data-modal-open="modal-total">
+                            <span>Total Pembayaran</span>
+                            <span class="total-value">
+                                Rp. &mdash;
+                                <span class="tanya" aria-hidden="true">?</span>
+                                <span class="visually-hidden">, lihat penjelasan harga</span>
+                            </span>
+                        </button>
                         @else
-                            <div class="total-box">
-                                <span>Total Pembayaran</span>
-                                <span class="total-value">{{ $rupiah($order['total']) }}</span>
-                            </div>
+                        <div class="total-box">
+                            <span>Total Pembayaran</span>
+                            <span class="total-value">{{ $rupiah($order['total']) }}</span>
+                        </div>
                         @endif
                     </div>
                 </wired-card>
@@ -270,23 +274,23 @@
                 <span class="pay-bar-label">Total Bayar</span>
 
                 @if ($order['harga_menyesuaikan'])
-                    <button type="button" class="pay-bar-value pay-bar-value--tanya" data-modal-open="modal-total">
-                        Rp. &mdash;
-                        <span class="visually-hidden">, lihat penjelasan harga</span>
-                    </button>
+                <button type="button" class="pay-bar-value pay-bar-value--tanya" data-modal-open="modal-total">
+                    Rp. &mdash;
+                    <span class="visually-hidden">, lihat penjelasan harga</span>
+                </button>
                 @else
-                    <span class="pay-bar-value" id="total-bayar">{{ $rupiah($order['total']) }}</span>
+                <span class="pay-bar-value" id="total-bayar">{{ $rupiah($order['total']) }}</span>
                 @endif
             </div>
 
             <wired-button roughness="1.2" elevation="2" class="btn-bayar" id="btn-bayar" @if ($order['menunggu_kasir']) disabled @endif>
                 <span class="cta-labels">
                     @if ($order['menunggu_kasir'])
-                        <span class="cta-label">Menunggu konfirmasi kasir</span>
+                    <span class="cta-label">Menunggu konfirmasi kasir</span>
                     @else
-                        @foreach ($metode as $opsi)
-                            <span class="cta-label" data-cta="{{ $opsi['id'] }}" @if (!$loop->first) data-nonaktif="true" @endif>{{ $opsi['cta'] }}</span>
-                        @endforeach
+                    @foreach ($metode as $opsi)
+                    <span class="cta-label" data-cta="{{ $opsi['id'] }}" @if (!$loop->first) data-nonaktif="true" @endif>{{ $opsi['cta'] }}</span>
+                    @endforeach
                     @endif
                 </span>
             </wired-button>

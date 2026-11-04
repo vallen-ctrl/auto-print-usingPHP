@@ -14,6 +14,8 @@ import { bukaModal } from '../shared/modal.js';
 import { FORM_STORAGE_KEY, bacaNamaFile } from '../shared/file-store.js';
 import { pengaturanAwal } from '../shared/form-config.js';
 
+localStorage.removeItem("snap-token");
+
 /* ---------- Modal error formulir: setelah ditutup, kembali ke upload ---------- */
 
 document.querySelectorAll('[data-upload-redirect]').forEach((modal) => {

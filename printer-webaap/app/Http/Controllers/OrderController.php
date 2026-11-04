@@ -476,6 +476,9 @@ class OrderController extends Controller
             );
         }
 
+        $sisaDetik = $this->kedaluwarsa->sisaDetik($order) - 5;
+        $sisaMenit = (int) ceil($sisaDetik / 60);
+
         // Catatan: URL redirect setelah pembayaran (Finish Redirect URL)
         // dikonfigurasi di dashboard Midtrans, jadi tidak di-hardcode di sini.
         $params = array(
@@ -483,9 +486,37 @@ class OrderController extends Controller
                 'order_id' => bin2hex($order->id),
                 'gross_amount' => $order->total_pembayaran,
             ),
+            'expiry' => [
+                'start_time' => now()->format('Y-m-d H:i:s O'),
+                'unit' => 'minute',
+                'duration' => $sisaMenit,
+            ],
         );
 
-        $snapToken = \Midtrans\Snap::getSnapToken($params);
+        try {
+            $snapToken = \Midtrans\Snap::getSnapToken($params);
+        } catch (\Throwable $e) {
+            $pesanMidtrans = $e->getMessage();
+
+            // order_id sudah pernah dipakai (token sudah pernah dibuat untuk order ini)
+            $orderIdSudahDipakai = str_contains($pesanMidtrans, 'order_id')
+                && (str_contains($pesanMidtrans, 'sudah digunakan')
+                    || str_contains($pesanMidtrans, 'has already been taken'));
+
+            if ($orderIdSudahDipakai) {
+                Order::whereKey(hex2bin($validated["orderid"]))->update([
+                    "status_pembayaran" => "failed"
+                ]);
+                return $this->gagalBayar(
+                    "Pembayaran untuk pesanan ini sudah dibuat sebelumnya. Untuk melakukan perubahan, silakan tutup dialog ini dan isi ulang formulirnya dari awal.",
+                    409
+                );
+            }
+            return $this->gagalBayar(
+                "Gagal terhubung ke layanan pembayaran. Silakan coba lagi beberapa saat lagi.",
+                502
+            );
+        }
 
         // Catat metode pembayaran yang dipilih (hanya qris/kasir).
         $order->update(['metode_pembayaran' => 'qris']);
@@ -591,8 +622,10 @@ class OrderController extends Controller
         $statusSekarang = $order->fresh();
 
         // Pembayaran lunas: pastikan total_dibayar ikut tercatat.
-        if ($statusSekarang->status_pembayaran === 'paid'
-            && (int) $statusSekarang->total_dibayar !== (int) $statusSekarang->total_pembayaran) {
+        if (
+            $statusSekarang->status_pembayaran === 'paid'
+            && (int) $statusSekarang->total_dibayar !== (int) $statusSekarang->total_pembayaran
+        ) {
             Order::where('id', $binId)->update([
                 'total_dibayar' => $statusSekarang->total_pembayaran,
             ]);
@@ -622,7 +655,7 @@ class OrderController extends Controller
                 'files.name',
                 'files.subtotal',
                 'configuration.ukuran',
-                'configuration.jumlah_cetak', 
+                'configuration.jumlah_cetak',
                 'configuration.pages_toprint',
                 'configuration.catatan_tambahan',
             )

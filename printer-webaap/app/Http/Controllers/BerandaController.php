@@ -53,7 +53,6 @@ class BerandaController extends Controller
             // Lunas: alur selesai, jangan mengarahkan user ke halaman lama.
             case 'paid':
                 $this->lupakanOrder($request, $order);
-
                 return view('beranda');
 
             // Pembayaran online sedang diverifikasi Midtrans.
