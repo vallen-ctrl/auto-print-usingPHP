@@ -21,6 +21,7 @@ use App\Models\PengaturanToko;
 use App\Service\JadwalToko;
 use App\Service\KedaluwarsaOrder;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Midtrans\Transaction;
 
 use function Illuminate\Log\log;
@@ -487,13 +488,13 @@ class OrderController extends Controller
                 'gross_amount' => $order->total_pembayaran,
             ),
             'expiry' => [
-                'start_time' => now()->format('Y-m-d H:i:s O'),
                 'unit' => 'minute',
                 'duration' => $sisaMenit,
             ],
         );
 
         try {
+            Log::info("creating snap token for -> $order->id");
             $snapToken = \Midtrans\Snap::getSnapToken($params);
         } catch (\Throwable $e) {
             $pesanMidtrans = $e->getMessage();
@@ -512,7 +513,8 @@ class OrderController extends Controller
                     409
                 );
             }
-            $this->kedaluwarsa->hapusFile($validated["orderid"]);
+
+            Log::error($e->getMessage());
             return $this->gagalBayar(
                 "Gagal terhubung ke layanan pembayaran. Silakan coba lagi beberapa saat lagi.",
                 502
