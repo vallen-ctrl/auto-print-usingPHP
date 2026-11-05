@@ -7,6 +7,10 @@ Route::get('/', \App\Http\Controllers\BerandaController::class);
 
 Route::view('/formulir/kilat', 'formulir-kilat')->name('formulir.kilat');
 
+// Alur cetak kilat: pindai QR komputer, lalu pilih tempat edit.
+Route::view('/scan/qr', 'scan-qr')->name('scan.qr');
+Route::view('/print/kilat', 'print-kilat')->name('print.kilat');
+
 Route::get('/dashboard/admin/login', [\App\Http\Controllers\loginControler::class, "get"])->name('admin.login');
 Route::post('/dashboard/admin/login', [\App\Http\Controllers\loginControler::class, "login"]);
 
@@ -34,6 +38,8 @@ Route::post('/order/token', [\App\Http\Controllers\OrderController::class, "baya
 Route::get("/struk/order/{id}", [\App\Http\Controllers\OrderController::class, "strukOrder"])->name("order.struk");
 Route::get("/struk/{id}", [\App\Http\Controllers\strukController::class, "get"])->name("struk.render");
 
+//UTR untuk scan qr apakah dalam keadaan hidup atau mati
+Route::get('/scan/url/{token}', [\App\Http\Controllers\Api\ComputerController::class, 'scanQr'])->name('verified.token');
 Route::get("/test", function (){
     return view('snap');
 })->name("test");

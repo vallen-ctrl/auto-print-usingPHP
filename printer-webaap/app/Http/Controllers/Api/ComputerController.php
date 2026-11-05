@@ -42,6 +42,24 @@ class ComputerController extends Controller
         ]);
     }
 
+    public function scanQr(string $token){
+        if(empty($token)){
+            return response()->json([
+                "error" => true,
+                "message" => "tidak dapat mencari token dari data yang anda kirimkan"
+            ], 304);
+        }
+        $tokenComputer = new tokenComputer();
+        $verified = $tokenComputer->verifyToken($token);
+        if($verified !== null){
+            return response()->json($verified);
+        }
+        return response()->json([
+            "error" => true,
+            "message" => "token sudah kadaluarsa"
+        ], 404);
+    }
+
     public function computerScreen(Request $request)
     {
         $validated = $request->validate([

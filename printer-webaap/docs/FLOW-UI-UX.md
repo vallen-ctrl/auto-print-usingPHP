@@ -1,7 +1,7 @@
 # Customer UI/UX Flow — Home to Receipt
 
-Last updated: 2026-11-04
-Branch at time of writing: `fitur/dialog` (commit `5f31d8c`)
+Last updated: 2026-11-06
+Branch at time of writing: `fitur/scan-qr-kilat`
 
 This document describes the **customer-facing print ordering flow** of the
 "Nama Print" Laravel app: from the home page, through PDF upload, the print
@@ -20,24 +20,32 @@ Paths are relative to the app root (`printer-webaap/`).
 
 ```
 GET /                          Home (service picker)
-  └─ "Cetak Terjadwal"
+  ├─ "Cetak Terjadwal"
+  │    ↓
+  │  GET /upload/terjadwal          Upload PDF (max 10, PDF only)
+  │    └─ "Lanjutkan" → POST /upload/terjadwal  (XHR + loading overlay)
+  │         ↓
+  │  GET /formulir/terjadwal?order= Print form + price estimate
+  │    └─ "Lanjut proses pembayaran" → POST /order/create (native form submit)
+  │         ↓
+  │  GET /order/konfirmasi/{id}     Payment confirmation + 20-minute countdown
+  │    ├─ QRIS  → POST /order/token → Midtrans Snap popup
+  │    └─ Kasir → POST /order/konfirmasi/{id}/kasir
+  │         ↓
+  │  GET /struk/{id}                Receipt / payment status
+  │    └─ polls GET /struk/order/{id} every 3s until paid / failed
+  │
+  └─ "Cetak Kilat"
        ↓
-GET /upload/terjadwal          Upload PDF (max 10, PDF only)
-  └─ "Lanjutkan" → POST /upload/terjadwal  (XHR + loading overlay)
-       ↓
-GET /formulir/terjadwal?order= Print form + price estimate
-  └─ "Lanjut proses pembayaran" → POST /order/create (native form submit)
-       ↓
-GET /order/konfirmasi/{id}     Payment confirmation + 20-minute countdown
-  ├─ QRIS  → POST /order/token → Midtrans Snap popup
-  └─ Kasir → POST /order/konfirmasi/{id}/kasir
-       ↓
-GET /struk/{id}                Receipt / payment status
-  └─ polls GET /struk/order/{id} every 3s until paid / failed
+  GET /scan/qr                  Camera scans the computer's QR token
+    └─ GET /scan/url/{token} (route "verified.token") verifies it
+         ↓
+  GET /print/kilat              Choose where to edit (placeholder, next step TBD)
 ```
 
-Only **Terjadwal** (scheduled pickup) is wired end to end. **Cetak Kilat** is
-still a static prototype (see §7).
+Only **Terjadwal** (scheduled pickup) is wired end to end. **Cetak Kilat** now
+has a working scan step and a placeholder "choose edit location" page, but the
+edit/upload flow after it does not exist yet (see §6).
 
 ### Route table
 
@@ -54,6 +62,9 @@ still a static prototype (see §7).
 | GET | `/struk/{id}` | `strukController::get` → `test_struk.blade.php` | Receipt shell (static markup, filled by JS) |
 | GET | `/struk/order/{id}` | `OrderController::strukOrder` | JSON status; also reconciles payment with Midtrans |
 | GET | `/terjadwal/keluar` | inline closure in `routes/web.php` | Leave the flow (forget session) → `/` |
+| GET | `/scan/qr` | `Route::view` → `scan-qr.blade.php` | Camera scanner for the computer QR (Cetak Kilat) |
+| GET | `/scan/url/{token}` | `Api\ComputerController::scanQr` (route `verified.token`) | Verify a scanned QR token, JSON payload |
+| GET | `/print/kilat` | `Route::view` → `print-kilat.blade.php` | Choose edit location (placeholder) |
 
 ---
 
@@ -119,8 +130,12 @@ Cleared when:
 | `printer:formulir-terjadwal` | `localStorage` | Upload success (`gabungFileKeFormulir`), form inputs | Upload page load, `localStorage.clear()` after paid |
 | `printer:file-names` | `sessionStorage` | Upload page before POST | Upload page load |
 | `snap-token` | `localStorage` | `bukaSnap()` | Form page load (`removeItem`), paid/error path |
+| `printer:computer-token` | `sessionStorage` | Scan page after a verified QR | Not cleared automatically |
+| `printer:computer` | `sessionStorage` | Scan page (verified payload: `computerid`, `userSession`, `exp`, `jti`) | Not cleared automatically |
 
-Never store secrets here. `snap-token` is only a Midtrans Snap token string.
+Never store secrets here. `snap-token` is only a Midtrans Snap token string, and
+the computer token is a short-lived HMAC token (60-70 s) that only binds the
+browser to a printer computer.
 
 ### 2.5 Time limits (`App\Service\KedaluwarsaOrder`)
 
@@ -169,7 +184,7 @@ Never store secrets here. `snap-token` is only a Midtrans Snap token string.
 **Actions**
 
 - "Cetak Terjadwal" navigates to `/upload/terjadwal` (`data-href`).
-- "Cetak Kilat" currently has **no destination** (static prototype).
+- "Cetak Kilat" navigates to `/scan/qr` (`data-href`), the camera scanner.
 
 **Resume logic — `BerandaController::__invoke`**
 
@@ -190,6 +205,75 @@ Before rendering the picker, the controller looks up the newest order with
 Rebuilding the session (`pulihkanSession`) re-reads files from the database and
 storage, so the user can continue even after cookies were preserved but the
 Laravel session payload was lost.
+
+---
+
+### Step 0b — Cetak Kilat: scan the computer QR `/scan/qr`
+
+Reached from the home page's **Cetak Kilat** button (`data-href` in
+`beranda.blade.php`). This step binds the phone browser to a specific printer
+computer before any printing happens.
+
+**What the user sees**
+
+- Header brand + **Kembali** (→ `/`).
+- Centered title "Scan QR di Komputer Terdekat!".
+- A single large camera card (3:4) with corner guides.
+- Short hint under the card: point the camera at the QR on the computer screen;
+  the QR changes every 60 seconds.
+
+**Camera states** (inside the card)
+
+| State | UI |
+| --- | --- |
+| Starting | dashed spinner + "Menyiapkan kamera…" |
+| Live | camera feed + four white corner guides, no overlay |
+| Permission denied / no camera / insecure context | error icon + explanation + **Coba Lagi** button |
+| Verifying | full-screen loading card "Memeriksa QR…" (camera already stopped) |
+
+Camera rules: `facingMode: environment` (rear camera preferred), video muted +
+`playsinline`, frame sampled every ~140 ms, downscaled to 640 px wide, decoded
+with `jsqr`. Scanning pauses while verifying so the same QR cannot fire twice.
+The camera is stopped on `pagehide`, and restarted when the user returns to the
+tab or closes an error dialog.
+
+**Scan → verify flow**
+
+1. QR text is normalized: raw token, or the last path segment / `token` query
+   value when a URL was scanned.
+2. A token is `body.signature` (exactly one dot). Anything else → error dialog
+   "QR yang dipindai bukan QR komputer…".
+3. `GET /scan/url/{token}` (`route('verified.token')`, JSON):
+   `Api\ComputerController::scanQr` verifies the HMAC signature and `exp`
+   (`App\Service\tokenComputer`).
+4. Failure (non-2xx or `{ error: true }`) → `modal-info` (type error) with the
+   server message; closing the dialog restarts the camera.
+5. Success (200, payload `{ computerid, userSession, exp, jti }`) → token and
+   payload stored in `sessionStorage` → navigate to `/print/kilat`.
+
+**Verification errors**
+
+| Trigger | Message shown |
+| --- | --- |
+| Token expired / signature invalid (404) | "token sudah kadaluarsa" from the server |
+| Missing token (304 branch) | Server message (unreachable through the UI) |
+| Server 5xx | "Server sedang bermasalah…" |
+| Network failure | "Tidak bisa menghubungi server…" |
+| Scanned text is not a token | "QR yang dipindai bukan QR komputer…" |
+
+Camera requires a secure context: HTTPS in production, or `localhost` during
+development. `navigator.mediaDevices` is undefined on plain-HTTP origins, and
+the page shows the "browser tidak memberi akses kamera" message instead.
+
+---
+
+### Step 0c — Choose edit location `/print/kilat`
+
+Placeholder for the next step of the kilat flow. Shows one large card with two
+buttons: **Edit di Komputer** and **Edit di Handphone**. Both currently open the
+info modal "Belum tersedia"; the edit/upload flow is not built yet. The
+verified computer token is available in `sessionStorage`
+(`printer:computer-token`, `printer:computer`) for that future step.
 
 ---
 
@@ -482,6 +566,20 @@ fixed at 150 px, and dividers stay dashed.
 
 ## 4. Error and edge-case matrix
 
+### Scan QR (`/scan/qr`)
+
+| Trigger | UI feedback | Recovery |
+| --- | --- | --- |
+| Camera permission denied | In-card error + **Coba Lagi** | Allow camera in browser settings, retry |
+| No camera device | In-card error "Kamera tidak ditemukan…" | Use another device |
+| Camera used by another app | In-card error "Kamera sedang dipakai aplikasi lain…" | Close that app, retry |
+| Plain HTTP origin (no `mediaDevices`) | In-card error about HTTPS/localhost | Open via HTTPS |
+| Scanned text is not a token | Error dialog "QR yang dipindai bukan QR komputer…" | Close dialog → camera restarts |
+| Token expired / bad signature (404) | Error dialog with "token sudah kadaluarsa" | Scan the newest QR (regenerated every 60 s) |
+| Server error (5xx) | Error dialog "Server sedang bermasalah…" | Retry |
+| Network failure | Error dialog "Tidak bisa menghubungi server…" | Retry |
+| User leaves the page mid-verify | Camera tracks stopped (`pagehide`) | Scan again |
+
 ### Upload
 
 | Trigger | UI feedback | Recovery |
@@ -564,6 +662,9 @@ fixed at 150 px, and dividers stay dashed.
 9. **Admin fee always comes from `pengaturan_toko`**, not from a snapshot.
 10. **Hand-drawn (`wired-elements`) look is required** on every customer page:
     cards, buttons, inputs, modals, dividers.
+11. **Scan before print (Kilat).** The phone must verify the computer QR through
+    `/scan/url/{token}` before `/print/kilat` is shown; never navigate on a
+    client-side check alone.
 
 ---
 
@@ -571,11 +672,12 @@ fixed at 150 px, and dividers stay dashed.
 
 | Gap | Impact |
 | --- | --- |
-| Cetak Kilat is a static prototype | Home button is inert; `/formulir/kilat` has hardcoded values and no backend |
+| Kilat edit/upload flow not built | `/print/kilat` buttons only show "Belum tersedia"; `/formulir/kilat` is still a static page with hardcoded values and no backend |
+| Kilat orders not created yet | Confirmation supports `kilat-*`, but nothing creates such orders or queues their files |
+| Scanned token is not consumed | `scanQr` only verifies the HMAC + `exp`; the same token can be scanned again until it expires (60 s) |
 | Seller confirmation for cashier orders | `processing` never becomes `paid` from a UI action |
 | Receipt page for cashier orders | Polling sees `processing` forever (no success/error branch) |
 | Midtrans webhook / background expiry | Status only advances when the user is on the receipt page or someone triggers a check |
-| Killat upload / order creation | Confirmation supports `kilat-*`, but no way to create such orders |
 | Admin dashboard status editing | Dashboard lists orders only |
 
 Known code smells worth fixing when touching this area:
@@ -605,6 +707,9 @@ Known code smells worth fixing when touching this area:
 | Expiry rules | `app/Service/KedaluwarsaOrder.php` |
 | Opening-hours rules | `app/Service/JadwalToko.php` |
 | Home UI | `resources/views/beranda.blade.php`, `resources/js/pages/beranda.js` |
+| Scan QR UI | `resources/views/scan-qr.blade.php`, `resources/js/pages/scan-qr.js`, `resources/css/scan-qr.css` |
+| Print choice UI | `resources/views/print-kilat.blade.php`, `resources/js/pages/print-kilat.js`, `resources/css/print-kilat.css` |
+| QR token verify | `app/Http/Controllers/Api/ComputerController.php::scanQr`, `app/Service/tokenComputer.php` |
 | Upload UI | `resources/views/upload-terjadwal.blade.php`, `resources/js/pages/upload-terjadwal.js`, `resources/css/upload-terjadwal.css` |
 | Form UI | `resources/views/formulir-terjadwal.blade.php`, `resources/js/pages/formulir-terjadwal.js`, `resources/css/formulir-terjadwal.css` |
 | Confirmation UI | `resources/views/order-konfirmasi.blade.php`, `resources/js/pages/order-konfirmasi.js`, `resources/css/order-konfirmasi.css` |
@@ -613,7 +718,8 @@ Known code smells worth fixing when touching this area:
 | Shared storage keys | `resources/js/shared/file-store.js` |
 | Wired re-draw helper | `resources/js/wired/sketch.js` |
 
-Build with `npm run build` after touching any CSS/JS.
+Build with `npm run build` after touching any CSS/JS. The scan page uses the
+`jsqr` npm package (bundled into `scan-qr.js`).
 
 ---
 
