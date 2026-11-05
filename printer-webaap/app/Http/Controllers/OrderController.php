@@ -512,6 +512,7 @@ class OrderController extends Controller
                     409
                 );
             }
+            $this->kedaluwarsa->hapusFile($validated["orderid"]);
             return $this->gagalBayar(
                 "Gagal terhubung ke layanan pembayaran. Silakan coba lagi beberapa saat lagi.",
                 502
