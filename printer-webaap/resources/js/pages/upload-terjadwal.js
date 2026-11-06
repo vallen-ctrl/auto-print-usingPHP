@@ -286,6 +286,14 @@ if (pickButton && pdfInput && pdfCount && pdfList && pdfWarning) {
 
             chosen.forEach((file) => formData.append('files[]', file));
 
+            // Halaman upload kilat menandai layanannya lewat data-layanan,
+            // supaya server menyimpan files.layanan yang benar.
+            const layanan = lanjutButton.dataset.layanan;
+
+            if (layanan) {
+                formData.append('layanan', layanan);
+            }
+
             mulaiLoading(chosen.length);
 
             try {

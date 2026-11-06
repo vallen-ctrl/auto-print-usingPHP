@@ -612,6 +612,11 @@ const tandaiKolom = (input, pesan) => {
 };
 
 const periksaWhatsapp = () => {
+    // Formulir kilat tidak punya kolom WhatsApp: anggap selalu valid.
+    if (!inputWhatsapp) {
+        return true;
+    }
+
     const isi = (inputWhatsapp.value || '').trim();
     const angka = isi.replace(/[\s\-().]/g, '');
 
@@ -688,11 +693,11 @@ function toIsoWithOffset(tanggal, pukul) {
 }
 
 
-if (inputWhatsapp && inputTanggal && inputPukul && inputHalaman) {
+if (inputTanggal && inputPukul && inputHalaman) {
     perbaruiBatasWaktu();
 
 
-    inputWhatsapp.addEventListener('change', periksaWhatsapp);
+    inputWhatsapp?.addEventListener('change', periksaWhatsapp);
 
     inputTanggal.addEventListener('change', () => {
         perbaruiBatasWaktu();
@@ -713,13 +718,20 @@ if (inputWhatsapp && inputTanggal && inputPukul && inputHalaman) {
                 return;
             }
 
-            const kolom = [inputWhatsapp, inputTanggal, inputPukul, inputHalaman];
-            const hasil = [periksaWhatsapp(), periksaTanggal(), periksaPukul(), periksaHalaman()];
-            const pertamaSalah = hasil.indexOf(false);
+            // WhatsApp hanya ada di formulir terjadwal. Formulir kilat tidak
+            // punya kolom itu, jadi pemeriksaannya dilewati.
+            const pemeriksaan = [
+                { el: inputWhatsapp, periksa: periksaWhatsapp },
+                { el: inputTanggal, periksa: periksaTanggal },
+                { el: inputPukul, periksa: periksaPukul },
+                { el: inputHalaman, periksa: periksaHalaman },
+            ].filter((item) => item.el);
 
-            if (pertamaSalah >= 0) {
-                kolom[pertamaSalah].scrollIntoView({ block: 'center', behavior: 'smooth' });
-                kolom[pertamaSalah].focus();
+            const salah = pemeriksaan.find((item) => item.periksa() === false);
+
+            if (salah) {
+                salah.el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                salah.el.focus();
                 return;
             }
 
@@ -795,12 +807,18 @@ if (inputWhatsapp && inputTanggal && inputPukul && inputHalaman) {
 
                 const urlParams = new URLSearchParams(window.location.search);
                 const dataBaru = {
-                    orderid: urlParams.get('order'),
+                    // Formulir kilat bisa dibuka tanpa ?order= (mis. setelah
+                    // reload), jadi id pesanan diambil juga dari atribut form.
+                    orderid: urlParams.get('order') || (cetakForm && cetakForm.dataset.order) || '',
                     nama: localStorageSaved.nama,
-                    no_wa: localStorageSaved.whatsapp,
                     tanggal_ambil: toIsoWithOffset(localStorageSaved.tanggal, localStorageSaved.pukul),
                     files: localStorageSaved.files
                 };
+
+                // no_wa hanya dikirim kalau formulir memang punya kolom WhatsApp.
+                if (localStorageSaved.whatsapp) {
+                    dataBaru.no_wa = localStorageSaved.whatsapp;
+                }
 
                 console.log(dataBaru)
                 for (const [key, value] of Object.entries(dataBaru)) {

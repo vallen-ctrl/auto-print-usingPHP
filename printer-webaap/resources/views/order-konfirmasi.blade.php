@@ -1,10 +1,13 @@
 @php
 $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
-$bisaEditFormulir = $order['layanan'] === 'terjadwal' && !$order['menunggu_kasir'];
+$modeKilat = $order['layanan'] === 'kilat-edit' ? 'komputer' : 'handphone';
+$bisaEditFormulir = in_array($order['layanan'], ['terjadwal', 'kilat-langsung', 'kilat-edit'], true)
+    && !$order['menunggu_kasir'];
 $kembali = match (true) {
-$bisaEditFormulir => route('formulir.terjadwal', ['order' => $order['id']]),
-$order['layanan'] === 'terjadwal' => route('upload.terjadwal'),
-default => route('formulir.kilat'),
+    $bisaEditFormulir && $order['layanan'] === 'terjadwal' => route('formulir.terjadwal', ['order' => $order['id']]),
+    $bisaEditFormulir => route('kilat.formulir', ['mode' => $modeKilat, 'order' => $order['id']]),
+    $order['layanan'] === 'terjadwal' => route('upload.terjadwal'),
+    default => route('print.kilat'),
 };
 @endphp
 <!DOCTYPE html>

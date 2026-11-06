@@ -218,6 +218,46 @@ After the header, write ONLY these two parts:
    - For each change: what was replaced or added, and how to use it.
    - Include the file path for every item. Relative paths only (e.g. `app/Models/Order.php`), never absolute paths.
 
+## CodeGraph
+
+This project is indexed with CodeGraph (`.codegraph/`). It is a pre-built
+knowledge graph of every symbol, call edge, and dependency in the codebase.
+
+### When to use it
+For any structural question, ALWAYS call `codegraph_explore` BEFORE grep, glob,
+or reading files. This includes:
+- "How does X work?"
+- "How does X reach Y?" (call flow)
+- "What calls this function?"
+- "What breaks if I change this?"
+- Surveying an unfamiliar area of the code
+
+### How to use it
+1. Call `codegraph_explore` with a natural-language query that names the
+   relevant files or symbols, e.g.
+   `"how does the payment flow create a Midtrans transaction (OrderController, verifyToken)"`.
+2. One call returns the relevant symbols' verbatim source grouped by file,
+   the call paths between them, and a blast-radius summary.
+   Treat the returned source as already read.
+3. To read a specific file or symbol, name it in the query. You get its
+   current source with line numbers.
+4. If the response has a staleness warning (⚠️) for a file, read that file
+   directly, because the index has not synced it yet.
+
+### Rules
+- Trust the results. Do NOT re-verify them with grep or re-read the same files.
+- Do NOT delegate code exploration to a sub-agent that reads files. Query
+  CodeGraph directly.
+- Fall back to grep/read only if CodeGraph returns nothing relevant or the
+  project has no `.codegraph/` index.
+
+### CLI equivalents (if the MCP tool is unavailable)
+codegraph explore "<query>"
+codegraph node <symbol|file>
+codegraph callers <symbol>
+codegraph callees <symbol>
+codegraph impact <symbol>
+
 ### Rules
 - Do NOT add a project snapshot, tech stack overview, folder tree, or any other general description.
 - Keep it short and factual. No filler.

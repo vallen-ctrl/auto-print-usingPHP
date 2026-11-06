@@ -80,7 +80,19 @@ class BerandaController extends Controller
                     return redirect()->route('order.konfirmasi', ['order_id' => $orderHex]);
                 }
 
-                // Baru upload file: lanjutkan pengisian formulir.
+                // Baru upload file: lanjutkan pengisian formulir sesuai alurnya.
+                $jenisLayanan = (string) File::where('order_id', $order->id)->value('layanan');
+
+                if ($jenisLayanan !== '' && $jenisLayanan !== 'terjadwal') {
+                    $mode = $jenisLayanan === 'kilat-edit' ? 'komputer' : 'handphone';
+                    $this->pulihkanSession($request, $order, 'formulir.kilat');
+
+                    return redirect()->route('kilat.formulir', [
+                        'mode' => $mode,
+                        'order' => $orderHex,
+                    ]);
+                }
+
                 $this->pulihkanSession($request, $order, 'formulir.terjadwal');
 
                 return redirect()->route('formulir.terjadwal', ['order' => $orderHex]);
