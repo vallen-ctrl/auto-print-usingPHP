@@ -14,13 +14,6 @@
 </head>
 
 <body>
-    {{-- Langkah edit belum dibuat; tombol hanya memberi tahu bahwa fitur menyusul. --}}
-    <x-modal
-        id="modal-soon"
-        type="info"
-        title="Belum tersedia"
-        message="Pilihan tempat edit ini belum tersedia. Langkah berikutnya akan dibuat setelah alur scan QR selesai." />
-
     <header class="site-header">
         <wired-button
             roughness="1.2"
@@ -49,6 +42,7 @@
                     elevation="1"
                     id="btn-komputer"
                     class="print-button"
+                    data-href="{{ route('kilat.upload', ['mode' => 'komputer']) }}"
                     data-tempat="Komputer">
                     Edit di Komputer
                 </wired-button>
@@ -58,6 +52,7 @@
                     elevation="1"
                     id="btn-handphone"
                     class="print-button"
+                    data-href="{{ route('kilat.upload', ['mode' => 'handphone']) }}"
                     data-tempat="Handphone">
                     Edit di Handphone
                 </wired-button>

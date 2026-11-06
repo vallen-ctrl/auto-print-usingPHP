@@ -7,9 +7,19 @@ Route::get('/', \App\Http\Controllers\BerandaController::class);
 
 Route::view('/formulir/kilat', 'formulir-kilat')->name('formulir.kilat');
 
-// Alur cetak kilat: pindai QR komputer, lalu pilih tempat edit.
+// Alur cetak kilat: pindai QR komputer, pilih tempat edit, lalu upload.
 Route::view('/scan/qr', 'scan-qr')->name('scan.qr');
 Route::view('/print/kilat', 'print-kilat')->name('print.kilat');
+
+Route::get('/print/kilat/upload/{mode}', [\App\Http\Controllers\KilatController::class, 'upload'])
+    ->whereIn('mode', ['komputer', 'handphone'])
+    ->name('kilat.upload');
+
+// Formulir kilat memakai controller formulir terjadwal; mode menentukan
+// layanan (kilat-edit / kilat-langsung) dan tampilan tanpa kolom WhatsApp.
+Route::get('/print/kilat/formulir/{mode}', [\App\Http\Controllers\FormulirTerjadwalController::class, 'get'])
+    ->whereIn('mode', ['komputer', 'handphone'])
+    ->name('kilat.formulir');
 
 Route::get('/dashboard/admin/login', [\App\Http\Controllers\loginControler::class, "get"])->name('admin.login');
 Route::post('/dashboard/admin/login', [\App\Http\Controllers\loginControler::class, "login"]);

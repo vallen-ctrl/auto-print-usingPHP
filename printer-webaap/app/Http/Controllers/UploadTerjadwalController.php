@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Smalot\PdfParser\Parser;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class UploadTerjadwalController extends Controller
 {
@@ -37,7 +38,10 @@ class UploadTerjadwalController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        $data = $request->validate([
+            // Halaman upload kilat mengirim layanan sesuai pilihan user:
+            // kilat-edit (edit di komputer) atau kilat-langsung (edit di handphone).
+            'layanan'          => ['nullable', Rule::in(['terjadwal', 'kilat-langsung', 'kilat-edit'])],
             'files'            => 'required|array|min:1|max:10',
             'files.*'          => 'required|file|mimes:pdf',
         ], [
@@ -50,12 +54,14 @@ class UploadTerjadwalController extends Controller
             'files.*.mimes'    => 'Setiap file wajib berformat PDF.',
         ]);
 
+        $layanan = $data['layanan'] ?? 'terjadwal';
+
         $orderId  = Str::uuid7()->getBytes();
         $orderHex = bin2hex($orderId);
 
         $files = [];
 
-        DB::transaction(function () use ($request, $orderId, $orderHex, &$files) {
+        DB::transaction(function () use ($request, $orderId, $orderHex, $layanan, &$files) {
             Order::create([
                 'id'            => $orderId,
                 'tanggal_ambil' => now(),
@@ -94,7 +100,9 @@ class UploadTerjadwalController extends Controller
                     'size'     => $file->getSize(),
                     'mime'     => 'application/pdf',
                     'order_id' => $orderId,
-                    'layanan'  => 'terjadwal',
+                    // Alur kilat menyimpan kilat-edit / kilat-langsung supaya
+                    // halaman konfirmasi tahu metode bayar yang tersedia.
+                    'layanan'  => $layanan,
                 ]);
             }
         });
@@ -105,7 +113,7 @@ class UploadTerjadwalController extends Controller
             "orderid" => $orderHex,
             "sessionid" => strtolower(bin2hex(random_bytes(16))),
             "files" => $files,
-            "where" => "formulir.terjadwal"
+            "where" => $layanan === 'terjadwal' ? "formulir.terjadwal" : "formulir.kilat"
         ]);
 
         // Data ringkas untuk browser: id file (hex), nama, dan jumlah halaman.
@@ -116,13 +124,21 @@ class UploadTerjadwalController extends Controller
             'total_pages' => $f['total_pages'],
         ], $files));
 
+        // Alur kilat lanjut ke formulir kilat sesuai mode yang dipilih.
+        $redirect = $layanan === 'terjadwal'
+            ? route('formulir.terjadwal', ['order' => $orderHex])
+            : route('kilat.formulir', [
+                'mode'  => $layanan === 'kilat-edit' ? 'komputer' : 'handphone',
+                'order' => $orderHex,
+            ]);
+
         if ($request->expectsJson()) {
             return response()->json([
-                'redirect' => route('formulir.terjadwal', ['order' => $orderHex]),
+                'redirect' => $redirect,
                 'callback' => $payload,
             ]);
         }
 
-        return redirect()->route('formulir.terjadwal', ['order' => $orderHex])->with('callback', $payload);
+        return redirect($redirect)->with('callback', $payload);
     }
 }

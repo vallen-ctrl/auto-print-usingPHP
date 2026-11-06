@@ -248,8 +248,22 @@ class OrderController extends Controller
 
         $files = $orderSession["files"] ?? null;
 
+        // Nomor WhatsApp hanya wajib untuk alur terjadwal. Formulir kilat tidak
+        // menampilkan kolom WA, jadi aturannya dilonggarkan (user.no_wa NOT NULL,
+        // nilai kosong disimpan sebagai string kosong).
+        $jenisLayanan = 'terjadwal';
 
-        $validated = $request->validate($this->setValidation());
+        if ($orderAwal = $this->kedaluwarsa->cariDariHex($orderid)) {
+            $jenisLayanan = (string) File::where('order_id', $orderAwal->id)->value('layanan') ?: 'terjadwal';
+        }
+
+        $aturan = $this->setValidation();
+
+        if ($jenisLayanan !== 'terjadwal') {
+            $aturan['no_wa'] = 'nullable|max:14';
+        }
+
+        $validated = $request->validate($aturan);
 
         try {
             // Tolak lebih awal (sebelum ada data yang ditulis) kalau jadwal pengambilan
@@ -395,15 +409,20 @@ class OrderController extends Controller
                     $validated["files"][$index]["subtotal"] = $subTotal;
                 }
 
-                // updateOrCreate: submit ulang (back button/klik ganda) tidak
-                // boleh gagal karena user dengan sessionid yang sama sudah ada.
-                User::updateOrCreate(
-                    ["sessionid" => $orderSession["sessionid"]],
-                    [
-                        "name" => $validated["nama"],
-                        "no_wa" => $validated["no_wa"]
-                    ]
-                );
+                // firstOrNew: submit ulang (back button/klik ganda) tidak boleh
+                // gagal karena user dengan sessionid yang sama sudah ada, dan
+                // no_wa lama tidak terhapus saat alur kilat (tanpa WA) memakai
+                // session yang sama.
+                $pelanggan = User::firstOrNew(["sessionid" => $orderSession["sessionid"]]);
+                $pelanggan->name = $validated["nama"];
+
+                if (! empty($validated["no_wa"])) {
+                    $pelanggan->no_wa = $validated["no_wa"];
+                } elseif ($pelanggan->no_wa === null) {
+                    $pelanggan->no_wa = '';
+                }
+
+                $pelanggan->save();
 
                 Order::findOrFail(hex2bin($orderSession["orderid"]))
                     ->update([

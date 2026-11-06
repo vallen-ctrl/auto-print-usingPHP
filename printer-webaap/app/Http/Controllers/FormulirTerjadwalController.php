@@ -15,8 +15,9 @@ class FormulirTerjadwalController extends Controller
     {
     }
 
-    public function get(Request $request)
+    public function get(Request $request, ?string $mode = null)
     {
+        $kilat = $mode !== null;
         $order = $request->session()->get(UploadTerjadwalController::SESSION_KEY);
         $orderModel = null;
 
@@ -31,6 +32,27 @@ class FormulirTerjadwalController extends Controller
                 $request->session()->forget(UploadTerjadwalController::SESSION_KEY);
 
                 return redirect('/')->with('error', 'Order tidak ditemukan. Silakan upload ulang file Anda.');
+            }
+
+            // URL harus cocok dengan layanan order: order terjadwal tidak boleh
+            // tampil di formulir kilat, dan sebaliknya. Mode juga dikoreksi dari
+            // data file supaya tautan kembali/redirect tetap benar.
+            $jenisTersimpan = (string) File::where('order_id', $orderModel->id)->value('layanan');
+            $orderHex = bin2hex($orderModel->id);
+
+            if (! $kilat && $jenisTersimpan !== '' && $jenisTersimpan !== 'terjadwal') {
+                return redirect()->route('kilat.formulir', [
+                    'mode' => $jenisTersimpan === 'kilat-edit' ? 'komputer' : 'handphone',
+                    'order' => $orderHex,
+                ]);
+            }
+
+            if ($kilat && $jenisTersimpan === 'terjadwal') {
+                return redirect()->route('formulir.terjadwal', ['order' => $orderHex]);
+            }
+
+            if ($kilat && $jenisTersimpan !== '') {
+                $mode = $jenisTersimpan === 'kilat-edit' ? 'komputer' : 'handphone';
             }
 
             if ($this->kedaluwarsa->sudahKadaluarsa($orderModel)) {
@@ -67,7 +89,13 @@ class FormulirTerjadwalController extends Controller
 
         $pesanFormulir = $this->pesanFormulir($orderModel, $paper);
 
-        return view('formulir-terjadwal', compact('layanan', 'order', 'paper', 'pesanFormulir'));
+        // Tujuan tombol kembali dan modal error: halaman upload alur yang sama.
+        $uploadUrl = $kilat
+            ? route('kilat.upload', ['mode' => $mode])
+            : route('upload.terjadwal');
+
+        return view($kilat ? 'kilat-formulir' : 'formulir-terjadwal',
+            compact('layanan', 'order', 'paper', 'pesanFormulir', 'uploadUrl', 'mode'));
     }
 
     /**

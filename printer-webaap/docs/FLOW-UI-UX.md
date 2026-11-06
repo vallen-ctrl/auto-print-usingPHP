@@ -40,12 +40,18 @@ GET /                          Home (service picker)
   GET /scan/qr                  Camera scans the computer's QR token
     └─ GET /scan/url/{token} (route "verified.token") verifies it
          ↓
-  GET /print/kilat              Choose where to edit (placeholder, next step TBD)
+  GET /print/kilat              Choose where to edit
+    ├─ Edit di Komputer  → /print/kilat/upload/komputer  (layanan kilat-edit)
+    └─ Edit di Handphone → /print/kilat/upload/handphone (layanan kilat-langsung)
+         └─ upload PDF → /print/kilat/formulir/{mode} (form without WhatsApp)
+              └─ "Lanjut proses pembayaran" → /order/konfirmasi/{id}
 ```
 
 Only **Terjadwal** (scheduled pickup) is wired end to end. **Cetak Kilat** now
-has a working scan step and a placeholder "choose edit location" page, but the
-edit/upload flow after it does not exist yet (see §6).
+has a full customer path: scan the computer QR → choose edit location → upload
+PDF → kilat form (no WhatsApp) → payment confirmation. What is still missing is
+the in-store editing step for `kilat-edit` orders and the print/edit UI after
+the form (see §6).
 
 ### Route table
 
@@ -64,7 +70,9 @@ edit/upload flow after it does not exist yet (see §6).
 | GET | `/terjadwal/keluar` | inline closure in `routes/web.php` | Leave the flow (forget session) → `/` |
 | GET | `/scan/qr` | `Route::view` → `scan-qr.blade.php` | Camera scanner for the computer QR (Cetak Kilat) |
 | GET | `/scan/url/{token}` | `Api\ComputerController::scanQr` (route `verified.token`) | Verify a scanned QR token, JSON payload |
-| GET | `/print/kilat` | `Route::view` → `print-kilat.blade.php` | Choose edit location (placeholder) |
+| GET | `/print/kilat` | `Route::view` → `print-kilat.blade.php` | Choose edit location (computer / handphone) |
+| GET | `/print/kilat/upload/{mode}` | `KilatController::upload` → `kilat-upload.blade.php` | Upload PDF for a kilat mode |
+| GET | `/print/kilat/formulir/{mode}` | `FormulirTerjadwalController::get` → `kilat-formulir.blade.php` | Kilat print form (no WhatsApp) |
 
 ---
 
@@ -75,8 +83,8 @@ edit/upload flow after it does not exist yet (see §6).
 | Service id (`files.layanan`) | Label | Payment methods | Notes |
 | --- | --- | --- | --- |
 | `terjadwal` | "Terjadwal" | QRIS only | Active end-to-end flow |
-| `kilat-langsung` | "Ambil di tempat" | QRIS or cashier | Confirmation page ready, no upload/order UI yet |
-| `kilat-edit` | "Ambil di tempat" | Cashier only | Price not final; total shown as `Rp. —` |
+| `kilat-langsung` | "Ambil di tempat" | QRIS or cashier | Upload + form (no WhatsApp) implemented; no editing step |
+| `kilat-edit` | "Ambil di tempat" | Cashier only | Upload + form implemented; price not final, total shown as `Rp. —` |
 
 `KonfirmasiPembayaranController` derives the service from the **first file** of
 the order. A single order never mixes services.
@@ -269,11 +277,55 @@ the page shows the "browser tidak memberi akses kamera" message instead.
 
 ### Step 0c — Choose edit location `/print/kilat`
 
-Placeholder for the next step of the kilat flow. Shows one large card with two
-buttons: **Edit di Komputer** and **Edit di Handphone**. Both currently open the
-info modal "Belum tersedia"; the edit/upload flow is not built yet. The
-verified computer token is available in `sessionStorage`
-(`printer:computer-token`, `printer:computer`) for that future step.
+One large card with two buttons:
+**Edit di Komputer** → `/print/kilat/upload/komputer`,
+**Edit di Handphone** → `/print/kilat/upload/handphone`.
+
+The verified computer token stays in `sessionStorage`
+(`printer:computer-token`, `printer:computer`) for the next steps.
+
+---
+
+### Step 0d — Kilat upload and form
+
+**Upload** (`/print/kilat/upload/{mode}`)
+
+- Same page and script as `/upload/terjadwal` (`kilat-upload.blade.php` reuses
+  `upload-terjadwal.css` + `upload-terjadwal.js`), including the progress
+  overlay, file list, PDF-only + max-10 rules.
+- Header title tells the mode: "Upload PDF untuk Edit di Komputer/Handphone".
+- The **Lanjutkan** button carries `data-layanan`; the shared upload script
+  appends it to the multipart request.
+- `POST /upload/terjadwal` validates and stores the files with
+  `files.layanan = kilat-edit` (komputer) or `kilat-langsung` (handphone), then
+  redirects to `/print/kilat/formulir/{mode}?order={hex}`.
+- Opening the upload page starts a new order and releases this browser's pending
+  order marker (same reset as the terjadwal upload page).
+
+**Form** (`/print/kilat/formulir/{mode}`)
+
+- `FormulirTerjadwalController::get` renders `kilat-formulir.blade.php` when the
+  route has a `mode`; the page reuses the terjadwal CSS + JS.
+- Content is identical to the terjadwal form **except the WhatsApp field**
+  (removed). Customer name, pickup date/time, per-file print settings, packages
+  and live subtotal remain.
+- Server-side safety net: `POST /order/create` makes `no_wa` optional when the
+  order's files are kilat, and stores `user.no_wa = ''` for new customers
+  (the column is NOT NULL). The WhatsApp value is preserved if it already exists
+  for the same session.
+- On success the user lands on `/order/konfirmasi/{hex}`:
+  - `kilat-langsung` → QRIS + cashier,
+  - `kilat-edit` → cashier only, total shown as `Rp. —` ("Harga akan
+    menyesuaikan").
+- The confirmation **Kembali** returns to the kilat form for `pending` orders;
+  the form controller clears `tanggal_bayar`, so the 20-minute countdown starts
+  over when the user returns to confirmation.
+- URL/service guard: opening the kilat form with a terjadwal session (or the
+  reverse) redirects to the matching form, so the page never mixes services.
+
+**Resume**: an unfinished kilat order (pending, `total_pembayaran = 0`) makes
+`/` redirect to `/print/kilat/formulir/{mode}?order={hex}` instead of the
+terjadwal form.
 
 ---
 
@@ -672,8 +724,8 @@ fixed at 150 px, and dividers stay dashed.
 
 | Gap | Impact |
 | --- | --- |
-| Kilat edit/upload flow not built | `/print/kilat` buttons only show "Belum tersedia"; `/formulir/kilat` is still a static page with hardcoded values and no backend |
-| Kilat orders not created yet | Confirmation supports `kilat-*`, but nothing creates such orders or queues their files |
+| Kilat edit-at-computer flow not built | `kilat-edit` orders reach confirmation and cashier payment, but there is no page where the store edits the uploaded file or recalculates the final price |
+| `/formulir/kilat` is still a static prototype | Not linked from the new flow; kept only as an old mockup |
 | Scanned token is not consumed | `scanQr` only verifies the HMAC + `exp`; the same token can be scanned again until it expires (60 s) |
 | Seller confirmation for cashier orders | `processing` never becomes `paid` from a UI action |
 | Receipt page for cashier orders | Polling sees `processing` forever (no success/error branch) |
@@ -709,6 +761,8 @@ Known code smells worth fixing when touching this area:
 | Home UI | `resources/views/beranda.blade.php`, `resources/js/pages/beranda.js` |
 | Scan QR UI | `resources/views/scan-qr.blade.php`, `resources/js/pages/scan-qr.js`, `resources/css/scan-qr.css` |
 | Print choice UI | `resources/views/print-kilat.blade.php`, `resources/js/pages/print-kilat.js`, `resources/css/print-kilat.css` |
+| Kilat upload UI | `app/Http/Controllers/KilatController.php`, `resources/views/kilat-upload.blade.php` (reuses `upload-terjadwal.css` + `.js`) |
+| Kilat form UI | `resources/views/kilat-formulir.blade.php` (reuses `formulir-terjadwal.css` + `.js`) |
 | QR token verify | `app/Http/Controllers/Api/ComputerController.php::scanQr`, `app/Service/tokenComputer.php` |
 | Upload UI | `resources/views/upload-terjadwal.blade.php`, `resources/js/pages/upload-terjadwal.js`, `resources/css/upload-terjadwal.css` |
 | Form UI | `resources/views/formulir-terjadwal.blade.php`, `resources/js/pages/formulir-terjadwal.js`, `resources/css/formulir-terjadwal.css` |
