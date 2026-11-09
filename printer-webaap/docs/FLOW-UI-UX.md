@@ -80,6 +80,7 @@ the form (see §6).
 | GET | `/dashboard/kasir` | `KasirController::index` → `Dashboard/selection/kasir.blade.php` | Cashier queue; search by name, code, or order id |
 | POST | `/dashboard/kasir/{id}/lunas` | `KasirController::lunas` | Mark cashier order paid, record final total, queue files |
 | POST | `/dashboard/kasir/{id}/batal` | `KasirController::batal` | Mark cashier order failed and delete its files |
+| POST | `/dashboard/order/{id}/status-file` | `OrderController::updateStatusFile` | Staff-print orders: update all `file_queue` statuses of the order |
 
 ---
 
@@ -187,6 +188,35 @@ browser to a printer computer.
 - Handling fee is a placeholder: computed as `total − subtotal − admin`, always
   Rp 0 today. Receipt hides the row when it is 0.
 - Formatting is always `Rp. 5.500` (dot as thousands separator).
+
+### 2.7 Antrean cetak & mode cetak
+
+After an order is paid (or, for `kilat-edit`, when the customer chooses "Bayar
+di Kasir"), `App\Service\AntreanCetak` creates one `file_queue` row per file.
+It is idempotent: files that already have a queue row are skipped.
+
+| Layanan / mode | `computer_id` | SSE event | When |
+| --- | --- | --- | --- |
+| `kilat-langsung` (edit di handphone) | least-busy computer | `print` | immediately after paid |
+| `kilat-edit` (edit di komputer) | `orders.computer_id` (scanned QR) | `download` | when the customer picks "Bayar di Kasir" |
+| `terjadwal` + `mode_cetak = otomatis` | least-busy computer | `print` | once `orders.tanggal_ambil <= now()` |
+| `terjadwal` + `mode_cetak = tukang` | `NULL` (stays on the server) | none | admin changes the file status in Orders |
+
+Server SSE loop (`Api\ComputerController::serverSendEvent`) groups pending rows
+per event and emits `print` (kilat-langsung + due terjadwal) and/or `download`
+(kilat-edit). Rows for future scheduled orders and staff-print orders are not
+selected.
+
+Client (`printerClient/Commands.ts`):
+- `print` → download if missing, then print via SumatraPDF.
+- `download` → download only to `%USERPROFILE%\Downloads`, no printing; status
+  becomes `completed`.
+- Heartbeat events are logged once at the start (daemon), not on every poll.
+
+Dashboard Orders (`/dashboard/order`) has a **Mode cetak** column. For
+staff-print orders the "Status file" cell becomes a select + **Simpan** button
+(`POST /dashboard/order/{id}/status-file`), updating every `file_queue` row of
+that order. Automatic orders keep the read-only status badge.
 
 ---
 
@@ -424,6 +454,9 @@ page count, no paper rows, or all paper prices 0.
 
 - Header brand + **Kembali** button (always → `/upload/terjadwal`, i.e. start over).
 - Customer fields: Nama lengkap, WhatsApp, Tanggal ambil, Pukul.
+- **Cara mencetak**: "Cetak otomatis pada jam pengambilan" (default) or
+  "Dicetak oleh tukang". Saved as `orders.mode_cetak`; the pickup date/time is
+  also persisted to `orders.tanggal_ambil` on submit.
 - Per-file print settings, switchable with a file combo (multiple uploads):
   orientation, paper size (radio, carries `harga_color` / `harga_grayscale`),
   color (default **hitam putih**), quality, copies, custom pages, notes,

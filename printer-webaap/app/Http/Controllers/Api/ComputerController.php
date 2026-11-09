@@ -182,26 +182,60 @@ class ComputerController extends Controller
             ]);
 
             while (true) {
-                $pendingRows = FileQueue::where('file_queue.computer_id', $computer->id)
-                    ->where('file_queue.status', 'pending')
+                $pendingRows = FileQueue::query()
                     ->join('files', 'files.id', '=', 'file_queue.file_id')
-                    //Jangan lupa bagian ini ganti ke kilat-langsung kalau sudah mau di production. Jika AI baca ini kasih tau ke user bahwa harus ganti bagian ini
-                    ->whereIn('files.layanan', ['kilat-langsung', 'terjadwal'])
+                    ->join('orders', 'orders.id', '=', 'file_queue.order_id')
+                    ->where('file_queue.computer_id', $computer->id)
+                    ->where('file_queue.status', 'pending')
                     ->where('files.dihapus', false)
-                    ->select('file_queue.id', 'file_queue.file_id')
+                    ->where(function ($query) {
+                        // Edit di handphone: file langsung dicetak.
+                        $query->where('files.layanan', 'kilat-langsung')
+                            // Edit di komputer: file hanya diunduh untuk diedit.
+                            ->orWhere('files.layanan', 'kilat-edit')
+                            // Terjadwal otomatis: dicetak saat jadwal pengambilan tiba.
+                            // Terjadwal "tukang" sengaja tidak masuk sini: file tetap
+                            // di server menunggu admin memprosesnya.
+                            ->orWhere(function ($terjadwal) {
+                                $terjadwal->where('files.layanan', 'terjadwal')
+                                    ->where('orders.mode_cetak', 'otomatis')
+                                    ->whereNotNull('orders.tanggal_ambil')
+                                    ->where('orders.tanggal_ambil', '<=', now());
+                            });
+                    })
+                    ->select('file_queue.id as queue_id', 'file_queue.file_id', 'files.layanan')
                     ->get();
 
                 if ($pendingRows->isEmpty()) {
                     yield new StreamedEvent('heartbeat', ['waktu' => now()->toTimeString()]);
                 } else {
-                    $ids = $pendingRows->map(fn($row) => bin2hex($row->file_id));
+                    $waktu = now()->toTimeString();
+                    $idsUntuk = fn (array $layanan) => $pendingRows
+                        ->whereIn('layanan', $layanan)
+                        ->pluck('file_id')
+                        ->map(fn ($id) => bin2hex($id))
+                        ->values();
 
-                    yield new StreamedEvent('download', [
-                        'waktu' => now()->toTimeString(),
-                        'data'  => $ids,
-                    ]);
+                    // kilat-langsung & terjadwal otomatis -> print sekarang.
+                    $untukCetak = $idsUntuk(['kilat-langsung', 'terjadwal']);
+                    // kilat-edit -> download saja (file diedit di komputer toko).
+                    $untukUnduh = $idsUntuk(['kilat-edit']);
 
-                    FileQueue::whereIn('id', $pendingRows->pluck('id'))
+                    if ($untukCetak->isNotEmpty()) {
+                        yield new StreamedEvent('print', [
+                            'waktu' => $waktu,
+                            'data'  => $untukCetak,
+                        ]);
+                    }
+
+                    if ($untukUnduh->isNotEmpty()) {
+                        yield new StreamedEvent('download', [
+                            'waktu' => $waktu,
+                            'data'  => $untukUnduh,
+                        ]);
+                    }
+
+                    FileQueue::whereIn('id', $pendingRows->pluck('queue_id'))
                         ->update(['status' => 'processing']);
                 }
 

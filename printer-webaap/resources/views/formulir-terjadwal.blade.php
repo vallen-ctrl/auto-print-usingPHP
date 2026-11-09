@@ -93,6 +93,18 @@
                         </div>
                     </fieldset>
 
+                    <fieldset class="fieldset">
+                        <legend class="field-label">Cara mencetak</legend>
+                        <wired-radio-group roughness="1.2" id="grup-cetak" selected="otomatis">
+                            <wired-radio roughness="1.2" name="otomatis">Cetak otomatis pada jam pengambilan</wired-radio>
+                            <wired-radio roughness="1.2" name="tukang">Dicetak oleh tukang</wired-radio>
+                        </wired-radio-group>
+                        <p class="field-hint">
+                            Cetak otomatis: file dikirim ke komputer toko dan dicetak saat jadwal tiba.
+                            Dicetak oleh tukang: file tetap di server sampai tukang memprosesnya.
+                        </p>
+                    </fieldset>
+
                     <div class="field">
                         <label class="field-label" for="pilih-file">File</label>
                         <wired-combo roughness="1.2" id="pilih-file" class="file-combo"></wired-combo>

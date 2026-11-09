@@ -31,6 +31,12 @@
                 <dd class="font-medium capitalize text-ink">{{ $order->status_pembayaran ?: '-' }}</dd>
             </div>
             <div class="flex flex-wrap items-baseline gap-2">
+                <dt class="text-ink-muted">Mode cetak</dt>
+                <dd class="font-medium text-ink">
+                    {{ $order->mode_cetak === 'tukang' ? 'Dicetak oleh tukang' : 'Otomatis' }}
+                </dd>
+            </div>
+            <div class="flex flex-wrap items-baseline gap-2">
                 <dt class="text-ink-muted">Total order</dt>
                 <dd class="font-medium tabular-nums text-ink">{{ $rupiah($order->total_pembayaran) }}</dd>
             </div>

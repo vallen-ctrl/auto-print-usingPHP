@@ -82,6 +82,7 @@ Route::prefix('dashboard')->middleware([\App\Http\Middleware\VerifyTokenMiddlewa
     Route::get('/orders/files/{id}', [\App\Http\Controllers\OrderController::class, "detail"])->name("order.detail");
     Route::get('/order/all', [\App\Http\Controllers\OrderController::class, "getorderData"])->name("get.all");
     Route::delete('/order/{id}', [\App\Http\Controllers\OrderController::class, "destroy"])->name("order.destroy");
+    Route::post('/order/{id}/status-file', [\App\Http\Controllers\OrderController::class, "updateStatusFile"])->name("order.statusfile");
 
     //kasir: konfirmasi pembayaran tunai (bayar di kasir)
     Route::get('/kasir', [\App\Http\Controllers\KasirController::class, 'index'])->name('kasir.index');

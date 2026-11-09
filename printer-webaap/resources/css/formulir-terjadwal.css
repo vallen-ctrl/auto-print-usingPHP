@@ -283,6 +283,13 @@ wired-item {
     display: none;
 }
 
+.field-hint {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: var(--fs-label);
+    line-height: 1.4;
+}
+
 /* ---------- Daftar paket ---------- */
 
 .paket-list {

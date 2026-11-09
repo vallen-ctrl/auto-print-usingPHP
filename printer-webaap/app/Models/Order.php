@@ -25,6 +25,7 @@ class Order extends Model
         'pengaturan_id',
         'status_pembayaran',
         'metode_pembayaran',
+        'mode_cetak',
         'session_id',
         'browser_session',
         'computer_id',

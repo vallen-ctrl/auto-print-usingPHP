@@ -144,6 +144,7 @@ erDiagram
 | `total_dibayar` | bigint | NO | `0` | |
 | `status_pembayaran` | enum | NO | `pending` | `paid`, `pending`, `failed`, `refunded`, `processing` |
 | `metode_pembayaran` | enum | YES | - | `qris`, `kasir` *(migration 2026_11_01)* |
+| `mode_cetak` | string(20) | NO | `otomatis` | `otomatis` (dicetak komputer saat jadwal tiba) atau `tukang` (file tetap di server). Hanya dipakai alur terjadwal. *(migration 2026_11_10)* |
 | `session_id` | string(255) | YES | - | **FK** → `user.sessionid` |
 | `browser_session` | string(255) | YES | - | Laravel session id pemilik alur. Dipakai beranda untuk melanjutkan order dari database. *(migration 2026_11_01)* |
 | `computer_id` | binary(16) | YES | - | Komputer toko tempat customer mengedit file pada alur cetak kilat. Diisi dari QR komputer yang dipindai (session `kilat_computer_id`). *(migration 2026_11_09)* |
@@ -243,4 +244,6 @@ Nilai enum `mime`:
 - `orders.metode_pembayaran` sekarang hanya berisi `qris` atau `kasir`. Kolom `id_metode_pembayaran` dihapus dan tabel `metode_pembayaran` di-drop *(migration 2026_11_01)*.
 - `orders.computer_id` hanya diisi untuk order alur kilat (dari QR komputer yang dipindai); order terjadwal membiarkannya `NULL`. Dipakai halaman konfirmasi untuk menampilkan komputer tujuan edit `kilat-edit` *(migration 2026_11_09)*.
 - `orders.kode` dibuat otomatis saat order dibuat (6 karakter, tanpa I/O/0/1) dan ditampilkan di halaman konfirmasi. Kasir mencari order lewat kode ini atau nama pelanggan (`user.name`). Order lama ikut diisi saat migration *(migration 2026_11_09)*.
+- `orders.mode_cetak` hanya diisi dari formulir terjadwal: `otomatis` berarti file diantrekan ke komputer dan event SSE `print` dikirim saat `tanggal_ambil` tiba; `tukang` berarti `file_queue.computer_id` NULL dan status file diubah manual dari dashboard Order. Alur kilat tidak memakai kolom ini (event mengikuti `files.layanan`). *(migration 2026_11_10)*
+- `orders.tanggal_ambil` sekarang benar-benar diperbarui dari formulir terjadwal (sebelumnya hanya berisi waktu upload).
 - `files.order_id` memakai `RESTRICT`, jadi order tidak bisa dihapus selama masih punya file.

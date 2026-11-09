@@ -835,6 +835,13 @@ if (inputHalaman) {
                     dataBaru.tanggal_ambil = toIsoWithOffset(localStorageSaved.tanggal, localStorageSaved.pukul);
                 }
 
+                // Hanya formulir terjadwal yang punya pilihan cara mencetak.
+                const grupCetak = document.getElementById('grup-cetak');
+
+                if (grupCetak && grupCetak.selected) {
+                    dataBaru.mode_cetak = grupCetak.selected;
+                }
+
                 // no_wa hanya dikirim kalau formulir memang punya kolom WhatsApp.
                 if (localStorageSaved.whatsapp) {
                     dataBaru.no_wa = localStorageSaved.whatsapp;

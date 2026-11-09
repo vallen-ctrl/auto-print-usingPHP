@@ -8,6 +8,7 @@ use App\Models\File;
 use App\Models\Order;
 use App\Models\Paper;
 use App\Models\PengaturanToko;
+use App\Service\AntreanCetak;
 use App\Service\KedaluwarsaOrder;
 use Illuminate\Http\Request;
 
@@ -23,8 +24,10 @@ use Illuminate\Http\Request;
  */
 class KonfirmasiPembayaranController extends Controller
 {
-    public function __construct(private readonly KedaluwarsaOrder $kedaluwarsa)
-    {
+    public function __construct(
+        private readonly KedaluwarsaOrder $kedaluwarsa,
+        private readonly AntreanCetak $antrean,
+    ) {
     }
 
     public function show(Request $request, string $order_id)
@@ -223,6 +226,11 @@ class KonfirmasiPembayaranController extends Controller
 
         // Sudah dipilih sebelumnya: jangan ubah apa-apa lagi.
         if ($model->status_pembayaran === 'processing' && $model->metode_pembayaran === 'kasir') {
+            // Pastikan file kilat-edit tetap masuk antrean unduh (idempoten).
+            if ($layanan === 'kilat-edit') {
+                $this->antrean->untukOrder($model);
+            }
+
             return response()->json([
                 'status' => 'processing',
                 'message' => $pesanKasir,
@@ -257,6 +265,12 @@ class KonfirmasiPembayaranController extends Controller
                 ['message' => 'Status order sudah berubah. Silakan muat ulang halaman.'],
                 409
             );
+        }
+
+        // Edit di komputer: file harus segera diunduh ke komputer yang dipindai
+        // supaya customer bisa mengeditnya sebelum membayar di kasir.
+        if ($layanan === 'kilat-edit') {
+            $this->antrean->untukOrder($model->refresh());
         }
 
         return response()->json([

@@ -52,6 +52,7 @@ class OrderController extends Controller
                 'orders.total_dibayar',
                 'orders.status_pembayaran',
                 'orders.metode_pembayaran',
+                'orders.mode_cetak',
                 DB::raw('LOWER(HEX(orders.id)) as id_hex'),
                 DB::raw('GROUP_CONCAT(DISTINCT files.layanan) as layanan'),
                 DB::raw('GROUP_CONCAT(DISTINCT file_queue.status) as status_file'),
@@ -64,7 +65,8 @@ class OrderController extends Controller
                 'orders.total_pembayaran',
                 'orders.total_dibayar',
                 'orders.status_pembayaran',
-                'orders.metode_pembayaran'
+                'orders.metode_pembayaran',
+                'orders.mode_cetak'
             );
 
         // Pencarian: order id (hex), status bayar, metode bayar, atau nama file.
@@ -100,6 +102,34 @@ class OrderController extends Controller
         return redirect()->route('order.index')->with('success', 'Order berhasil dihapus.');
     }
 
+    /**
+     * Ubah status file untuk order yang dicetak oleh tukang (mode_cetak = tukang).
+     * File-file ini sengaja tidak dikirim ke komputer lewat SSE; admin memproses
+     * dan memperbarui statusnya manual dari tab Order.
+     */
+    public function updateStatusFile(Request $request, string $id)
+    {
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(['pending', 'processing', 'downloading', 'completed', 'failed'])],
+        ]);
+
+        $order = Order::findOrFail(hex2bin($id));
+
+        if ($order->mode_cetak !== 'tukang') {
+            return back()->with('error', 'Status file hanya bisa diubah untuk order yang dicetak oleh tukang.');
+        }
+
+        $diubah = DB::table('file_queue')
+            ->where('order_id', $order->id)
+            ->update(['status' => $validated['status']]);
+
+        if ($diubah === 0) {
+            return back()->with('warning', 'Belum ada file di antrean. Pastikan pembayaran order sudah lunas.');
+        }
+
+        return back()->with('success', 'Status file order berhasil diubah menjadi "' . $validated['status'] . '".');
+    }
+
     /** Respons JSON untuk kegagalan pembuatan token pembayaran. */
     private function gagalBayar(string $pesan, int $status = 422)
     {
@@ -119,6 +149,7 @@ class OrderController extends Controller
                 'date_format:Y-m-d\TH:i:sP',
                 'after_or_equal:' . now()->addHours(5)->toIso8601String(),
             ],
+            'mode_cetak' => ['nullable', Rule::in(['otomatis', 'tukang'])],
             // 'metode_pembayaran' => "required|string",
             'files' => 'required|array|min:1|max:10',
 
@@ -305,7 +336,7 @@ class OrderController extends Controller
                 return redirect()->route('order.konfirmasi', ['order_id' => $orderid]);
             }
 
-            DB::transaction(function () use (&$TotalSemua, &$validated, $files, $request, $orderSession, $getBiaya) {
+            DB::transaction(function () use (&$TotalSemua, &$validated, $files, $request, $orderSession, $getBiaya, $jenisLayanan) {
                 $orderTerkunci = Order::whereKey(hex2bin($orderSession["orderid"]))
                     ->lockForUpdate()
                     ->first();
@@ -429,13 +460,22 @@ class OrderController extends Controller
 
                 $pelanggan->save();
 
+                $perubahanOrder = [
+                    "biaya_admin" => $getBiaya->biaya_admin,
+                    "total_pembayaran" => $TotalSemua,
+                    "total_dibayar" => 0,
+                    "session_id" => $orderSession["sessionid"],
+                ];
+
+                // Hanya order terjadwal yang punya jadwal pengambilan dan pilihan
+                // cetak otomatis / dicetak tukang. Alur kilat memakai waktu sekarang.
+                if ($jenisLayanan === 'terjadwal') {
+                    $perubahanOrder['tanggal_ambil'] = $validated['tanggal_ambil'];
+                    $perubahanOrder['mode_cetak'] = $validated['mode_cetak'] ?? 'otomatis';
+                }
+
                 Order::findOrFail(hex2bin($orderSession["orderid"]))
-                    ->update([
-                        "biaya_admin" => $getBiaya->biaya_admin,
-                        "total_pembayaran" => $TotalSemua,
-                        "total_dibayar" => 0,
-                        "session_id" => $orderSession["sessionid"]
-                    ]);
+                    ->update($perubahanOrder);
             });
             return redirect()->route('order.konfirmasi', ['order_id' => $orderid]);
         } catch (\Exception $e) {

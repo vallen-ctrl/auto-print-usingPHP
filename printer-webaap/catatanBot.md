@@ -1,6 +1,6 @@
-Last updated: 2026-11-09
+Last updated: 2026-11-10
 Working directory: `D:\laragon\www\printer-webaap`
-Branch at time of writing: `fitur/kasir-konfirmasi-order` (commit `d237da2`)
+Branch at time of writing: `fitur/cetak-otomatis-tukang` (commit `3380edf`)
 
 This file records what has been done, what the current business rules are, and what is
 still missing, so the next agent does not have to rediscover it.
@@ -33,6 +33,20 @@ Yang sudah ada (dibuat di sesi ini):
     wajib diisi untuk `kilat-edit`) → `paid`, total diperbarui, file masuk antrean.
   - **Batalkan** → `failed`, file dihapus, `browser_session` dilepas.
 - `App\Service\AntreanCetak` dipakai bersama oleh `strukOrder` (QRIS) dan kasir.
+  Idempoten (file yang sudah punya antrean dilewati) dan menentukan komputer:
+  `kilat-edit` → `orders.computer_id` (hasil scan), `terjadwal + mode_cetak=tukang`
+  → `NULL` (tetap di server), lainnya → komputer paling sepi.
+- Event SSE (`Api\ComputerController::serverSendEvent`): `kilat-langsung` dan
+  `terjadwal` otomatis → `print`; `kilat-edit` → `download`; terjadwal otomatis
+  baru dikirim saat `orders.tanggal_ambil <= now()`. Order tukang tidak dikirim.
+  Antrean `kilat-edit` dibuat saat user memilih "Bayar di Kasir".
+- `printerClient/Commands.ts`: `print` = unduh kalau belum ada lalu cetak;
+  `download` = unduh saja ke Downloads (tanpa cetak). `AUTO_PRINT` dihapus.
+  `printerClient/daemon.ts` hanya mencatat log heartbeat sekali di awal.
+- Formulir terjadwal punya pilihan **Cetak otomatis / Dicetak oleh tukang**
+  (`orders.mode_cetak`) dan sekarang menyimpan `orders.tanggal_ambil`.
+- Dashboard Order: kolom **Mode cetak**; order tukang punya select + Simpan untuk
+  ubah status semua file (`POST /dashboard/order/{id}/status-file`).
 - Layout dashboard memuat Flowbite lewat Vite (`resources/js/app.js`), CDN dihapus.
 - Formulir kilat (`/print/kilat/formulir/{mode}`): judul "Formulir Cetak Kilat" +
   subtitle mode, **tanpa tanggal/pukul pengambilan** untuk kedua mode.
@@ -51,7 +65,22 @@ setelah reload customer), UI edit/cetak di komputer, webhook Midtrans.
   `pesanKasir()` menyebut kode order, `batalkan()`.
 - `app/Service/KedaluwarsaOrder.php` — `batalkan(Order)`: klaim atomik
   `pending`/`processing+kasir` → `failed`, hapus file, lepas `browser_session`.
-- `app/Service/AntreanCetak.php` — `untukOrder(Order)` memilih komputer paling sepi.
+- `app/Service/AntreanCetak.php` — idempoten, memilih komputer per layanan/mode,
+  baris `file_queue.computer_id = NULL` untuk order tukang.
+- `app/Http/Controllers/Api/ComputerController.php` — SSE memisahkan `print`
+  (kilat-langsung + terjadwal otomatis yang sudah jatuh tempo) dan `download`
+  (kilat-edit); order tukang dan jadwal masa depan tidak dipilih.
+- `printerClient/Commands.ts` — `download` hanya mengunduh, `print` mengunduh lalu
+  mencetak; `AUTO_PRINT` dihapus.
+- `printerClient/daemon.ts` — log heartbeat hanya sekali di awal.
+- `app/Http/Controllers/OrderController.php` — simpan `mode_cetak` +
+  `tanggal_ambil`, `updateStatusFile()` untuk order tukang.
+- `resources/views/formulir-terjadwal.blade.php` — radio "Cara mencetak".
+- `resources/views/Dashboard/selection/order.blade.php` — kolom Mode cetak +
+  select status file untuk order tukang.
+- `database/migrations/2026_11_10_000000_add_mode_cetak_to_orders_table.php`.
+- `tests/Feature/CetakModeTest.php` — antrean per layanan/mode, SSE-related data,
+  simpan mode cetak, dan update status file.
 - `app/Http/Controllers/UploadTerjadwalController.php` — `kodeOrderBaru()`.
 - `resources/views/Dashboard/selection/kasir.blade.php` — halaman kasir + 2 modal.
 - `resources/views/Dashboard/layout.blade.php` — menu Kasir + Vite app.js.
