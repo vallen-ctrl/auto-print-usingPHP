@@ -163,10 +163,8 @@ wired-button.back-button[hidden] {
 }
 
 .kode-order strong {
-    font-family: var(--font-heading);
     font-weight: 600;
     font-size: var(--fs-sub);
-    letter-spacing: 0.14em;
 }
 
 /* Hitung mundur 20 menit untuk menyelesaikan pembayaran. */

@@ -112,7 +112,7 @@
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
                             <p class="text-xs font-medium uppercase tracking-wide text-ink-muted">Kode order</p>
-                            <p class="mt-1 font-mono text-2xl font-semibold tracking-[0.18em] text-primary">
+                            <p class="mt-1 text-2xl font-semibold text-primary">
                                 {{ $o['kode'] }}
                             </p>
                         </div>
@@ -224,7 +224,7 @@
                 </div>
 
                 <p class="mt-2 text-sm text-ink-muted">
-                    Order <span id="lunas-kode" class="font-mono font-semibold tracking-widest text-ink">-</span>
+                    Order <span id="lunas-kode" class="font-semibold text-ink">-</span>
                     akan dicatat sebagai lunas dan filenya masuk antrean cetak.
                 </p>
 
@@ -271,7 +271,7 @@
                 <div class="mt-3 flex items-start gap-3 rounded-lg bg-danger-soft p-3 text-sm text-danger-strong">
                     <x-lucide-banknote-x class="mt-0.5 size-5 shrink-0" aria-hidden="true" />
                     <p>
-                        Order <span id="batal-kode" class="font-mono font-semibold tracking-widest">-</span>
+                        Order <span id="batal-kode" class="font-semibold">-</span>
                         akan ditandai gagal dan file pesanannya dihapus. Customer harus upload ulang dari awal.
                     </p>
                 </div>
