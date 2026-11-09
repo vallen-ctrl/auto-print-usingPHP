@@ -120,6 +120,13 @@ class KasirController extends Controller
             );
         }
 
+        if ($antrean['berhasil'] === 0 && $antrean['dilewati'] > 0) {
+            return back()->with(
+                'success',
+                $pesan . ' File sudah ada di antrean sebelumnya, jadi tidak digandakan.'
+            );
+        }
+
         return back()->with('success', $pesan . ' File sudah masuk antrean cetak.');
     }
 
