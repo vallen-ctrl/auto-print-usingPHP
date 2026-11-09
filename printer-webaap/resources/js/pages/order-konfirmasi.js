@@ -342,6 +342,16 @@ const bayarDiKasir = async () => {
         kasirDikonfirmasi = true;
         kunciTombol();
 
+        // Sebutkan komputer tujuan (kilat-edit) di tombol, menggantikan label
+        // "menunggu konfirmasi kasir" yang tidak memberi informasi apa pun.
+        if (data.komputer) {
+            const label = document.querySelector('.cta-label');
+
+            if (label) {
+                label.textContent = 'Komputer: ' + data.komputer;
+            }
+        }
+
         bukaModal('modal-kasir', {
             type: 'success',
             title: 'Pesanan berhasil',

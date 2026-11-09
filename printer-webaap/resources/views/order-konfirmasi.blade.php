@@ -72,7 +72,7 @@ $kembali = match (true) {
         id="modal-kasir"
         type="info"
         title="Bayar di kasir"
-        message="Tunjukkan halaman ini ke kasir. Pesanan dengan ID {{ $order['id'] }} akan dibayar langsung di kasir setelah cetakan siap." />
+        :message="$order['pesan_kasir']" />
 
     {{-- Waktu pembayaran habis. --}}
     <x-modal
@@ -123,7 +123,11 @@ $kembali = match (true) {
         @if ($order['menunggu_kasir'])
         <p class="status-notice" role="status">
             Pesanan berhasil.
-            @if ($order['harga_menyesuaikan'])
+            @if ($order['harga_menyesuaikan'] && $order['komputer'])
+            Silakan menuju <strong>komputer {{ $order['komputer'] }}</strong> untuk mengedit file
+            Anda, lalu bayar di kasir. Harga cetak masih perkiraan karena file masih bisa
+            diedit, jadi totalnya bisa berubah saat dihitung di kasir.
+            @elseif ($order['harga_menyesuaikan'])
             Silakan bayar di kasir. Harga cetak masih perkiraan karena file masih bisa
             diedit, jadi totalnya bisa berubah saat dihitung di kasir.
             @else
@@ -174,6 +178,30 @@ $kembali = match (true) {
                         </ul>
                     </div>
                 </wired-card>
+
+                {{-- Komputer tujuan (kilat-edit): file diedit di komputer toko
+                     yang QR-nya dipindai sebelum upload. --}}
+                @if ($order['komputer'])
+                <wired-card roughness="1.2" elevation="1" class="card card-komputer">
+                    <div class="card-body">
+                        <h2 class="card-title" id="judul-komputer">Komputer untuk edit</h2>
+
+                        <p class="komputer-nama">
+                            <svg class="komputer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect x="3" y="4" width="18" height="12" rx="2" />
+                                <path d="M8 20h8M12 16v4" />
+                            </svg>
+                            <span>{{ $order['komputer'] }}</span>
+                        </p>
+
+                        <ol class="komputer-langkah">
+                            <li>Kamu mengedit file pesanan ini di komputer tersebut.</li>
+                            <li>Setelah selesai, tunjukkan halaman ini ke kasir.</li>
+                            <li>Kasir menghitung harga cetak setelah file selesai diedit.</li>
+                        </ol>
+                    </div>
+                </wired-card>
+                @endif
             </div>
 
             <div class="kolom">
@@ -304,7 +332,9 @@ $kembali = match (true) {
             <wired-button roughness="1.2" elevation="2" class="btn-bayar" id="btn-bayar" @if ($order['menunggu_kasir']) disabled @endif>
                 <span class="cta-labels">
                     @if ($order['menunggu_kasir'])
-                    <span class="cta-label">Menunggu konfirmasi kasir</span>
+                    <span class="cta-label">
+                        {{ $order['komputer'] ? 'Komputer: ' . $order['komputer'] : 'Menunggu konfirmasi kasir' }}
+                    </span>
                     @else
                     @foreach ($metode as $opsi)
                     <span class="cta-label" data-cta="{{ $opsi['id'] }}" @if (!$loop->first) data-nonaktif="true" @endif>{{ $opsi['cta'] }}</span>

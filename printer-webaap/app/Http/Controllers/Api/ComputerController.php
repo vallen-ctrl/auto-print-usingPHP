@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\KilatController;
 use Illuminate\Http\Request;
 use App\Models\Computer;
 use App\Models\File;
@@ -42,7 +43,7 @@ class ComputerController extends Controller
         ]);
     }
 
-    public function scanQr(string $token){
+    public function scanQr(Request $request, string $token){
         if(empty($token)){
             return response()->json([
                 "error" => true,
@@ -52,6 +53,21 @@ class ComputerController extends Controller
         $tokenComputer = new tokenComputer();
         $verified = $tokenComputer->verifyToken($token);
         if($verified !== null){
+            // Ingat komputer yang QR-nya baru dipindai. Halaman konfirmasi
+            // memakainya untuk memberi tahu user harus ke komputer mana.
+            $computerHex = (string) ($verified['computerid'] ?? '');
+
+            if (strlen($computerHex) === 32 && ctype_xdigit($computerHex)) {
+                $computer = Computer::find(hex2bin($computerHex));
+
+                if ($computer !== null) {
+                    $request->session()->put(
+                        KilatController::COMPUTER_SESSION_KEY,
+                        bin2hex($computer->id)
+                    );
+                }
+            }
+
             return response()->json($verified);
         }
         return response()->json([

@@ -145,6 +145,7 @@ erDiagram
 | `metode_pembayaran` | enum | YES | - | `qris`, `kasir` *(migration 2026_11_01)* |
 | `session_id` | string(255) | YES | - | **FK** → `user.sessionid` |
 | `browser_session` | string(255) | YES | - | Laravel session id pemilik alur. Dipakai beranda untuk melanjutkan order dari database. *(migration 2026_11_01)* |
+| `computer_id` | binary(16) | YES | - | Komputer toko tempat customer mengedit file pada alur cetak kilat. Diisi dari QR komputer yang dipindai (session `kilat_computer_id`). *(migration 2026_11_09)* |
 | `tanggal_bayar` | timestamp | YES | - | Waktu klik "Bayar sekarang" (Snap token dibuat). Awal hitung mundur batas pembayaran. *(migration 2026_10_31)* |
 
 ## 9. `files`
@@ -221,6 +222,7 @@ Nilai enum `mime`:
 | `pengaturan_toko` | `id_toko` | `toko.id` | CASCADE | CASCADE |
 | `jam_operasional` | `id_pengaturan` | `pengaturan_toko.id` | CASCADE | CASCADE |
 | `orders` | `session_id` | `user.sessionid` | CASCADE | SET NULL |
+| `orders` | `computer_id` | `computer.id` | CASCADE | SET NULL |
 | `files` | `diupload_oleh` | `user.sessionid` | CASCADE | SET NULL |
 | `files` | `order_id` | `orders.id` | CASCADE | RESTRICT |
 | `layanan_terpilih` | `files_id` | `files.id` | CASCADE | SET NULL |
@@ -238,4 +240,5 @@ Nilai enum `mime`:
 - `jam_operasional.nomor_hari` dibuat **unique global** (bukan per `id_pengaturan`). Kalau nanti ada lebih dari satu toko, insert jam operasional toko kedua akan bentrok. Pertimbangkan unique composite `(id_pengaturan, nomor_hari)`.
 - `orders.tanggal_bayar` ditambahkan di migration terpisah dan nullable. Nilainya `NULL` sampai user menekan "Bayar sekarang".
 - `orders.metode_pembayaran` sekarang hanya berisi `qris` atau `kasir`. Kolom `id_metode_pembayaran` dihapus dan tabel `metode_pembayaran` di-drop *(migration 2026_11_01)*.
+- `orders.computer_id` hanya diisi untuk order alur kilat (dari QR komputer yang dipindai); order terjadwal membiarkannya `NULL`. Dipakai halaman konfirmasi untuk menampilkan komputer tujuan edit `kilat-edit` *(migration 2026_11_09)*.
 - `files.order_id` memakai `RESTRICT`, jadi order tidak bisa dihapus selama masih punya file.

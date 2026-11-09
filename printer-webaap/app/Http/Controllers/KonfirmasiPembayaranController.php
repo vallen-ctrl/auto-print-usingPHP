@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Configuration;
+use App\Models\Computer;
 use App\Models\File;
 use App\Models\Order;
 use App\Models\Paper;
@@ -110,6 +111,11 @@ class KonfirmasiPembayaranController extends Controller
         $layanan = (string) ($files->first()['layanan'] ?? 'kilat-langsung');
         $hargaMenyesuaikan = $layanan === 'kilat-edit';
 
+        // kilat-edit: customer harus mengedit file di komputer toko yang QR-nya
+        // dipindai. Nama komputer itu yang ditampilkan supaya user tidak hanya
+        // melihat "menunggu konfirmasi kasir" tanpa tahu harus ke mana.
+        $komputer = $hargaMenyesuaikan ? $this->namaKomputer($model) : null;
+
         $subtotal = (int) $files->sum('subtotal');
 
         // Biaya admin mengikuti pengaturan toko (bukan snapshot di orders),
@@ -148,6 +154,8 @@ class KonfirmasiPembayaranController extends Controller
             'tanggal_ambil'      => $model->tanggal_ambil?->translatedFormat('d M Y, H:i'),
             'menunggu_kasir'     => $menungguKasir,
             'metode_terpilih'    => $menungguKasir ? 'kasir' : null,
+            'komputer'           => $komputer,
+            'pesan_kasir'        => $this->pesanKasir($layanan, $komputer),
         ];
 
         $semuaMetode = [
@@ -206,17 +214,18 @@ class KonfirmasiPembayaranController extends Controller
 
         // Pesan dibedakan per layanan: kilat-edit masih bisa diedit sehingga
         // harga cetaknya hanya perkiraan, sedangkan kilat-langsung sudah pasti.
+        // Untuk kilat-edit, sebutkan juga komputer tempat file harus diedit.
         $layanan = (string) File::where('order_id', $model->id)->value('layanan');
+        $komputer = $layanan === 'kilat-edit' ? $this->namaKomputer($model) : null;
 
-        $pesanKasir = $layanan === 'kilat-edit'
-            ? 'Silakan bayar di kasir. Harga cetak masih perkiraan karena file masih bisa diedit, jadi totalnya bisa berubah saat dihitung di kasir.'
-            : 'Silakan bayar di kasir. Harga sudah sesuai rincian pesanan dan pembayaran dikonfirmasi langsung oleh penjual.';
+        $pesanKasir = $this->pesanKasir($layanan, $komputer);
 
         // Sudah dipilih sebelumnya: jangan ubah apa-apa lagi.
         if ($model->status_pembayaran === 'processing' && $model->metode_pembayaran === 'kasir') {
             return response()->json([
                 'status' => 'processing',
                 'message' => $pesanKasir,
+                'komputer' => $komputer,
             ]);
         }
 
@@ -252,7 +261,41 @@ class KonfirmasiPembayaranController extends Controller
         return response()->json([
             'status' => 'processing',
             'message' => $pesanKasir,
+            'komputer' => $komputer,
         ]);
+    }
+
+    /**
+     * Nama komputer toko yang terikat ke order, atau null kalau order dibuat
+     * tanpa memindai QR komputer (mis. alur terjadwal).
+     */
+    private function namaKomputer(Order $order): ?string
+    {
+        if ($order->computer_id === null) {
+            return null;
+        }
+
+        return Computer::whereKey($order->computer_id)->value('name');
+    }
+
+    /**
+     * Pesan setelah user memilih "Bayar di Kasir".
+     *
+     * kilat-edit: file masih bisa diedit di komputer toko, jadi harga baru
+     * dihitung kasir setelah pengeditan. Nama komputernya disebut kalau ada.
+     */
+    private function pesanKasir(string $layanan, ?string $komputer): string
+    {
+        if ($layanan !== 'kilat-edit') {
+            return 'Silakan bayar di kasir. Harga sudah sesuai rincian pesanan dan pembayaran dikonfirmasi langsung oleh penjual.';
+        }
+
+        if ($komputer !== null) {
+            return 'Silakan menuju komputer ' . $komputer . ' untuk mengedit file Anda, lalu bayar di kasir. '
+                . 'Harga cetak masih perkiraan karena file masih bisa diedit, jadi totalnya bisa berubah saat dihitung di kasir.';
+        }
+
+        return 'Silakan bayar di kasir. Harga cetak masih perkiraan karena file masih bisa diedit, jadi totalnya bisa berubah saat dihitung di kasir.';
     }
 
     /**

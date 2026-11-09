@@ -1,7 +1,7 @@
 # Customer UI/UX Flow — Home to Receipt
 
-Last updated: 2026-11-06
-Branch at time of writing: `fitur/scan-qr-kilat`
+Last updated: 2026-11-09
+Branch at time of writing: `fitur/info-komputer-kilat-edit`
 
 This document describes the **customer-facing print ordering flow** of the
 "Nama Print" Laravel app: from the home page, through PDF upload, the print
@@ -45,6 +45,8 @@ GET /                          Home (service picker)
     └─ Edit di Handphone → /print/kilat/upload/handphone (layanan kilat-langsung)
          └─ upload PDF → /print/kilat/formulir/{mode} (form without WhatsApp)
               └─ "Lanjut proses pembayaran" → /order/konfirmasi/{id}
+                   ├─ kilat-edit → konfirmasi menyebut komputer tujuan edit
+                   └─ kasir → menunggu pembayaran di kasir
 ```
 
 Only **Terjadwal** (scheduled pickup) is wired end to end. **Cetak Kilat** now
@@ -116,6 +118,9 @@ receipt page.
 - Laravel session key `terjadwal_order` holds the active order while the user
   is inside the flow:
   `{ orderid (hex), sessionid, files {hex → {id,name,total_pages,localPath}}, where }`.
+- `kilat_computer_id` (hex of `computer.id`) is written by `scanQr` and copied to
+  `orders.computer_id` when a kilat order is created. It is cleared when the
+  terjadwal upload page starts a new order.
 - `orders.browser_session` stores the Laravel session id of the browser that
   uploaded the files. It is the **source of truth for resuming** after a reload
   or a lost session.
@@ -256,8 +261,9 @@ tab or closes an error dialog.
    (`App\Service\tokenComputer`).
 4. Failure (non-2xx or `{ error: true }`) → `modal-info` (type error) with the
    server message; closing the dialog restarts the camera.
-5. Success (200, payload `{ computerid, userSession, exp, jti }`) → token and
-   payload stored in `sessionStorage` → navigate to `/print/kilat`.
+5. Success (200, payload `{ computerid, userSession, exp, jti }`) → `scanQr`
+   also stores the computer id in session (`kilat_computer_id`), while the token
+   and payload are stored in `sessionStorage` → navigate to `/print/kilat`.
 
 **Verification errors**
 
@@ -299,6 +305,9 @@ The verified computer token stays in `sessionStorage`
 - `POST /upload/terjadwal` validates and stores the files with
   `files.layanan = kilat-edit` (komputer) or `kilat-langsung` (handphone), then
   redirects to `/print/kilat/formulir/{mode}?order={hex}`.
+- For kilat uploads, the order also gets `orders.computer_id` from the scanned
+  QR (session key `kilat_computer_id`), so the confirmation page knows which
+  computer the customer must use. Terjadwal orders never set it.
 - Opening the upload page starts a new order and releases this browser's pending
   order marker (same reset as the terjadwal upload page).
 
@@ -485,6 +494,10 @@ user on the form (data is still in localStorage).
 - Payment countdown pill: "Sisa waktu pembayaran MM:SS" (hidden in cashier-waiting state).
 - Badge: "Terjadwal" or "Ambil di tempat".
 - Card "Rincian dokumen" (per file: name, pages, size, color, price).
+- `kilat-edit` only: card "Komputer untuk edit" with the scanned computer name
+  and three steps (edit at that computer, then pay at the cashier). Card is
+  rendered for both `pending` and cashier-waiting states; hidden when the order
+  has no `computer_id`.
 - Card "Pilih Metode Pembayaran" with selectable options (arrow keys + Space/Enter
   supported, `role="radiogroup"`). Options depend on the service (§2.1).
 - Card "Ringkasan Pembayaran": subtotal, Biaya Admin, optional Biaya Penanganan.
@@ -534,10 +547,13 @@ user on the form (data is still in localStorage).
 
 - Server claims the order atomically: `pending` → `processing`,
   `metode_pembayaran = 'kasir'`, `tanggal_bayar = now()`.
-- Success opens `modal-kasir` ("Pesanan berhasil" / "Silakan bayar di kasir",
-  with the order id). Closing it reloads the page, which now renders the
-  waiting state (no timer, CTA disabled, notice text explaining the seller will
-  confirm).
+- Success opens `modal-kasir` ("Pesanan berhasil" + the server message). Closing
+  it reloads the page, which now renders the waiting state (no timer, CTA
+  disabled, notice text explaining the seller will confirm).
+- `kilat-edit`: the message, notice, and CTA label name the target computer
+  (`orders.computer_id`), e.g. "Silakan menuju komputer PC Edit 1 untuk
+  mengedit file Anda" and a footer label "Komputer: PC Edit 1". Without a
+  scanned computer the older "menunggu konfirmasi kasir" wording is kept.
 - Repeating the request for an order already in `processing + kasir` returns the
   same success payload (idempotent).
 
@@ -726,7 +742,7 @@ fixed at 150 px, and dividers stay dashed.
 | --- | --- |
 | Kilat edit-at-computer flow not built | `kilat-edit` orders reach confirmation and cashier payment, but there is no page where the store edits the uploaded file or recalculates the final price |
 | `/formulir/kilat` is still a static prototype | Not linked from the new flow; kept only as an old mockup |
-| Scanned token is not consumed | `scanQr` only verifies the HMAC + `exp`; the same token can be scanned again until it expires (60 s) |
+| Scanned token is not consumed | `scanQr` verifies the HMAC + `exp` and remembers the computer in session, but the same token can still be scanned again until it expires (60 s) |
 | Seller confirmation for cashier orders | `processing` never becomes `paid` from a UI action |
 | Receipt page for cashier orders | Polling sees `processing` forever (no success/error branch) |
 | Midtrans webhook / background expiry | Status only advances when the user is on the receipt page or someone triggers a check |

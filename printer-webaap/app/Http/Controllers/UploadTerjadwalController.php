@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Computer;
 use App\Models\File;
 use App\Models\Order;
 use Illuminate\Http\Request;
@@ -26,6 +27,10 @@ class UploadTerjadwalController extends Controller
     public function show(Request $request)
     {
         $request->session()->forget(self::SESSION_KEY);
+
+        // Alur terjadwal tidak memakai komputer toko. Bersihkan juga komputer
+        // sisa pemindaian QR kilat supaya tidak terbawa ke order berikutnya.
+        $request->session()->forget(KilatController::COMPUTER_SESSION_KEY);
 
         // Membuka halaman upload berarti memulai order baru. Penanda sesi pada
         // order pending lama dilepas supaya beranda tidak melanjutkan order itu.
@@ -56,12 +61,15 @@ class UploadTerjadwalController extends Controller
 
         $layanan = $data['layanan'] ?? 'terjadwal';
 
+        // Komputer hasil pemindaian QR hanya berlaku untuk alur kilat.
+        $computerId = $layanan === 'terjadwal' ? null : $this->computerDariSession($request);
+
         $orderId  = Str::uuid7()->getBytes();
         $orderHex = bin2hex($orderId);
 
         $files = [];
 
-        DB::transaction(function () use ($request, $orderId, $orderHex, $layanan, &$files) {
+        DB::transaction(function () use ($request, $orderId, $orderHex, $layanan, $computerId, &$files) {
             Order::create([
                 'id'            => $orderId,
                 'tanggal_ambil' => now(),
@@ -69,6 +77,8 @@ class UploadTerjadwalController extends Controller
                 // Penanda sesi browser: dipakai beranda untuk melanjutkan order
                 // ini kalau user tidak sengaja keluar dari alur.
                 'browser_session' => $request->session()->getId(),
+                // Komputer tempat user akan mengedit file (kilat-edit).
+                'computer_id'   => $computerId,
             ]);
             $pdf = new Parser();
             foreach ($request->file('files') as $file) {
@@ -140,5 +150,20 @@ class UploadTerjadwalController extends Controller
         }
 
         return redirect($redirect)->with('callback', $payload);
+    }
+
+    /**
+     * Id komputer (biner) dari hasil pemindaian QR komputer di session, atau
+     * null kalau belum pernah memindai / komputernya sudah tidak ada.
+     */
+    private function computerDariSession(Request $request): ?string
+    {
+        $computerHex = $request->session()->get(KilatController::COMPUTER_SESSION_KEY);
+
+        if (!is_string($computerHex) || strlen($computerHex) !== 32 || !ctype_xdigit($computerHex)) {
+            return null;
+        }
+
+        return Computer::whereKey(hex2bin($computerHex))->value('id');
     }
 }
