@@ -567,19 +567,31 @@ user on the form (data is still in localStorage).
 
 **Back navigation**
 
-**Kembali cancels the order.** Before the user confirms "Ya, lanjutkan", the
-Kembali button submits a hidden POST to `/order/konfirmasi/{hex}/batalkan`:
+**Kembali cancels the order, after a warning.** Before the user confirms
+"Ya, lanjutkan", clicking Kembali (or pressing the browser back button) opens
+`modal-keluar`:
 
-- the order is claimed atomically (`pending`, or `processing + kasir`) and set
-  to `failed`;
-- uploaded files and related rows are deleted (`KedaluwarsaOrder::batalkan`);
-- `browser_session` and the flow session (`terjadwal_order`,
-  `kilat_computer_id`) are cleared, so `/` starts from zero;
-- the user lands on `/` with the notice "Pesanan dibatalkan dan pembayaran
-  sebelumnya dianggap gagal."
+> "Pembayaran kamu belum dikonfirmasi. Kalau kamu kembali ke halaman sebelumnya
+> sekarang, pesanan ini langsung dibatalkan dan pembayaran dianggap gagal
+> (hangus)…"
+
+- **Tidak, tetap di sini** / ✕ / backdrop / Escape → dialog closes, nothing is
+  sent. Browser back is intercepted with a `history.pushState` sentinel +
+  `popstate`, so the page is not left.
+- **Ya, batalkan pesanan** → hidden POST to
+  `/order/konfirmasi/{hex}/batalkan`:
+  - the order is claimed atomically (`pending`, or `processing + kasir`) and set
+    to `failed`;
+  - uploaded files and related rows are deleted (`KedaluwarsaOrder::batalkan`);
+  - `browser_session` and the flow session (`terjadwal_order`,
+    `kilat_computer_id`) are cleared, so `/` starts from zero;
+  - the user lands on `/` with the notice "Pesanan dibatalkan dan pembayaran
+    sebelumnya dianggap gagal."
 - a `paid` order is never cancelled (redirected to its receipt).
 
 After "Ya, lanjutkan" the button is hidden; only browser back/refresh remains.
+Cross-document history (e.g. a fresh tab with no same-document entry) cannot be
+intercepted — there is no `beforeunload` prompt.
 
 ---
 
@@ -759,7 +771,8 @@ fixed at 150 px, and dividers stay dashed.
    `orders.tanggal_bayar`; only returning to the form clears it.
 3. **One confirmation dialog before charging.** "Ya, lanjutkan" is the only path
    that requests a token or claims a cashier order.
-4. **Kembali cancels before payment starts.** The back button posts to
+4. **Leaving before confirmation is destructive and warned.** Kembali or the
+   browser back button opens `modal-keluar`; only "Ya, batalkan pesanan" posts to
    `/order/konfirmasi/{hex}/batalkan` (order → `failed`, files + session deleted,
    back to `/`). After "Ya, lanjutkan" the button is hidden.
 5. **Expired means deleted.** Files are removed from storage; the user must
@@ -799,9 +812,9 @@ Known code smells worth fixing when touching this area:
   counts; real parser failures surface as exceptions/JSON 500 messages.
 - The receipt page is reachable by URL without authentication (intentional for
   sharing, but `/struk/order/{id}` returns full order data).
-- There is no `beforeunload` guard on the confirmation page; after "Ya,
-  lanjutkan" the browser back button and refresh still work even though the
-  in-page back button is hidden.
+- The confirmation page intercepts same-document back (`history.pushState` +
+  `popstate`) and warns before cancelling, but there is no `beforeunload` guard:
+  refresh or a cross-document back still leaves without a prompt.
 
 ---
 

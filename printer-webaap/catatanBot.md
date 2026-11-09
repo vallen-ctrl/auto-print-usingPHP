@@ -16,11 +16,13 @@ Yang sudah ada (dibuat di sesi ini):
 - `orders.kode` (`string(8)`, unique `uq_orders_kode`): kode 6 karakter tanpa I/O/0/1,
   dibuat otomatis saat order dibuat dan ditampilkan sebagai pill "Kode order" di
   halaman konfirmasi. Order lama di-backfill oleh migration.
-- Tombol **Kembali** di `/order/konfirmasi/{id}` sekarang **membatalkan pesanan**:
-  POST `/order/konfirmasi/{id}/batalkan` → order `failed`, file + `file_queue` +
-  `browser_session` + session `terjadwal_order`/`kilat_computer_id` dihapus, lalu
-  redirect `/` dengan pesan "Pembayaran sebelumnya dianggap gagal". Order `paid`
-  tidak dibatalkan (redirect ke struk).
+- Tombol **Kembali** di `/order/konfirmasi/{id}` menampilkan peringatan
+  (`modal-keluar`): pesanan belum dikonfirmasi akan dianggap gagal kalau keluar.
+  Tombol back browser juga ditahan lewat `pushState`/`popstate`. Hanya tombol
+  "Ya, batalkan pesanan" yang mengirim POST `/order/konfirmasi/{id}/batalkan`
+  → order `failed`, file + `file_queue` + `browser_session` + session
+  `terjadwal_order`/`kilat_computer_id` dihapus, lalu redirect `/` dengan pesan
+  "Pembayaran sebelumnya dianggap gagal". Order `paid` tidak dibatalkan.
 - Dashboard kasir `/dashboard/kasir` (menu sidebar "Kasir"): daftar order
   `metode_pembayaran = kasir` + `status_pembayaran = processing`, cari berdasarkan
   nama pelanggan (`user.name`), kode order, atau id hex. Aksi:

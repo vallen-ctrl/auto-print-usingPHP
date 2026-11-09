@@ -44,21 +44,48 @@ const sembunyiLoader = () => {
     loader.style.display = "none"
 };
 
-/* ---------- Kembali = batalkan pesanan ---------- */
+/* ---------- Peringatan sebelum meninggalkan pembayaran ---------- */
 
-// Tombol Kembali mengirim form tersembunyi: server menandai order gagal,
-// menghapus file + session, lalu mengembalikan user ke beranda.
+// Tombol Kembali (dan tombol back browser) tidak langsung keluar. Tampilkan
+// peringatan dulu: pesanan yang belum dikonfirmasi akan dianggap gagal.
+// Form tersembunyi baru dikirim kalau user memilih "Ya, batalkan pesanan".
 const formBatalPesanan = document.getElementById('form-batal-pesanan');
+const modalKeluar = document.getElementById('modal-keluar');
+const tombolKonfirmasiKeluar = document.getElementById('btn-konfirmasi-keluar');
 
-if (tombolKembali && formBatalPesanan && tombolKembali.dataset.batalUrl) {
+const batalkanPesanan = () => {
+    if (!formBatalPesanan) {
+        return;
+    }
+
+    tampilLoader();
+    formBatalPesanan.submit();
+};
+
+if (tombolKembali && modalKeluar) {
     tombolKembali.addEventListener('click', () => {
-        if (tombolKembali.dataset.memproses === '1') {
-            return;
-        }
+        bukaModal('modal-keluar');
+    });
+}
 
-        tombolKembali.dataset.memproses = '1';
-        tampilLoader();
-        formBatalPesanan.submit();
+tombolKonfirmasiKeluar?.addEventListener('click', () => {
+    tutupModal('modal-keluar');
+    batalkanPesanan();
+});
+
+if (modalKeluar && tombolKembali?.dataset.batalUrl) {
+    // Entry riwayat tambahan: back pertama hanya memicu popstate, jadi halaman
+    // ini belum ditinggalkan saat peringatan tampil.
+    const stateKonfirmasi = { pembayaranBelumDikonfirmasi: true };
+
+    history.pushState(stateKonfirmasi, '', window.location.href);
+
+    window.addEventListener('popstate', () => {
+        bukaModal('modal-keluar');
+
+        // Pasang lagi entry-nya supaya back berikutnya tetap memunculkan
+        // peringatan, bukan langsung meninggalkan halaman.
+        history.pushState(stateKonfirmasi, '', window.location.href);
     });
 }
 

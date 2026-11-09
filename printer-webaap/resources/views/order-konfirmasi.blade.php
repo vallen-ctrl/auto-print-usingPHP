@@ -58,6 +58,21 @@ $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
         </x-slot:actions>
     </x-modal>
 
+    {{-- Peringatan sebelum meninggalkan halaman pembayaran. Pesanan yang belum
+         dikonfirmasi langsung dianggap gagal kalau user memilih keluar. --}}
+    <x-modal
+        id="modal-keluar"
+        type="error"
+        title="Batalkan pesanan?">
+        Pembayaran kamu <strong>belum dikonfirmasi</strong>. Kalau kamu kembali ke halaman
+        sebelumnya sekarang, pesanan ini langsung dibatalkan dan pembayaran dianggap
+        gagal (hangus), jadi file harus diupload ulang dari awal.
+        <x-slot:actions>
+            <wired-button roughness="1.2" elevation="1" data-modal-close>Tidak, tetap di sini</wired-button>
+            <wired-button roughness="1.2" elevation="2" id="btn-konfirmasi-keluar">Ya, batalkan pesanan</wired-button>
+        </x-slot:actions>
+    </x-modal>
+
     {{-- Petunjuk pembayaran di kasir (kilat-langsung & kilat-edit). --}}
     <x-modal
         id="modal-kasir"
