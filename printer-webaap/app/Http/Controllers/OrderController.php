@@ -260,16 +260,22 @@ class OrderController extends Controller
 
         if ($jenisLayanan !== 'terjadwal') {
             $aturan['no_wa'] = 'nullable|max:14';
+
+            // Cetak kilat diambil di tempat: formulirnya tidak punya kolom
+            // tanggal/pukul pengambilan, jadi server memakai waktu sekarang.
+            unset($aturan['tanggal_ambil']);
         }
 
         $validated = $request->validate($aturan);
+
+        $tanggalAmbil = $validated['tanggal_ambil'] ?? now()->toIso8601String();
 
         try {
             // Tolak lebih awal (sebelum ada data yang ditulis) kalau jadwal pengambilan
             // tidak sesuai status buka toko / jam operasional (pengaturan_toko & jam_operasional).
             $getBiaya = PengaturanToko::findOrFail(1);
 
-            if ($tolak = (new JadwalToko())->cek($getBiaya, $validated["tanggal_ambil"])) {
+            if ($tolak = (new JadwalToko())->cek($getBiaya, $tanggalAmbil)) {
                 return redirect()->back()->with("error", $tolak);
             }
 

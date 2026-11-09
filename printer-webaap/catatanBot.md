@@ -31,6 +31,12 @@ Yang sudah ada (dibuat di sesi ini):
   - **Batalkan** → `failed`, file dihapus, `browser_session` dilepas.
 - `App\Service\AntreanCetak` dipakai bersama oleh `strukOrder` (QRIS) dan kasir.
 - Layout dashboard memuat Flowbite lewat Vite (`resources/js/app.js`), CDN dihapus.
+- Formulir kilat (`/print/kilat/formulir/{mode}`): judul "Formulir Cetak Kilat" +
+  subtitle mode, **tanpa tanggal/pukul pengambilan** untuk kedua mode.
+  Mode `komputer` (kilat-edit) hanya menampilkan **nama penyetak**; semua pengaturan
+  cetak disembunyikan (`.konfigurasi-cetak.is-hidden`) dan footer berbunyi
+  "SUB TOTAL: akan ditentukan di kasir". `POST /order/create` mengabaikan
+  `tanggal_ambil` untuk order kilat dan memakai `now()`.
 
 Belum ada: polling status di halaman konfirmasi (perubahan dari kasir baru terlihat
 setelah reload customer), UI edit/cetak di komputer, webhook Midtrans.

@@ -60,6 +60,14 @@
     <main class="page-main">
         <div class="content">
             <h1 class="page-title">Formulir Cetak Kilat</h1>
+            <p class="page-subtitle">Edit di {{ $mode === 'komputer' ? 'Komputer' : 'Handphone' }}</p>
+
+            @if ($mode === 'komputer')
+            <p class="page-note">
+                Isi nama penyetak saja. File akan diedit di komputer toko, dan harga cetak
+                ditentukan di kasir setelah file selesai diedit.
+            </p>
+            @endif
 
             <wired-card roughness="1.2" class="panel">
                 <form action="{{ route('create.order') }}" method="POST" class="cetak-form" id="form-cetak" novalidate data-order="{{ $order['orderid'] ?? '' }}">
@@ -71,22 +79,10 @@
 
                     {{-- Nomor WhatsApp tidak dipakai di alur kilat. --}}
 
-                    <fieldset class="fieldset">
-                        <legend class="field-label">Pilih waktu &amp; tanggal pengambilan</legend>
-                        <div class="field-row">
-                            <div class="field">
-                                <label class="field-label" for="tanggal">Tanggal</label>
-                                <wired-input roughness="1.2" id="tanggal" name="tanggal" type="date"></wired-input>
-                                <p class="field-error" id="error-tanggal" hidden></p>
-                            </div>
-                            <div class="field">
-                                <label class="field-label" for="pukul">Pukul</label>
-                                <wired-input roughness="1.2" id="pukul" name="pukul" type="time" value="10:00"></wired-input>
-                                <p class="field-error" id="error-pukul" hidden></p>
-                            </div>
-                        </div>
-                    </fieldset>
+                    {{-- Tanggal & pukul pengambilan tidak dipakai di alur kilat:
+                         pesanan langsung diproses (ambil di tempat). --}}
 
+                    <div class="konfigurasi-cetak{{ $mode === 'komputer' ? ' is-hidden' : '' }}">
                     <div class="field">
                         <label class="field-label" for="pilih-file">File</label>
                         <wired-combo roughness="1.2" id="pilih-file" class="file-combo"></wired-combo>
@@ -175,12 +171,17 @@
                         </ul>
                     </fieldset>
                     @endif
+                    </div>{{-- /.konfigurasi-cetak --}}
 
                     <div class="form-footer">
                         <wired-button roughness="1.2" elevation="1" id="btn-pembayaran" class="pay-button">Lanjut proses pembayaran</wired-button>
                         <div class="form-totals">
+                            @if ($mode === 'komputer')
+                            <p class="form-subtotal">SUB TOTAL: akan ditentukan di kasir</p>
+                            @else
                             <p class="form-subtotal form-subtotal-file">SUB TOTAL FILE: Rp. <span id="sub-total-file">0</span></p>
                             <p class="form-subtotal">SUB TOTAL: Rp. <span id="sub-total">0</span></p>
+                            @endif
                         </div>
                     </div>
                 </form>

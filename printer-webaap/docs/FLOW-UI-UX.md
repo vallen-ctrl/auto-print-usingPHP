@@ -89,8 +89,8 @@ the form (see §6).
 | Service id (`files.layanan`) | Label | Payment methods | Notes |
 | --- | --- | --- | --- |
 | `terjadwal` | "Terjadwal" | QRIS only | Active end-to-end flow |
-| `kilat-langsung` | "Ambil di tempat" | QRIS or cashier | Upload + form (no WhatsApp) implemented; no editing step |
-| `kilat-edit` | "Ambil di tempat" | Cashier only | Upload + form implemented; price not final, total shown as `Rp. —` |
+| `kilat-langsung` | "Ambil di tempat" | QRIS or cashier | Upload + form (no WhatsApp, no pickup date/time) implemented; no editing step |
+| `kilat-edit` | "Ambil di tempat" | Cashier only | Upload + form with **name only** (no print settings, no date/time); total "akan ditentukan di kasir" |
 
 `KonfirmasiPembayaranController` derives the service from the **first file** of
 the order. A single order never mixes services.
@@ -321,9 +321,20 @@ The verified computer token stays in `sessionStorage`
 
 - `FormulirTerjadwalController::get` renders `kilat-formulir.blade.php` when the
   route has a `mode`; the page reuses the terjadwal CSS + JS.
-- Content is identical to the terjadwal form **except the WhatsApp field**
-  (removed). Customer name, pickup date/time, per-file print settings, packages
-  and live subtotal remain.
+- Title is **"Formulir Cetak Kilat"** with a subtitle for the mode
+  ("Edit di Komputer" / "Edit di Handphone") — never the terjadwal title.
+- **No pickup date/time**: the date & pukul fieldsets are removed for both kilat
+  modes. `POST /order/create` unsets the `tanggal_ambil` rule for kilat orders
+  and uses `now()` for the store-hours check.
+- `kilat-langsung` (handphone): customer name + per-file print settings +
+  packages + live subtotal, same as the terjadwal form minus WhatsApp and
+  date/time.
+- `kilat-edit` (komputer): **only the customer name is visible**
+  (`.konfigurasi-cetak.is-hidden` hides file picker, orientation, paper, color,
+  quality, copies, custom pages, notes, and packages). The footer reads
+  **"SUB TOTAL: akan ditentukan di kasir"**; the hidden fields still submit their
+  defaults so the order row stays valid. A short note explains that the file is
+  edited at the store computer and the price is set by the cashier.
 - Server-side safety net: `POST /order/create` makes `no_wa` optional when the
   order's files are kilat, and stores `user.no_wa = ''` for new customers
   (the column is NOT NULL). The WhatsApp value is preserved if it already exists
