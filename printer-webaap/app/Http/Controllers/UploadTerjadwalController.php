@@ -72,6 +72,8 @@ class UploadTerjadwalController extends Controller
         DB::transaction(function () use ($request, $orderId, $orderHex, $layanan, $computerId, &$files) {
             Order::create([
                 'id'            => $orderId,
+                // Kode singkat untuk dibaca customer & dicari kasir.
+                'kode'          => $this->kodeOrderBaru(),
                 'tanggal_ambil' => now(),
                 'status_pembayaran' => 'pending',
                 // Penanda sesi browser: dipakai beranda untuk melanjutkan order
@@ -165,5 +167,24 @@ class UploadTerjadwalController extends Controller
         }
 
         return Computer::whereKey(hex2bin($computerHex))->value('id');
+    }
+
+    /**
+     * Kode order 6 karakter tanpa huruf/angka yang mirip (I, O, 0, 1), supaya
+     * mudah dibacakan customer ke kasir.
+     */
+    private function kodeOrderBaru(): string
+    {
+        $alfabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+        do {
+            $kode = '';
+
+            for ($i = 0; $i < 6; $i++) {
+                $kode .= $alfabet[random_int(0, strlen($alfabet) - 1)];
+            }
+        } while (Order::where('kode', $kode)->exists());
+
+        return $kode;
     }
 }

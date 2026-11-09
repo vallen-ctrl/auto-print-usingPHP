@@ -115,7 +115,9 @@ test('upload kilat-edit menyimpan komputer hasil scan QR ke order', function () 
     $order = Order::findOrFail(hex2bin($orderId));
 
     expect($order->computer_id)->not->toBeNull()
-        ->and(bin2hex($order->computer_id))->toBe(bin2hex($komputer->id));
+        ->and(bin2hex($order->computer_id))->toBe(bin2hex($komputer->id))
+        ->and($order->kode)->not->toBeNull()
+        ->and(strlen($order->kode))->toBe(6);
 });
 
 test('upload terjadwal mengabaikan komputer sisa pemindaian QR kilat', function () {

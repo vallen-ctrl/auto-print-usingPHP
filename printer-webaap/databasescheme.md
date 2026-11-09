@@ -136,6 +136,7 @@ erDiagram
 | Kolom | Tipe | Null | Default | Keterangan |
 |-------|------|------|---------|------------|
 | `id` | binary(16) | NO | - | **PK** |
+| `kode` | string(8) | YES | - | Kode order singkat 6 karakter untuk customer & kasir (mis. `A7K2QX`). **UQ** `uq_orders_kode`. *(migration 2026_11_09)* |
 | `tanggal_pesan` | timestamp | NO | `CURRENT_TIMESTAMP` | Awal hitung mundur batas upload |
 | `tanggal_ambil` | datetime | NO | - | |
 | `biaya_admin` | bigint | NO | `0` | |
@@ -241,4 +242,5 @@ Nilai enum `mime`:
 - `orders.tanggal_bayar` ditambahkan di migration terpisah dan nullable. Nilainya `NULL` sampai user menekan "Bayar sekarang".
 - `orders.metode_pembayaran` sekarang hanya berisi `qris` atau `kasir`. Kolom `id_metode_pembayaran` dihapus dan tabel `metode_pembayaran` di-drop *(migration 2026_11_01)*.
 - `orders.computer_id` hanya diisi untuk order alur kilat (dari QR komputer yang dipindai); order terjadwal membiarkannya `NULL`. Dipakai halaman konfirmasi untuk menampilkan komputer tujuan edit `kilat-edit` *(migration 2026_11_09)*.
+- `orders.kode` dibuat otomatis saat order dibuat (6 karakter, tanpa I/O/0/1) dan ditampilkan di halaman konfirmasi. Kasir mencari order lewat kode ini atau nama pelanggan (`user.name`). Order lama ikut diisi saat migration *(migration 2026_11_09)*.
 - `files.order_id` memakai `RESTRICT`, jadi order tidak bisa dihapus selama masih punya file.

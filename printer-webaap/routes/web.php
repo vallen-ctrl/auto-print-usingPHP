@@ -43,6 +43,7 @@ Route::get('/terjadwal/keluar', function (\Illuminate\Http\Request $request) {
 //alur order
 Route::get('/order/konfirmasi/{order_id}', [\App\Http\Controllers\KonfirmasiPembayaranController::class, 'show'])->name('order.konfirmasi');
 Route::post('/order/konfirmasi/{order_id}/kasir', [\App\Http\Controllers\KonfirmasiPembayaranController::class, 'bayarDiKasir'])->name('order.konfirmasi.kasir');
+Route::post('/order/konfirmasi/{order_id}/batalkan', [\App\Http\Controllers\KonfirmasiPembayaranController::class, 'batalkan'])->name('order.konfirmasi.batal');
 Route::post("/order/create", [\App\Http\Controllers\OrderController::class, 'createorder_terjadwal'])->name("create.order");
 Route::post('/order/token', [\App\Http\Controllers\OrderController::class, "bayarSekarang"])->name("create.snap.token");
 Route::get("/struk/order/{id}", [\App\Http\Controllers\OrderController::class, "strukOrder"])->name("order.struk");
@@ -80,6 +81,11 @@ Route::prefix('dashboard')->middleware([\App\Http\Middleware\VerifyTokenMiddlewa
     Route::get('/orders/files/{id}', [\App\Http\Controllers\OrderController::class, "detail"])->name("order.detail");
     Route::get('/order/all', [\App\Http\Controllers\OrderController::class, "getorderData"])->name("get.all");
     Route::delete('/order/{id}', [\App\Http\Controllers\OrderController::class, "destroy"])->name("order.destroy");
+
+    //kasir: konfirmasi pembayaran tunai (bayar di kasir)
+    Route::get('/kasir', [\App\Http\Controllers\KasirController::class, 'index'])->name('kasir.index');
+    Route::post('/kasir/{id}/lunas', [\App\Http\Controllers\KasirController::class, 'lunas'])->name('kasir.lunas');
+    Route::post('/kasir/{id}/batal', [\App\Http\Controllers\KasirController::class, 'batal'])->name('kasir.batal');
 
     //Layanan
     Route::get('/layanan', [\App\Http\Controllers\LayananController::class, "get"])->name("layanan.index");

@@ -1,7 +1,7 @@
 # Customer UI/UX Flow — Home to Receipt
 
 Last updated: 2026-11-09
-Branch at time of writing: `fitur/info-komputer-kilat-edit`
+Branch at time of writing: `fitur/kasir-konfirmasi-order`
 
 This document describes the **customer-facing print ordering flow** of the
 "Nama Print" Laravel app: from the home page, through PDF upload, the print
@@ -75,6 +75,10 @@ the form (see §6).
 | GET | `/print/kilat` | `Route::view` → `print-kilat.blade.php` | Choose edit location (computer / handphone) |
 | GET | `/print/kilat/upload/{mode}` | `KilatController::upload` → `kilat-upload.blade.php` | Upload PDF for a kilat mode |
 | GET | `/print/kilat/formulir/{mode}` | `FormulirTerjadwalController::get` → `kilat-formulir.blade.php` | Kilat print form (no WhatsApp) |
+| POST | `/order/konfirmasi/{order}/batalkan` | `KonfirmasiPembayaranController::batalkan` | Kembali: cancel order, delete files + session |
+| GET | `/dashboard/kasir` | `KasirController::index` → `Dashboard/selection/kasir.blade.php` | Cashier queue; search by name, code, or order id |
+| POST | `/dashboard/kasir/{id}/lunas` | `KasirController::lunas` | Mark cashier order paid, record final total, queue files |
+| POST | `/dashboard/kasir/{id}/batal` | `KasirController::batal` | Mark cashier order failed and delete its files |
 
 ---
 
@@ -111,7 +115,9 @@ pending ──(QRIS paid, receipt poll)──> paid
 
 The confirmation page treats `processing` + `metode_pembayaran = kasir` as the
 "waiting for cashier" state; any other `processing` order is redirected to the
-receipt page.
+receipt page. The dashboard kasir page resolves that state: **Pembayaran
+berhasil** → `paid` (plus final total and print queue), **Batalkan** → `failed`
+(files deleted).
 
 ### 2.3 Session vs `orders.browser_session`
 
@@ -491,6 +497,8 @@ user on the form (data is still in localStorage).
 
 - Header brand + **Kembali**.
 - Title "Konfirmasi Pembayaran".
+- **Kode order** pill under the title (6 characters, e.g. `A7K2QX`) — read it to
+  the cashier or let the cashier type it into `/dashboard/kasir`.
 - Payment countdown pill: "Sisa waktu pembayaran MM:SS" (hidden in cashier-waiting state).
 - Badge: "Terjadwal" or "Ambil di tempat".
 - Card "Rincian dokumen" (per file: name, pages, size, color, price).
@@ -559,12 +567,46 @@ user on the form (data is still in localStorage).
 
 **Back navigation**
 
-| Situation | Kembali goes to |
-| --- | --- |
-| Order editable (`terjadwal`, not waiting for cashier) | Form page (edit mode); timer resets, price recalculated on submit |
-| `terjadwal` but not editable | Upload page |
-| Other services | `/formulir/kilat` |
-| After "Ya, lanjutkan" | Button is hidden; only browser back/refresh remains |
+**Kembali cancels the order.** Before the user confirms "Ya, lanjutkan", the
+Kembali button submits a hidden POST to `/order/konfirmasi/{hex}/batalkan`:
+
+- the order is claimed atomically (`pending`, or `processing + kasir`) and set
+  to `failed`;
+- uploaded files and related rows are deleted (`KedaluwarsaOrder::batalkan`);
+- `browser_session` and the flow session (`terjadwal_order`,
+  `kilat_computer_id`) are cleared, so `/` starts from zero;
+- the user lands on `/` with the notice "Pesanan dibatalkan dan pembayaran
+  sebelumnya dianggap gagal."
+- a `paid` order is never cancelled (redirected to its receipt).
+
+After "Ya, lanjutkan" the button is hidden; only browser back/refresh remains.
+
+---
+
+### Step 3b — Dashboard kasir `/dashboard/kasir`
+
+Admin page (sidebar **Kasir**, `VerifyTokenMiddleware`) to resolve cashier orders.
+
+**What the cashier sees**
+
+- Two stat cards: number of waiting orders and the total nominal waiting.
+- Search field: matches **customer name**, **order code**, or the order id hex.
+- One card per waiting order (`metode_pembayaran = kasir`, status `processing`):
+  kode order (mono, large), service badge, customer name + WhatsApp, file count,
+  current total, order time, and the time the customer chose cashier payment.
+- Actions:
+  - **Pembayaran berhasil** → modal asks for **Total dibayar (Rp)** (prefilled
+    from `orders.total_pembayaran`; for `kilat-edit` the cashier types the final
+    price after editing). Submitting sets `paid`, updates
+    `total_pembayaran`/`total_dibayar`, and enqueues every file via
+    `App\Service\AntreanCetak`.
+  - **Batalkan** → confirmation modal; sets `failed`, clears
+    `browser_session`, and deletes the order's files.
+- Empty state when the queue is empty or the search finds nothing; Flash toasts
+  for success / error / warning (e.g. no printer computer available).
+
+Both actions are atomic: an order that was already paid/failed is not changed
+again, and the page shows an error toast asking for a reload.
 
 ---
 
@@ -717,8 +759,9 @@ fixed at 150 px, and dividers stay dashed.
    `orders.tanggal_bayar`; only returning to the form clears it.
 3. **One confirmation dialog before charging.** "Ya, lanjutkan" is the only path
    that requests a token or claims a cashier order.
-4. **Hide the back button once payment started** (after "Ya, lanjutkan"), so the
-   user cannot edit files under a live payment.
+4. **Kembali cancels before payment starts.** The back button posts to
+   `/order/konfirmasi/{hex}/batalkan` (order → `failed`, files + session deleted,
+   back to `/`). After "Ya, lanjutkan" the button is hidden.
 5. **Expired means deleted.** Files are removed from storage; the user must
    re-upload and cannot resume that order.
 6. **Errors never leave the user on a dead page.** Closing an error dialog on the
@@ -743,10 +786,11 @@ fixed at 150 px, and dividers stay dashed.
 | Kilat edit-at-computer flow not built | `kilat-edit` orders reach confirmation and cashier payment, but there is no page where the store edits the uploaded file or recalculates the final price |
 | `/formulir/kilat` is still a static prototype | Not linked from the new flow; kept only as an old mockup |
 | Scanned token is not consumed | `scanQr` verifies the HMAC + `exp` and remembers the computer in session, but the same token can still be scanned again until it expires (60 s) |
-| Seller confirmation for cashier orders | `processing` never becomes `paid` from a UI action |
-| Receipt page for cashier orders | Polling sees `processing` forever (no success/error branch) |
+| Seller confirmation for cashier orders | Dashboard kasir can now set `paid` / `failed`, but the final `kilat-edit` price is typed manually (no price recalculation UI yet) |
+| Receipt page for cashier orders | Polling sees `processing` until the cashier acts; once confirmed it switches to the paid receipt |
+| Confirmation page does not poll | After the cashier confirms/cancels, the customer only sees the new status after reloading |
 | Midtrans webhook / background expiry | Status only advances when the user is on the receipt page or someone triggers a check |
-| Admin dashboard status editing | Dashboard lists orders only |
+| Admin dashboard status editing | Dashboard lists orders; status changes only through the kasir page |
 
 Known code smells worth fixing when touching this area:
 

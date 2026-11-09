@@ -17,6 +17,7 @@ class Order extends Model
 
     protected $fillable = [
         'id',
+        'kode',
         'tanggal_ambil',
         'biaya_admin',
         'total_pembayaran',

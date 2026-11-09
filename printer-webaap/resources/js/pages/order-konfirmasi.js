@@ -44,6 +44,24 @@ const sembunyiLoader = () => {
     loader.style.display = "none"
 };
 
+/* ---------- Kembali = batalkan pesanan ---------- */
+
+// Tombol Kembali mengirim form tersembunyi: server menandai order gagal,
+// menghapus file + session, lalu mengembalikan user ke beranda.
+const formBatalPesanan = document.getElementById('form-batal-pesanan');
+
+if (tombolKembali && formBatalPesanan && tombolKembali.dataset.batalUrl) {
+    tombolKembali.addEventListener('click', () => {
+        if (tombolKembali.dataset.memproses === '1') {
+            return;
+        }
+
+        tombolKembali.dataset.memproses = '1';
+        tampilLoader();
+        formBatalPesanan.submit();
+    });
+}
+
 /* ---------- Pilih metode pembayaran ---------- */
 
 const pilihOpsi = (opsi, fokus = false) => {
@@ -397,8 +415,8 @@ const modalBayar = document.getElementById('modal-bayar');
 const tombolLanjutBayar = document.getElementById('btn-lanjut-bayar');
 
 const pesanKonfirmasiBayar = () => (metodeTerpilih === 'kasir'
-    ? 'Kalau kamu kembali ke halaman sebelumnya untuk mengubah file atau konfigurasi, pesanan ini bisa tidak cocok dengan data di kasir dan kamu harus mengulangi upload dari awal. Pastikan file dan pengaturan cetak sudah benar.'
-    : 'Kalau kamu kembali ke halaman sebelumnya untuk mengubah file atau konfigurasi, server pembayaran akan menolak pesanan ini dan kamu harus mengulangi upload dari awal. Pastikan file dan pengaturan cetak sudah benar.');
+    ? 'Kalau kamu menekan Kembali, pesanan ini dibatalkan dan pembayaran dianggap gagal, jadi kamu harus mengulangi upload dari awal. Pastikan file dan pengaturan cetak sudah benar.'
+    : 'Kalau kamu menekan Kembali, pesanan ini dibatalkan dan kamu harus mengulangi upload dari awal. Pastikan file dan pengaturan cetak sudah benar.');
 
 tombolBayar?.addEventListener('click', () => {
     if (waktuHabis || menungguKasir || sedangMemproses) {

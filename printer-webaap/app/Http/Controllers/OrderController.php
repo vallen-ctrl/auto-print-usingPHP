@@ -6,10 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 use App\Http\Controllers\Controller;
-use App\Models\Computer;
 use App\Models\Configuration;
 use App\Models\File;
-use App\Models\FileQueue;
 use App\Models\Order;
 use Illuminate\Validation\Rule;
 use App\Models\Paper;
@@ -18,6 +16,7 @@ use App\Models\LayananTerpilih;
 use App\Rules\CustomHalamanRule;
 use App\Models\User;
 use App\Models\PengaturanToko;
+use App\Service\AntreanCetak;
 use App\Service\JadwalToko;
 use App\Service\KedaluwarsaOrder;
 use Illuminate\Support\Facades\Cache;
@@ -555,39 +554,6 @@ class OrderController extends Controller
         ]);
     }
 
-    private function addFileQueue(string $orderid, string $fileid)
-    {
-        $computer = Computer::from('computer as c')
-            ->leftJoin('file_queue as f', function ($j) {
-                $j->on('f.computer_id', '=', 'c.id')
-                    ->whereIn('f.status', ['pending', 'processing']);
-            })
-            ->select('c.id', 'c.name')
-            ->groupBy('c.id', 'c.name', 'c.tanggal_dibuat')
-            ->orderByRaw('COUNT(f.id)')
-            ->orderBy('c.tanggal_dibuat')
-            ->first();
-
-        if (!$computer) {
-            throw new \RuntimeException('Tidak ada komputer yang tersedia.');
-        }
-
-        $filesBinId = hex2bin($fileid);
-        $file = File::select('path')->findOrFail($filesBinId);
-
-        FileQueue::create([
-            'path'        => $file->path,
-            'order_id'    => hex2bin($orderid),
-            'file_id'     => $filesBinId,
-            'computer_id' => $computer->id,
-        ]);
-
-        return [
-            'computer_id'   => bin2hex($computer->id),
-            'computer_name' => $computer->name,
-        ];
-    }
-
     public function strukOrder(Request $request, string $orderId)
     {
         if (!ctype_xdigit($orderId) || strlen($orderId) % 2 !== 0) {
@@ -623,20 +589,9 @@ class OrderController extends Controller
                 Order::where('id', $binId)->update(['status_pembayaran' => $status]);
 
                 if ($status === 'paid') {
-                    $files = File::select('id')->where('order_id', $binId)->get();
-
-                    foreach ($files as $fileItem) {
-                        try {
-                            $this->addFileQueue($orderId, bin2hex($fileItem->id));
-                        } catch (\Throwable $e) {
-                            // Antrean gagal (mis. tidak ada komputer) tidak boleh
-                            // menggagalkan halaman struk.
-                            logger()->warning('Gagal menambahkan file ke antrean', [
-                                'order' => $orderId,
-                                'e' => $e->getMessage(),
-                            ]);
-                        }
-                    }
+                    // Antrean gagal (mis. tidak ada komputer) tidak boleh
+                    // menggagalkan halaman struk.
+                    app(AntreanCetak::class)->untukOrder($order);
                 }
             }
         }

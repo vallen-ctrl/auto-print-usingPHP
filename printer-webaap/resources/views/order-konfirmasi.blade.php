@@ -1,14 +1,5 @@
 @php
 $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
-$modeKilat = $order['layanan'] === 'kilat-edit' ? 'komputer' : 'handphone';
-$bisaEditFormulir = in_array($order['layanan'], ['terjadwal', 'kilat-langsung', 'kilat-edit'], true)
-    && !$order['menunggu_kasir'];
-$kembali = match (true) {
-    $bisaEditFormulir && $order['layanan'] === 'terjadwal' => route('formulir.terjadwal', ['order' => $order['id']]),
-    $bisaEditFormulir => route('kilat.formulir', ['mode' => $modeKilat, 'order' => $order['id']]),
-    $order['layanan'] === 'terjadwal' => route('upload.terjadwal'),
-    default => route('print.kilat'),
-};
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -58,9 +49,9 @@ $kembali = match (true) {
         id="modal-bayar"
         type="warning"
         title="Lanjut ke pembayaran?">
-        Kalau kamu kembali ke halaman sebelumnya untuk mengubah file atau konfigurasi, server
-        pembayaran akan menolak pesanan ini dan kamu harus mengulangi upload dari awal.
-        Pastikan file dan pengaturan cetak sudah benar.
+        Kalau kamu menekan tombol Kembali, pesanan ini langsung dibatalkan dan pembayaran
+        sebelumnya dianggap gagal, jadi file harus diupload ulang dari awal. Pastikan file
+        dan pengaturan cetak sudah benar.
         <x-slot:actions>
             <wired-button roughness="1.2" elevation="1" data-modal-close>Tidak</wired-button>
             <wired-button roughness="1.2" elevation="2" id="btn-lanjut-bayar">Ya, lanjutkan</wired-button>
@@ -88,14 +79,21 @@ $kembali = match (true) {
         </x-slot:actions>
     </x-modal>
 
+    {{-- Tombol Kembali membatalkan pesanan: session dihapus, file dibersihkan,
+         dan user memulai lagi dari beranda. --}}
+    <form id="form-batal-pesanan" method="POST"
+        action="{{ route('order.konfirmasi.batal', ['order_id' => $order['id']]) }}" hidden>
+        @csrf
+    </form>
+
     <header class="site-header">
         <wired-button
             roughness="1.2"
             elevation="1"
             id="btn-kembali"
             class="back-button"
-            data-fallback="{{ $kembali }}"
-            @if ($bisaEditFormulir) data-href="{{ $kembali }}" @endif>
+            data-batal-url="{{ route('order.konfirmasi.batal', ['order_id' => $order['id']]) }}"
+            data-fallback="{{ url('/') }}">
             <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M15 5 8 12l7 7" />
             </svg>
@@ -120,20 +118,17 @@ $kembali = match (true) {
         data-menunggu-kasir="{{ $order['menunggu_kasir'] ? '1' : '0' }}">
         <h1 class="page-title">Konfirmasi Pembayaran</h1>
 
+        {{-- Kode yang dibacakan/ditunjukkan ke kasir. --}}
+        @if ($order['kode'])
+        <p class="kode-order">
+            <span>Kode order</span>
+            <strong>{{ $order['kode'] }}</strong>
+        </p>
+        @endif
+
         @if ($order['menunggu_kasir'])
         <p class="status-notice" role="status">
-            Pesanan berhasil.
-            @if ($order['harga_menyesuaikan'] && $order['komputer'])
-            Silakan menuju <strong>komputer {{ $order['komputer'] }}</strong> untuk mengedit file
-            Anda, lalu bayar di kasir. Harga cetak masih perkiraan karena file masih bisa
-            diedit, jadi totalnya bisa berubah saat dihitung di kasir.
-            @elseif ($order['harga_menyesuaikan'])
-            Silakan bayar di kasir. Harga cetak masih perkiraan karena file masih bisa
-            diedit, jadi totalnya bisa berubah saat dihitung di kasir.
-            @else
-            Silakan bayar di kasir. Harga sudah sesuai rincian pesanan dan pembayaran
-            dikonfirmasi langsung oleh penjual.
-            @endif
+            Pesanan berhasil. {{ $order['pesan_kasir'] }}
         </p>
         @else
         <p class="timer-bayar" id="timer-bayar" role="timer">

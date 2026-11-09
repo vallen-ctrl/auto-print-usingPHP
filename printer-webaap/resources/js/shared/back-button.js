@@ -2,7 +2,9 @@
 // kembali ke halaman sebelumnya, atau ke data-fallback kalau tidak ada.
 const backButton = document.getElementById('btn-kembali');
 
-if (backButton) {
+// Halaman yang memasang data-batal-url menangani kliknya sendiri. Contoh:
+// tombol Kembali di konfirmasi pembayaran membatalkan pesanan lebih dulu.
+if (backButton && !backButton.dataset.batalUrl) {
     backButton.addEventListener('click', () => {
         if (backButton.dataset.href) {
             window.location.href = backButton.dataset.href;

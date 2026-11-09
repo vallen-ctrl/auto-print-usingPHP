@@ -143,6 +143,7 @@ class KonfirmasiPembayaranController extends Controller
 
         $order = [
             'id'                 => $orderHex,
+            'kode'               => $model->kode,
             'layanan'            => $layanan,
             'label_ambil'        => $layanan === 'terjadwal' ? 'Terjadwal' : 'Ambil di tempat',
             'harga_menyesuaikan' => $hargaMenyesuaikan,
@@ -155,7 +156,7 @@ class KonfirmasiPembayaranController extends Controller
             'menunggu_kasir'     => $menungguKasir,
             'metode_terpilih'    => $menungguKasir ? 'kasir' : null,
             'komputer'           => $komputer,
-            'pesan_kasir'        => $this->pesanKasir($layanan, $komputer),
+            'pesan_kasir'        => $this->pesanKasir($layanan, $komputer, $model->kode),
         ];
 
         $semuaMetode = [
@@ -218,7 +219,7 @@ class KonfirmasiPembayaranController extends Controller
         $layanan = (string) File::where('order_id', $model->id)->value('layanan');
         $komputer = $layanan === 'kilat-edit' ? $this->namaKomputer($model) : null;
 
-        $pesanKasir = $this->pesanKasir($layanan, $komputer);
+        $pesanKasir = $this->pesanKasir($layanan, $komputer, $model->kode);
 
         // Sudah dipilih sebelumnya: jangan ubah apa-apa lagi.
         if ($model->status_pembayaran === 'processing' && $model->metode_pembayaran === 'kasir') {
@@ -282,20 +283,56 @@ class KonfirmasiPembayaranController extends Controller
      * Pesan setelah user memilih "Bayar di Kasir".
      *
      * kilat-edit: file masih bisa diedit di komputer toko, jadi harga baru
-     * dihitung kasir setelah pengeditan. Nama komputernya disebut kalau ada.
+     * dihitung kasir setelah pengeditan. Nama komputer dan kode order disebut
+     * kalau ada, supaya kasir bisa menemukan pesanannya.
      */
-    private function pesanKasir(string $layanan, ?string $komputer): string
+    private function pesanKasir(string $layanan, ?string $komputer, ?string $kode): string
     {
+        $infoKode = ($kode !== null && $kode !== '')
+            ? ' Tunjukkan kode order ' . $kode . ' ke kasir.'
+            : '';
+
         if ($layanan !== 'kilat-edit') {
-            return 'Silakan bayar di kasir. Harga sudah sesuai rincian pesanan dan pembayaran dikonfirmasi langsung oleh penjual.';
+            return 'Silakan bayar di kasir.' . $infoKode . ' Harga sudah sesuai rincian pesanan dan pembayaran dikonfirmasi langsung oleh penjual.';
         }
 
         if ($komputer !== null) {
-            return 'Silakan menuju komputer ' . $komputer . ' untuk mengedit file Anda, lalu bayar di kasir. '
-                . 'Harga cetak masih perkiraan karena file masih bisa diedit, jadi totalnya bisa berubah saat dihitung di kasir.';
+            return 'Silakan menuju komputer ' . $komputer . ' untuk mengedit file Anda, lalu bayar di kasir.' . $infoKode
+                . ' Harga cetak masih perkiraan karena file masih bisa diedit, jadi totalnya bisa berubah saat dihitung di kasir.';
         }
 
-        return 'Silakan bayar di kasir. Harga cetak masih perkiraan karena file masih bisa diedit, jadi totalnya bisa berubah saat dihitung di kasir.';
+        return 'Silakan bayar di kasir.' . $infoKode . ' Harga cetak masih perkiraan karena file masih bisa diedit, jadi totalnya bisa berubah saat dihitung di kasir.';
+    }
+
+    /**
+     * Tombol Kembali di halaman konfirmasi: pesanan dibatalkan, session dan
+     * penanda browser dihapus, file di server dibersihkan, lalu user kembali
+     * ke beranda untuk memulai dari nol. Status order menjadi `failed`.
+     */
+    public function batalkan(Request $request, string $order_id)
+    {
+        $model = $this->kedaluwarsa->cariDariHex($order_id);
+
+        $request->session()->forget(UploadTerjadwalController::SESSION_KEY);
+        $request->session()->forget(KilatController::COMPUTER_SESSION_KEY);
+
+        if ($model === null) {
+            return redirect('/')->with('error', 'Order tidak ditemukan. Silakan upload ulang file Anda.');
+        }
+
+        // Pembayaran sudah lunas: jangan diubah, tampilkan struknya saja.
+        if ($model->status_pembayaran === 'paid') {
+            return redirect()->route('struk.render', ['id' => $order_id]);
+        }
+
+        $dibatalkan = $this->kedaluwarsa->batalkan($model);
+
+        return redirect('/')->with(
+            'error',
+            $dibatalkan
+                ? 'Pesanan dibatalkan dan pembayaran sebelumnya dianggap gagal. Silakan upload ulang file Anda.'
+                : 'Pesanan ini sudah tidak bisa dibatalkan. Silakan upload ulang file Anda.'
+        );
     }
 
     /**

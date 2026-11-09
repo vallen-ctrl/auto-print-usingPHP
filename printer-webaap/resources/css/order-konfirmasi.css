@@ -143,6 +143,32 @@ wired-button.back-button[hidden] {
     text-transform: uppercase;
 }
 
+/* Kode order: dibacakan/ditunjukkan ke kasir. */
+.kode-order {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    width: fit-content;
+    margin: 0 auto var(--space-4);
+    padding: var(--space-1) var(--space-4);
+    border: 1.5px solid var(--color-border);
+    border-radius: 10px 12px 10px 12px;
+    background: var(--color-chip);
+    font-size: var(--fs-caption);
+    line-height: 1.4;
+}
+
+.kode-order span {
+    color: var(--color-muted);
+}
+
+.kode-order strong {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: var(--fs-sub);
+    letter-spacing: 0.14em;
+}
+
 /* Hitung mundur 20 menit untuk menyelesaikan pembayaran. */
 .timer-bayar {
     display: flex;
