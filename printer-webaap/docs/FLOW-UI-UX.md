@@ -218,6 +218,23 @@ staff-print orders the "Status file" cell becomes a select + **Simpan** button
 (`POST /dashboard/order/{id}/status-file`), updating every `file_queue` row of
 that order. Automatic orders keep the read-only status badge.
 
+### 2.8 Branding (nama toko + logo)
+
+`toko.name` and `toko.logo_path` are managed from **Dashboard → Pengaturan**:
+the logo is uploaded by clicking the round logo (PNG/JPG/WEBP, max 2 MB, stored
+on the `public` disk under `toko/logo/`), and the name is edited inline. The
+save request is multipart; `App\Support\Branding` caches both for 10 minutes and
+the save clears that cache.
+
+A global view composer shares `$branding` with every Blade view, so:
+- all customer headers render `<x-brand-logo />` (the uploaded logo, or the old
+  "logo jasa" placeholder when `logo_path` is empty);
+- every "nama print" brand text and every page `<title>` uses `toko.name`.
+
+Pages covered: beranda, upload terjadwal/kilat, formulir terjadwal/kilat,
+konfirmasi pembayaran, scan QR, print kilat, struk, and the static
+`formulir-kilat` mockup.
+
 ---
 
 ## 3. Step by step
@@ -226,7 +243,8 @@ that order. Automatic orders keep the read-only status badge.
 
 **What the user sees**
 
-- Header: "logo jasa" placeholder + "nama print".
+- Header: store logo + store name (both from **Pengaturan**; without an uploaded
+  logo the old "logo jasa" placeholder is shown).
 - Two sketch buttons: **Cetak Kilat** and **Cetak Terjadwal**.
 - Optional red/grey notice panel when the server redirected here with an error
   (`session('error')`), e.g. files deleted because the order expired.

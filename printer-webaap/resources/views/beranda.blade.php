@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Nama Print — Pilih Layanan Cetak</title>
+    <title>{{ $branding['nama'] }} - Pilih Layanan Cetak</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,8 +15,8 @@
     <header class="site-header">
         <div class="site-header-brand">
             {{-- Kotak placeholder logo: ganti dengan gambar logo asli kalau sudah tersedia. --}}
-            <div class="logo-placeholder" role="img" aria-label="Logo jasa">logo jasa</div>
-            <p class="brand-name">nama print</p>
+            <x-brand-logo />
+            <p class="brand-name">{{ $branding['nama'] }}</p>
         </div>
     </header>
 

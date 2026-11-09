@@ -11,8 +11,8 @@
     <div class="page">
         <header class="form-header">
             <div class="brand">
-                <span class="brand-logo" aria-hidden="true">logo</span>
-                <span class="brand-name">nama print</span>
+                <x-brand-logo class="brand-logo" placeholder="logo" />
+                <span class="brand-name">{{ $branding['nama'] }}</span>
             </div>
             <h1 class="form-title">FORMULIR CETAK KILAT</h1>
         </header>

@@ -129,8 +129,8 @@ $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
         </wired-button>
 
         <div class="site-header-brand">
-            <div class="logo-placeholder" role="img" aria-label="Logo jasa">logo jasa</div>
-            <p class="brand-name">nama print</p>
+            <x-brand-logo />
+            <p class="brand-name">{{ $branding['nama'] }}</p>
         </div>
     </header>
 

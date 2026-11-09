@@ -47,6 +47,11 @@ Yang sudah ada (dibuat di sesi ini):
   (`orders.mode_cetak`) dan sekarang menyimpan `orders.tanggal_ambil`.
 - Dashboard Order: kolom **Mode cetak**; order tukang punya select + Simpan untuk
   ubah status semua file (`POST /dashboard/order/{id}/status-file`).
+- **Branding**: halaman Pengaturan bisa ganti **nama toko** (input) dan upload
+  **logo** (PNG/JPG/WEBP maks 2 MB) ke `toko.name` / `toko.logo_path`.
+  `App\Support\Branding` (cache 10 menit) dibagikan ke semua Blade lewat view
+  composer, jadi semua header customer memakai `<x-brand-logo />` dan nama toko
+  menggantikan "logo jasa"/"nama print" (termasuk `<title>`).
 - Layout dashboard memuat Flowbite lewat Vite (`resources/js/app.js`), CDN dihapus.
 - Formulir kilat (`/print/kilat/formulir/{mode}`): judul "Formulir Cetak Kilat" +
   subtitle mode, **tanpa tanggal/pukul pengambilan** untuk kedua mode.
@@ -81,6 +86,16 @@ setelah reload customer), UI edit/cetak di komputer, webhook Midtrans.
 - `database/migrations/2026_11_10_000000_add_mode_cetak_to_orders_table.php`.
 - `tests/Feature/CetakModeTest.php` — antrean per layanan/mode, SSE-related data,
   simpan mode cetak, dan update status file.
+- `app/Support/Branding.php` — nama + logo toko (cache), dipakai view composer di
+  `AppServiceProvider::boot()` (`$branding` tersedia di semua Blade).
+- `app/Http/Controllers/PengaturanController.php` — simpan `nama_toko` + upload
+  `logo` (multipart), hapus logo lama, `Branding::lupakan()`.
+- `resources/views/components/brand-logo.blade.php` — logo/placeholder header.
+- `resources/views/*` — semua header customer memakai `$branding` dan
+  `<x-brand-logo />`; judul halaman memakai nama toko.
+- `database/migrations/2026_11_10_000001_add_logo_path_to_toko_table.php`.
+- `tests/Feature/BrandingTest.php` — simpan nama/logo, hapus logo lama, header
+  customer, validasi nama/logo.
 - `app/Http/Controllers/UploadTerjadwalController.php` — `kodeOrderBaru()`.
 - `resources/views/Dashboard/selection/kasir.blade.php` — halaman kasir + 2 modal.
 - `resources/views/Dashboard/layout.blade.php` — menu Kasir + Vite app.js.

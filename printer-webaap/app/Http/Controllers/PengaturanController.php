@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\JamOperasional;
 use App\Models\PengaturanToko;
 use App\Models\Toko;
+use App\Support\Branding;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class PengaturanController extends Controller
 {
@@ -49,6 +51,7 @@ class PengaturanController extends Controller
 
         $pengaturan = [
             'nama_toko'         => $toko->name ?? 'Toko print saya',
+            'logo_url'          => $toko?->logo_path ? asset('storage/' . $toko->logo_path) : null,
             'status_buka'       => $pengaturanTersimpan ? (bool) $pengaturanTersimpan->status_buka : true,
             'biaya_admin'       => $pengaturanTersimpan->biaya_admin ?? 20000,
             'biaya_layanan'     => $pengaturanTersimpan->biaya_layanan ?? 20000,
@@ -61,6 +64,8 @@ class PengaturanController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'nama_toko'           => 'required|string|max:255',
+            'logo'                => 'nullable|image|mimes:png,jpg,jpeg,webp|max:2048',
             'status_buka'         => 'required|boolean',
             'biaya_admin'         => 'required|integer|min:0',
             'biaya_layanan'       => 'required|integer|min:0',
@@ -72,6 +77,11 @@ class PengaturanController extends Controller
             'jam.*.waktu_buka'    => 'nullable|date_format:H:i',
             'jam.*.waktu_tutup'   => 'nullable|date_format:H:i',
         ], [
+            'nama_toko.required'         => 'Nama toko wajib diisi.',
+            'nama_toko.max'              => 'Nama toko maksimal 255 karakter.',
+            'logo.image'                 => 'Logo harus berupa gambar.',
+            'logo.mimes'                 => 'Logo harus berformat PNG, JPG, JPEG, atau WEBP.',
+            'logo.max'                   => 'Ukuran logo maksimal 2 MB.',
             'status_buka.required'       => 'Status buka wajib diisi.',
             'status_buka.boolean'        => 'Status buka tidak valid.',
             'biaya_admin.required'       => 'Biaya admin wajib diisi.',
@@ -103,7 +113,7 @@ class PengaturanController extends Controller
             ], 401);
         }
 
-        DB::transaction(function () use ($validated, $toko) {
+        DB::transaction(function () use ($validated, $toko, $request) {
             $pengaturan = PengaturanToko::updateOrCreate(
                 ['id_toko' => $toko->id],
                 [
@@ -113,6 +123,21 @@ class PengaturanController extends Controller
                     'lama_file_dihapus' => $validated['lama_file_dihapus'],
                 ]
             );
+
+            // Identitas toko: nama dan logo (opsional).
+            $toko->name = $validated['nama_toko'];
+
+            if ($request->hasFile('logo')) {
+                $logoLama = $toko->logo_path;
+                $logoBaru = $request->file('logo')->store('toko/logo', 'public');
+                $toko->logo_path = $logoBaru;
+
+                if ($logoLama && $logoLama !== $logoBaru) {
+                    Storage::disk('public')->delete($logoLama);
+                }
+            }
+
+            $toko->save();
 
             foreach ($validated['jam'] as $baris) {
                 JamOperasional::updateOrCreate(
@@ -130,8 +155,12 @@ class PengaturanController extends Controller
             }
         });
 
+        Branding::lupakan();
+
         return response()->json([
             'message' => 'Pengaturan berhasil disimpan.',
+            'nama_toko' => $toko->name,
+            'logo_url' => $toko->logo_path ? asset('storage/' . $toko->logo_path) : null,
         ]);
     }
 

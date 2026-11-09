@@ -78,7 +78,8 @@ erDiagram
 | Kolom | Tipe | Null | Default | Keterangan |
 |-------|------|------|---------|------------|
 | `id` | binary(16) | NO | - | **PK** |
-| `name` | string(255) | NO | - | |
+| `name` | string(255) | NO | - | Nama toko, dipakai sebagai brand di header semua halaman customer |
+| `logo_path` | string(255) | YES | - | Path logo di disk `public` (mis. `toko/logo/xxxx.png`). Ditampilkan di header customer; `NULL` = placeholder "logo jasa". *(migration 2026_11_10)* |
 | `username` | string(50) | NO | - | **UQ** `uq_toko_username` |
 | `password` | string(255) | NO | - | |
 | `tanggal_dibuat` | timestamp | NO | `CURRENT_TIMESTAMP` | |
