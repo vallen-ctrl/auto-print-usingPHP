@@ -28,6 +28,12 @@
             </div>
         @endif
 
+        @if (session('success'))
+            <div class="panel-notice panel-notice--success" role="status">
+                <p>{{ session('success') }}</p>
+            </div>
+        @endif
+
         <wired-card roughness="1.2" class="panel">
             <div class="panel-inner">
                 <wired-button roughness="1.2" class="panel-button" elevation="1" data-href="{{ route('scan.qr') }}">Cetak Kilat</wired-button>

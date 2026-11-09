@@ -203,9 +203,35 @@ test('tombol kembali tidak mengubah order yang sudah lunas', function () {
     $hex = bin2hex($order->id);
 
     $this->post(route('order.konfirmasi.batal', ['order_id' => $hex]))
-        ->assertRedirect(route('struk.render', ['id' => $hex]));
+        ->assertRedirect('/')
+        ->assertSessionHas('success', fn ($pesan) => str_contains($pesan, 'berhasil'));
 
     expect($order->fresh()->status_pembayaran)->toBe('paid');
+});
+
+test('cek status konfirmasi memberi tahu kalau order sudah dibayar', function () {
+    [$order] = orderKasirUji(['status' => 'paid', 'kode' => 'CEK001']);
+
+    $this->getJson(route('order.konfirmasi.status', ['order_id' => bin2hex($order->id)]))
+        ->assertOk()
+        ->assertJsonPath('paid', true)
+        ->assertJsonPath('status', 'paid')
+        ->assertJsonPath('kode', 'CEK001');
+});
+
+test('cek status konfirmasi memberi tahu kalau order belum dibayar', function () {
+    [$order] = orderKasirUji(['status' => 'pending', 'kode' => 'CEK002']);
+
+    $this->getJson(route('order.konfirmasi.status', ['order_id' => bin2hex($order->id)]))
+        ->assertOk()
+        ->assertJsonPath('paid', false)
+        ->assertJsonPath('status', 'pending');
+});
+
+test('cek status konfirmasi untuk order yang tidak ada menjawab 404', function () {
+    $this->getJson(route('order.konfirmasi.status', ['order_id' => str_repeat('0', 32)]))
+        ->assertStatus(404)
+        ->assertJsonPath('paid', false);
 });
 
 test('halaman konfirmasi menampilkan kode order untuk kasir', function () {

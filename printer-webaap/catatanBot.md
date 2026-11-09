@@ -18,11 +18,14 @@ Yang sudah ada (dibuat di sesi ini):
   halaman konfirmasi. Order lama di-backfill oleh migration.
 - Tombol **Kembali** di `/order/konfirmasi/{id}` menampilkan peringatan
   (`modal-keluar`): pesanan belum dikonfirmasi akan dianggap gagal kalau keluar.
+  Sebelumnya JS cek `GET /order/konfirmasi/{id}/status`; kalau order sudah `paid`,
+  yang muncul `modal-sukses-keluar` ("Pembayaran berhasil") lalu redirect `/`.
   Tombol back browser juga ditahan lewat `pushState`/`popstate`. Hanya tombol
   "Ya, batalkan pesanan" yang mengirim POST `/order/konfirmasi/{id}/batalkan`
   → order `failed`, file + `file_queue` + `browser_session` + session
   `terjadwal_order`/`kilat_computer_id` dihapus, lalu redirect `/` dengan pesan
-  "Pembayaran sebelumnya dianggap gagal". Order `paid` tidak dibatalkan.
+  "Pembayaran sebelumnya dianggap gagal". `batalkan` untuk order `paid`
+  dialihkan ke `/` dengan flash `success` (tidak pernah membatalkan order lunas).
 - Dashboard kasir `/dashboard/kasir` (menu sidebar "Kasir"): daftar order
   `metode_pembayaran = kasir` + `status_pembayaran = processing`, cari berdasarkan
   nama pelanggan (`user.name`), kode order, atau id hex. Aksi:

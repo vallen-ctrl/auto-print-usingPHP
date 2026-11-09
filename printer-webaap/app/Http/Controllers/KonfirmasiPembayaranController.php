@@ -305,6 +305,26 @@ class KonfirmasiPembayaranController extends Controller
     }
 
     /**
+     * Status pembayaran ringkas untuk tombol Kembali. Kalau order sudah lunas,
+     * halaman konfirmasi memberi tahu bahwa pesanan berhasil (bukan peringatan
+     * pembatalan).
+     */
+    public function status(string $order_id)
+    {
+        $model = $this->kedaluwarsa->cariDariHex($order_id);
+
+        if ($model === null) {
+            return response()->json(['status' => null, 'paid' => false], 404);
+        }
+
+        return response()->json([
+            'status' => $model->status_pembayaran,
+            'paid' => $model->status_pembayaran === 'paid',
+            'kode' => $model->kode,
+        ]);
+    }
+
+    /**
      * Tombol Kembali di halaman konfirmasi: pesanan dibatalkan, session dan
      * penanda browser dihapus, file di server dibersihkan, lalu user kembali
      * ke beranda untuk memulai dari nol. Status order menjadi `failed`.
@@ -320,9 +340,13 @@ class KonfirmasiPembayaranController extends Controller
             return redirect('/')->with('error', 'Order tidak ditemukan. Silakan upload ulang file Anda.');
         }
 
-        // Pembayaran sudah lunas: jangan diubah, tampilkan struknya saja.
+        // Pembayaran sudah lunas: jangan diubah. Beri tahu bahwa pesanan
+        // berhasil dan user bisa mulai dari awal.
         if ($model->status_pembayaran === 'paid') {
-            return redirect()->route('struk.render', ['id' => $order_id]);
+            return redirect('/')->with(
+                'success',
+                'Pesanan ini sudah dibayar dan dinyatakan berhasil. Silakan mulai pesanan baru.'
+            );
         }
 
         $dibatalkan = $this->kedaluwarsa->batalkan($model);

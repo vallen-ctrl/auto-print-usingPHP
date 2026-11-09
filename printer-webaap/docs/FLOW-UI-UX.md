@@ -76,6 +76,7 @@ the form (see §6).
 | GET | `/print/kilat/upload/{mode}` | `KilatController::upload` → `kilat-upload.blade.php` | Upload PDF for a kilat mode |
 | GET | `/print/kilat/formulir/{mode}` | `FormulirTerjadwalController::get` → `kilat-formulir.blade.php` | Kilat print form (no WhatsApp) |
 | POST | `/order/konfirmasi/{order}/batalkan` | `KonfirmasiPembayaranController::batalkan` | Kembali: cancel order, delete files + session |
+| GET | `/order/konfirmasi/{order}/status` | `KonfirmasiPembayaranController::status` | Lightweight `{ status, paid, kode }` for the Kembali status check |
 | GET | `/dashboard/kasir` | `KasirController::index` → `Dashboard/selection/kasir.blade.php` | Cashier queue; search by name, code, or order id |
 | POST | `/dashboard/kasir/{id}/lunas` | `KasirController::lunas` | Mark cashier order paid, record final total, queue files |
 | POST | `/dashboard/kasir/{id}/batal` | `KasirController::batal` | Mark cashier order failed and delete its files |
@@ -578,9 +579,14 @@ user on the form (data is still in localStorage).
 
 **Back navigation**
 
-**Kembali cancels the order, after a warning.** Before the user confirms
-"Ya, lanjutkan", clicking Kembali (or pressing the browser back button) opens
-`modal-keluar`:
+**Kembali cancels the order, after checking the database and warning.** Before
+the user confirms "Ya, lanjutkan", clicking Kembali (or pressing the browser
+back button) first calls `GET /order/konfirmasi/{hex}/status`:
+
+- **Already paid** → `modal-sukses-keluar` ("Pembayaran berhasil…"). Closing it
+  (button, ✕, backdrop, Escape) redirects to `/` (`location.replace`) so the
+  customer starts from zero. The server never cancels a paid order.
+- **Not paid** → `modal-keluar` warning:
 
 > "Pembayaran kamu belum dikonfirmasi. Kalau kamu kembali ke halaman sebelumnya
 > sekarang, pesanan ini langsung dibatalkan dan pembayaran dianggap gagal
@@ -598,7 +604,9 @@ user on the form (data is still in localStorage).
     `kilat_computer_id`) are cleared, so `/` starts from zero;
   - the user lands on `/` with the notice "Pesanan dibatalkan dan pembayaran
     sebelumnya dianggap gagal."
-- a `paid` order is never cancelled (redirected to its receipt).
+- If the status check fails (network), the warning is shown as a safe fallback;
+  the cancel endpoint still refuses a paid order and redirects to `/` with a
+  success notice.
 
 After "Ya, lanjutkan" the button is hidden; only browser back/refresh remains.
 Cross-document history (e.g. a fresh tab with no same-document entry) cannot be
@@ -783,9 +791,11 @@ fixed at 150 px, and dividers stay dashed.
 3. **One confirmation dialog before charging.** "Ya, lanjutkan" is the only path
    that requests a token or claims a cashier order.
 4. **Leaving before confirmation is destructive and warned.** Kembali or the
-   browser back button opens `modal-keluar`; only "Ya, batalkan pesanan" posts to
-   `/order/konfirmasi/{hex}/batalkan` (order → `failed`, files + session deleted,
-   back to `/`). After "Ya, lanjutkan" the button is hidden.
+   browser back button first checks `GET /order/konfirmasi/{hex}/status`.
+   Paid → success dialog → `/`; not paid → `modal-keluar`, and only
+   "Ya, batalkan pesanan" posts to `/order/konfirmasi/{hex}/batalkan`
+   (order → `failed`, files + session deleted, back to `/`). After
+   "Ya, lanjutkan" the button is hidden.
 5. **Expired means deleted.** Files are removed from storage; the user must
    re-upload and cannot resume that order.
 6. **Errors never leave the user on a dead page.** Closing an error dialog on the

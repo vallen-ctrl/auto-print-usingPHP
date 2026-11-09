@@ -66,6 +66,8 @@ test('halaman konfirmasi memuat data order dan memulai hitung mundur pembayaran'
         ->assertSee('data-batal-url="' . route('order.konfirmasi.batal', ['order_id' => bin2hex($order->id)]) . '"', false)
         ->assertSee('id="modal-keluar"', false)
         ->assertSee('id="btn-konfirmasi-keluar"', false)
+        ->assertSee('id="modal-sukses-keluar"', false)
+        ->assertSee('data-cek-status-url=', false)
         ->assertSee('belum dikonfirmasi');
 
     expect($order->fresh()->tanggal_bayar)->not->toBeNull();

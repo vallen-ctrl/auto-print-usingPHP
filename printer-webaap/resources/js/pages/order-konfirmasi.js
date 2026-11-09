@@ -20,6 +20,7 @@ const orderId = halaman?.dataset.orderId ?? '';
 const tokenUrl = halaman?.dataset.tokenUrl ?? '';
 const kasirUrl = halaman?.dataset.kasirUrl ?? '';
 const statusUrl = halaman?.dataset.statusUrl ?? '';
+const cekStatusUrl = halaman?.dataset.cekStatusUrl ?? '';
 const strukUrl = halaman?.dataset.strukUrl ?? '';
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 
@@ -51,7 +52,10 @@ const sembunyiLoader = () => {
 // Form tersembunyi baru dikirim kalau user memilih "Ya, batalkan pesanan".
 const formBatalPesanan = document.getElementById('form-batal-pesanan');
 const modalKeluar = document.getElementById('modal-keluar');
+const modalSuksesKeluar = document.getElementById('modal-sukses-keluar');
 const tombolKonfirmasiKeluar = document.getElementById('btn-konfirmasi-keluar');
+
+let sedangCekStatusKeluar = false;
 
 const batalkanPesanan = () => {
     if (!formBatalPesanan) {
@@ -62,10 +66,47 @@ const batalkanPesanan = () => {
     formBatalPesanan.submit();
 };
 
-if (tombolKembali && modalKeluar) {
-    tombolKembali.addEventListener('click', () => {
+// Cek dulu ke database: order yang sudah dibayar tidak boleh dibatalkan.
+// - sudah lunas  -> modal "Pembayaran berhasil", lalu kembali ke beranda
+// - belum lunas  -> modal peringatan "Batalkan pesanan?"
+const cekStatusSebelumKeluar = async () => {
+    if (sedangCekStatusKeluar) {
+        return;
+    }
+
+    sedangCekStatusKeluar = true;
+    tampilLoader();
+
+    try {
+        if (cekStatusUrl) {
+            const respons = await fetch(cekStatusUrl, {
+                headers: { Accept: 'application/json' },
+                cache: 'no-store',
+            });
+
+            const data = await respons.json().catch(() => null);
+
+            if (data?.paid === true) {
+                sembunyiLoader();
+                bukaModal('modal-sukses-keluar');
+                return;
+            }
+        }
+
+        sembunyiLoader();
         bukaModal('modal-keluar');
-    });
+    } catch (error) {
+        // Status tidak bisa dicek: tetap tampilkan peringatan. Server tetap
+        // menolak pembatalan kalau ternyata order sudah dibayar.
+        sembunyiLoader();
+        bukaModal('modal-keluar');
+    } finally {
+        sedangCekStatusKeluar = false;
+    }
+};
+
+if (tombolKembali && modalKeluar) {
+    tombolKembali.addEventListener('click', cekStatusSebelumKeluar);
 }
 
 tombolKonfirmasiKeluar?.addEventListener('click', () => {
@@ -73,19 +114,26 @@ tombolKonfirmasiKeluar?.addEventListener('click', () => {
     batalkanPesanan();
 });
 
+if (modalSuksesKeluar) {
+    // Modal ditutup dengan cara apa pun (tombol, X, backdrop, Escape) berarti
+    // user siap meninggalkan halaman dan mulai dari awal.
+    modalSuksesKeluar.addEventListener('modal-close', () => {
+        window.location.replace('/');
+    });
+}
+
 if (modalKeluar && tombolKembali?.dataset.batalUrl) {
     // Entry riwayat tambahan: back pertama hanya memicu popstate, jadi halaman
-    // ini belum ditinggalkan saat peringatan tampil.
+    // ini belum ditinggalkan saat pengecekan status/peringatan tampil.
     const stateKonfirmasi = { pembayaranBelumDikonfirmasi: true };
 
     history.pushState(stateKonfirmasi, '', window.location.href);
 
     window.addEventListener('popstate', () => {
-        bukaModal('modal-keluar');
-
-        // Pasang lagi entry-nya supaya back berikutnya tetap memunculkan
-        // peringatan, bukan langsung meninggalkan halaman.
+        // Pasang lagi entry-nya supaya back berikutnya tetap dicek, bukan
+        // langsung meninggalkan halaman.
         history.pushState(stateKonfirmasi, '', window.location.href);
+        cekStatusSebelumKeluar();
     });
 }
 

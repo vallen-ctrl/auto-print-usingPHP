@@ -73,6 +73,19 @@ $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
         </x-slot:actions>
     </x-modal>
 
+    {{-- Pesanan sudah dibayar: user boleh pergi, lalu mulai dari beranda. --}}
+    <x-modal
+        id="modal-sukses-keluar"
+        type="success"
+        title="Pembayaran berhasil">
+        Pesanan ini sudah dibayar dan dinyatakan berhasil. Kamu sudah bisa meninggalkan
+        halaman ini. Setelah pesan ini ditutup, kamu akan diarahkan ke beranda untuk
+        mulai dari awal.
+        <x-slot:actions>
+            <wired-button roughness="1.2" elevation="2" data-modal-close>Kembali ke beranda</wired-button>
+        </x-slot:actions>
+    </x-modal>
+
     {{-- Petunjuk pembayaran di kasir (kilat-langsung & kilat-edit). --}}
     <x-modal
         id="modal-kasir"
@@ -128,6 +141,7 @@ $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
         data-token-url="{{ route('create.snap.token') }}"
         data-kasir-url="{{ route('order.konfirmasi.kasir', ['order_id' => $order['id']]) }}"
         data-status-url="{{ route('order.struk', ['id' => $order['id']]) }}"
+        data-cek-status-url="{{ route('order.konfirmasi.status', ['order_id' => $order['id']]) }}"
         data-struk-url="{{ route('struk.render', ['id' => $order['id']]) }}"
         data-sisa-detik="{{ $order['sisa_detik'] }}"
         data-menunggu-kasir="{{ $order['menunggu_kasir'] ? '1' : '0' }}">

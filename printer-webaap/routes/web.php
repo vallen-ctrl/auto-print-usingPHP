@@ -44,6 +44,7 @@ Route::get('/terjadwal/keluar', function (\Illuminate\Http\Request $request) {
 Route::get('/order/konfirmasi/{order_id}', [\App\Http\Controllers\KonfirmasiPembayaranController::class, 'show'])->name('order.konfirmasi');
 Route::post('/order/konfirmasi/{order_id}/kasir', [\App\Http\Controllers\KonfirmasiPembayaranController::class, 'bayarDiKasir'])->name('order.konfirmasi.kasir');
 Route::post('/order/konfirmasi/{order_id}/batalkan', [\App\Http\Controllers\KonfirmasiPembayaranController::class, 'batalkan'])->name('order.konfirmasi.batal');
+Route::get('/order/konfirmasi/{order_id}/status', [\App\Http\Controllers\KonfirmasiPembayaranController::class, 'status'])->name('order.konfirmasi.status');
 Route::post("/order/create", [\App\Http\Controllers\OrderController::class, 'createorder_terjadwal'])->name("create.order");
 Route::post('/order/token', [\App\Http\Controllers\OrderController::class, "bayarSekarang"])->name("create.snap.token");
 Route::get("/struk/order/{id}", [\App\Http\Controllers\OrderController::class, "strukOrder"])->name("order.struk");
