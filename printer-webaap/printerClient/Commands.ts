@@ -23,7 +23,6 @@ type Handler = (data: any, ctx: CommandContext, ev: SSEEvent) => void | Promise<
 const DOWNLOAD_DIR = join(homedir(), "Downloads");
 const DOWNLOAD_TIMEOUT = 10 * 60_000; // 10 menit per file
 const PARALLEL = 3; // maksimal download bersamaan
-const AUTO_PRINT = true; // true: setelah download langsung dicetak lewat SumatraPDF (lihat printpdf.ts)
 const SKIP_IF_DOWNLOADED = true; // id yang filenya masih ada di Downloads tidak diunduh ulang
 
 /** Kalau nama file sudah dipakai file lain: "rename" -> nama (1).ext | "overwrite" -> timpa */
@@ -203,20 +202,20 @@ async function setStatus(ctx: CommandContext, fileid: string, status: FileStatus
 }
 
 /**
- * mode "download": unduh, lalu cetak (kalau AUTO_PRINT).
- *                 File yang sudah ada dipakai ulang (tidak diunduh lagi) dan tetap dicetak,
- *                 supaya "retry" dari dashboard benar-benar mencetak ulang file yang gagal.
- * mode "print"   : cetak ulang file yang sudah diunduh (kalau belum ada, diunduh dulu).
+ * mode "download": hanya unduh ke folder Downloads, tanpa mencetak.
+ *                 File yang sudah ada dipakai ulang (tidak diunduh lagi) dan
+ *                 statusnya langsung ditandai selesai.
+ * mode "print"   : cetak file. Kalau belum ada di Downloads, unduh dulu lalu cetak.
  */
 async function processFiles(ids: string[], ctx: CommandContext, mode: "download" | "print") {
   const all = await loadRecs();
   let downloaded = 0, printed = 0, skipped = 0, fail = 0, down = 0;
 
   const alreadyHave = (id: string) => !!all[id] && existsSync(all[id]!.path);
-  const willPrint = mode === "print" || AUTO_PRINT;
+  const willPrint = mode === "print";
   /** file lama di Downloads dipakai ulang (tidak diunduh lagi) */
-  const useLocal = (id: string) => mode === "download" && SKIP_IF_DOWNLOADED && alreadyHave(id);
-  // tanpa AUTO_PRINT tidak ada yang dicetak: file yang sudah ada memang tidak perlu diproses
+  const useLocal = (id: string) => SKIP_IF_DOWNLOADED && alreadyHave(id);
+  // tanpa cetak, file yang sudah ada memang tidak perlu diproses
   const todo = ids.filter((id) => !(useLocal(id) && !willPrint));
 
   // printer dicek sekali di awal: kalau down, file langsung "failed" tanpa diunduh / dicetak
@@ -241,7 +240,8 @@ async function processFiles(ids: string[], ctx: CommandContext, mode: "download"
     if (useLocal(id)) {
       if (!willPrint) {
         skipped++;
-        return void (await ctx.log(`  ↷ ${id} sudah ada: ${rec!.path} (dilewati, AUTO_PRINT mati)`));
+        await setStatus(ctx, id, STATUS.done); // sudah ada di Downloads
+        return void (await ctx.log(`  ↷ ${id} sudah ada: ${rec!.path} (sudah diunduh, dilewati)`));
       }
       // mis. setelah retry dari dashboard: jangan unduh ulang, pakai file yang ada lalu cetak
       await ctx.log(`  ↷ ${id} sudah ada: ${rec!.path} (pakai file lokal, cetak ulang)`);
@@ -279,7 +279,7 @@ async function processFiles(ids: string[], ctx: CommandContext, mode: "download"
         await setStatus(ctx, id, STATUS.failed);
       }
     } else {
-      await setStatus(ctx, id, STATUS.done); // AUTO_PRINT mati: selesai = selesai diunduh
+      await setStatus(ctx, id, STATUS.done); // mode unduh: selesai = selesai diunduh
     }
   });
   await ctx.log(

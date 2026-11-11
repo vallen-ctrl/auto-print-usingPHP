@@ -1,14 +1,5 @@
 @php
 $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
-$modeKilat = $order['layanan'] === 'kilat-edit' ? 'komputer' : 'handphone';
-$bisaEditFormulir = in_array($order['layanan'], ['terjadwal', 'kilat-langsung', 'kilat-edit'], true)
-    && !$order['menunggu_kasir'];
-$kembali = match (true) {
-    $bisaEditFormulir && $order['layanan'] === 'terjadwal' => route('formulir.terjadwal', ['order' => $order['id']]),
-    $bisaEditFormulir => route('kilat.formulir', ['mode' => $modeKilat, 'order' => $order['id']]),
-    $order['layanan'] === 'terjadwal' => route('upload.terjadwal'),
-    default => route('print.kilat'),
-};
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -58,12 +49,40 @@ $kembali = match (true) {
         id="modal-bayar"
         type="warning"
         title="Lanjut ke pembayaran?">
-        Kalau kamu kembali ke halaman sebelumnya untuk mengubah file atau konfigurasi, server
-        pembayaran akan menolak pesanan ini dan kamu harus mengulangi upload dari awal.
-        Pastikan file dan pengaturan cetak sudah benar.
+        Kalau kamu menekan tombol Kembali, pesanan ini langsung dibatalkan dan pembayaran
+        sebelumnya dianggap gagal, jadi file harus diupload ulang dari awal. Pastikan file
+        dan pengaturan cetak sudah benar.
         <x-slot:actions>
             <wired-button roughness="1.2" elevation="1" data-modal-close>Tidak</wired-button>
             <wired-button roughness="1.2" elevation="2" id="btn-lanjut-bayar">Ya, lanjutkan</wired-button>
+        </x-slot:actions>
+    </x-modal>
+
+    {{-- Peringatan sebelum meninggalkan halaman pembayaran. Pesanan yang belum
+         dikonfirmasi langsung dianggap gagal kalau user memilih keluar. --}}
+    <x-modal
+        id="modal-keluar"
+        type="error"
+        title="Batalkan pesanan?">
+        Pembayaran kamu <strong>belum dikonfirmasi</strong>. Kalau kamu kembali ke halaman
+        sebelumnya sekarang, pesanan ini langsung dibatalkan dan pembayaran dianggap
+        gagal (hangus), jadi file harus diupload ulang dari awal.
+        <x-slot:actions>
+            <wired-button roughness="1.2" elevation="1" data-modal-close>Tidak, tetap di sini</wired-button>
+            <wired-button roughness="1.2" elevation="2" id="btn-konfirmasi-keluar">Ya, batalkan pesanan</wired-button>
+        </x-slot:actions>
+    </x-modal>
+
+    {{-- Pesanan sudah dibayar: user boleh pergi, lalu mulai dari beranda. --}}
+    <x-modal
+        id="modal-sukses-keluar"
+        type="success"
+        title="Pembayaran berhasil">
+        Pesanan ini sudah dibayar dan dinyatakan berhasil. Kamu sudah bisa meninggalkan
+        halaman ini. Setelah pesan ini ditutup, kamu akan diarahkan ke beranda untuk
+        mulai dari awal.
+        <x-slot:actions>
+            <wired-button roughness="1.2" elevation="2" data-modal-close>Kembali ke beranda</wired-button>
         </x-slot:actions>
     </x-modal>
 
@@ -72,7 +91,7 @@ $kembali = match (true) {
         id="modal-kasir"
         type="info"
         title="Bayar di kasir"
-        message="Tunjukkan halaman ini ke kasir. Pesanan dengan ID {{ $order['id'] }} akan dibayar langsung di kasir setelah cetakan siap." />
+        :message="$order['pesan_kasir']" />
 
     {{-- Waktu pembayaran habis. --}}
     <x-modal
@@ -88,14 +107,21 @@ $kembali = match (true) {
         </x-slot:actions>
     </x-modal>
 
+    {{-- Tombol Kembali membatalkan pesanan: session dihapus, file dibersihkan,
+         dan user memulai lagi dari beranda. --}}
+    <form id="form-batal-pesanan" method="POST"
+        action="{{ route('order.konfirmasi.batal', ['order_id' => $order['id']]) }}" hidden>
+        @csrf
+    </form>
+
     <header class="site-header">
         <wired-button
             roughness="1.2"
             elevation="1"
             id="btn-kembali"
             class="back-button"
-            data-fallback="{{ $kembali }}"
-            @if ($bisaEditFormulir) data-href="{{ $kembali }}" @endif>
+            data-batal-url="{{ route('order.konfirmasi.batal', ['order_id' => $order['id']]) }}"
+            data-fallback="{{ url('/') }}">
             <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M15 5 8 12l7 7" />
             </svg>
@@ -103,8 +129,8 @@ $kembali = match (true) {
         </wired-button>
 
         <div class="site-header-brand">
-            <div class="logo-placeholder" role="img" aria-label="Logo jasa">logo jasa</div>
-            <p class="brand-name">nama print</p>
+            <x-brand-logo />
+            <p class="brand-name">{{ $branding['nama'] }}</p>
         </div>
     </header>
 
@@ -115,21 +141,23 @@ $kembali = match (true) {
         data-token-url="{{ route('create.snap.token') }}"
         data-kasir-url="{{ route('order.konfirmasi.kasir', ['order_id' => $order['id']]) }}"
         data-status-url="{{ route('order.struk', ['id' => $order['id']]) }}"
+        data-cek-status-url="{{ route('order.konfirmasi.status', ['order_id' => $order['id']]) }}"
         data-struk-url="{{ route('struk.render', ['id' => $order['id']]) }}"
         data-sisa-detik="{{ $order['sisa_detik'] }}"
         data-menunggu-kasir="{{ $order['menunggu_kasir'] ? '1' : '0' }}">
         <h1 class="page-title">Konfirmasi Pembayaran</h1>
 
+        {{-- Kode yang dibacakan/ditunjukkan ke kasir. --}}
+        @if ($order['kode'])
+        <p class="kode-order">
+            <span>Kode order</span>
+            <strong>{{ $order['kode'] }}</strong>
+        </p>
+        @endif
+
         @if ($order['menunggu_kasir'])
         <p class="status-notice" role="status">
-            Pesanan berhasil.
-            @if ($order['harga_menyesuaikan'])
-            Silakan bayar di kasir. Harga cetak masih perkiraan karena file masih bisa
-            diedit, jadi totalnya bisa berubah saat dihitung di kasir.
-            @else
-            Silakan bayar di kasir. Harga sudah sesuai rincian pesanan dan pembayaran
-            dikonfirmasi langsung oleh penjual.
-            @endif
+            Pesanan berhasil. {{ $order['pesan_kasir'] }}
         </p>
         @else
         <p class="timer-bayar" id="timer-bayar" role="timer">
@@ -174,6 +202,30 @@ $kembali = match (true) {
                         </ul>
                     </div>
                 </wired-card>
+
+                {{-- Komputer tujuan (kilat-edit): file diedit di komputer toko
+                     yang QR-nya dipindai sebelum upload. --}}
+                @if ($order['komputer'])
+                <wired-card roughness="1.2" elevation="1" class="card card-komputer">
+                    <div class="card-body">
+                        <h2 class="card-title" id="judul-komputer">Komputer untuk edit</h2>
+
+                        <p class="komputer-nama">
+                            <svg class="komputer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect x="3" y="4" width="18" height="12" rx="2" />
+                                <path d="M8 20h8M12 16v4" />
+                            </svg>
+                            <span>{{ $order['komputer'] }}</span>
+                        </p>
+
+                        <ol class="komputer-langkah">
+                            <li>Kamu mengedit file pesanan ini di komputer tersebut.</li>
+                            <li>Setelah selesai, tunjukkan halaman ini ke kasir.</li>
+                            <li>Kasir menghitung harga cetak setelah file selesai diedit.</li>
+                        </ol>
+                    </div>
+                </wired-card>
+                @endif
             </div>
 
             <div class="kolom">
@@ -304,7 +356,9 @@ $kembali = match (true) {
             <wired-button roughness="1.2" elevation="2" class="btn-bayar" id="btn-bayar" @if ($order['menunggu_kasir']) disabled @endif>
                 <span class="cta-labels">
                     @if ($order['menunggu_kasir'])
-                    <span class="cta-label">Menunggu konfirmasi kasir</span>
+                    <span class="cta-label">
+                        {{ $order['komputer'] ? 'Komputer: ' . $order['komputer'] : 'Menunggu konfirmasi kasir' }}
+                    </span>
                     @else
                     @foreach ($metode as $opsi)
                     <span class="cta-label" data-cta="{{ $opsi['id'] }}" @if (!$loop->first) data-nonaktif="true" @endif>{{ $opsi['cta'] }}</span>

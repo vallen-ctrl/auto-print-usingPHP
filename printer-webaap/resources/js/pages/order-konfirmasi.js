@@ -20,6 +20,7 @@ const orderId = halaman?.dataset.orderId ?? '';
 const tokenUrl = halaman?.dataset.tokenUrl ?? '';
 const kasirUrl = halaman?.dataset.kasirUrl ?? '';
 const statusUrl = halaman?.dataset.statusUrl ?? '';
+const cekStatusUrl = halaman?.dataset.cekStatusUrl ?? '';
 const strukUrl = halaman?.dataset.strukUrl ?? '';
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 
@@ -43,6 +44,98 @@ const tampilLoader = () => {
 const sembunyiLoader = () => {
     loader.style.display = "none"
 };
+
+/* ---------- Peringatan sebelum meninggalkan pembayaran ---------- */
+
+// Tombol Kembali (dan tombol back browser) tidak langsung keluar. Tampilkan
+// peringatan dulu: pesanan yang belum dikonfirmasi akan dianggap gagal.
+// Form tersembunyi baru dikirim kalau user memilih "Ya, batalkan pesanan".
+const formBatalPesanan = document.getElementById('form-batal-pesanan');
+const modalKeluar = document.getElementById('modal-keluar');
+const modalSuksesKeluar = document.getElementById('modal-sukses-keluar');
+const tombolKonfirmasiKeluar = document.getElementById('btn-konfirmasi-keluar');
+
+let sedangCekStatusKeluar = false;
+
+const batalkanPesanan = () => {
+    if (!formBatalPesanan) {
+        return;
+    }
+
+    tampilLoader();
+    formBatalPesanan.submit();
+};
+
+// Cek dulu ke database: order yang sudah dibayar tidak boleh dibatalkan.
+// - sudah lunas  -> modal "Pembayaran berhasil", lalu kembali ke beranda
+// - belum lunas  -> modal peringatan "Batalkan pesanan?"
+const cekStatusSebelumKeluar = async () => {
+    if (sedangCekStatusKeluar) {
+        return;
+    }
+
+    sedangCekStatusKeluar = true;
+    tampilLoader();
+
+    try {
+        if (cekStatusUrl) {
+            const respons = await fetch(cekStatusUrl, {
+                headers: { Accept: 'application/json' },
+                cache: 'no-store',
+            });
+
+            const data = await respons.json().catch(() => null);
+
+            if (data?.paid === true) {
+                sembunyiLoader();
+                bukaModal('modal-sukses-keluar');
+                return;
+            }
+        }
+
+        sembunyiLoader();
+        bukaModal('modal-keluar');
+    } catch (error) {
+        // Status tidak bisa dicek: tetap tampilkan peringatan. Server tetap
+        // menolak pembatalan kalau ternyata order sudah dibayar.
+        sembunyiLoader();
+        bukaModal('modal-keluar');
+    } finally {
+        sedangCekStatusKeluar = false;
+    }
+};
+
+if (tombolKembali && modalKeluar) {
+    tombolKembali.addEventListener('click', cekStatusSebelumKeluar);
+}
+
+tombolKonfirmasiKeluar?.addEventListener('click', () => {
+    tutupModal('modal-keluar');
+    batalkanPesanan();
+});
+
+if (modalSuksesKeluar) {
+    // Modal ditutup dengan cara apa pun (tombol, X, backdrop, Escape) berarti
+    // user siap meninggalkan halaman dan mulai dari awal.
+    modalSuksesKeluar.addEventListener('modal-close', () => {
+        window.location.replace('/');
+    });
+}
+
+if (modalKeluar && tombolKembali?.dataset.batalUrl) {
+    // Entry riwayat tambahan: back pertama hanya memicu popstate, jadi halaman
+    // ini belum ditinggalkan saat pengecekan status/peringatan tampil.
+    const stateKonfirmasi = { pembayaranBelumDikonfirmasi: true };
+
+    history.pushState(stateKonfirmasi, '', window.location.href);
+
+    window.addEventListener('popstate', () => {
+        // Pasang lagi entry-nya supaya back berikutnya tetap dicek, bukan
+        // langsung meninggalkan halaman.
+        history.pushState(stateKonfirmasi, '', window.location.href);
+        cekStatusSebelumKeluar();
+    });
+}
 
 /* ---------- Pilih metode pembayaran ---------- */
 
@@ -342,6 +435,16 @@ const bayarDiKasir = async () => {
         kasirDikonfirmasi = true;
         kunciTombol();
 
+        // Sebutkan komputer tujuan (kilat-edit) di tombol, menggantikan label
+        // "menunggu konfirmasi kasir" yang tidak memberi informasi apa pun.
+        if (data.komputer) {
+            const label = document.querySelector('.cta-label');
+
+            if (label) {
+                label.textContent = 'Komputer: ' + data.komputer;
+            }
+        }
+
         bukaModal('modal-kasir', {
             type: 'success',
             title: 'Pesanan berhasil',
@@ -387,8 +490,8 @@ const modalBayar = document.getElementById('modal-bayar');
 const tombolLanjutBayar = document.getElementById('btn-lanjut-bayar');
 
 const pesanKonfirmasiBayar = () => (metodeTerpilih === 'kasir'
-    ? 'Kalau kamu kembali ke halaman sebelumnya untuk mengubah file atau konfigurasi, pesanan ini bisa tidak cocok dengan data di kasir dan kamu harus mengulangi upload dari awal. Pastikan file dan pengaturan cetak sudah benar.'
-    : 'Kalau kamu kembali ke halaman sebelumnya untuk mengubah file atau konfigurasi, server pembayaran akan menolak pesanan ini dan kamu harus mengulangi upload dari awal. Pastikan file dan pengaturan cetak sudah benar.');
+    ? 'Kalau kamu menekan Kembali, pesanan ini dibatalkan dan pembayaran dianggap gagal, jadi kamu harus mengulangi upload dari awal. Pastikan file dan pengaturan cetak sudah benar.'
+    : 'Kalau kamu menekan Kembali, pesanan ini dibatalkan dan kamu harus mengulangi upload dari awal. Pastikan file dan pengaturan cetak sudah benar.');
 
 tombolBayar?.addEventListener('click', () => {
     if (waktuHabis || menungguKasir || sedangMemproses) {

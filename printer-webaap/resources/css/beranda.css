@@ -125,6 +125,13 @@ body {
     margin: 0;
 }
 
+/* Pesan berhasil, mis. order sudah lunas lalu user mulai dari awal. */
+.panel-notice--success {
+    border-color: #2f6f4e;
+    background-color: #e8f3ec;
+    color: #1f5138;
+}
+
 .panel {
     display: block;
     width: 100%;

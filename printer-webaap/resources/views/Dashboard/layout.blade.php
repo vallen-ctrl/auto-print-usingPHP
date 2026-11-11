@@ -6,13 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Printer-app')</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    @vite('resources/css/app.css')
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
 @php
 $menu = [
 ['label' => 'Menu Utama', 'icon' => 'lucide-house', 'route' => 'dashboard', 'match' => 'dashboard'],
 ['label' => 'Order', 'icon' => 'lucide-shopping-cart', 'route' => 'order.index', 'match' => 'order.*'],
+['label' => 'Kasir', 'icon' => 'lucide-banknote-check', 'route' => 'kasir.index', 'match' => 'kasir.*'],
 ['label' => 'Files', 'icon' => 'lucide-files', 'route' => 'files.index', 'match' => 'files.*'],
 ['label' => 'Layanan', 'icon' => 'lucide-hand-platter', 'route' => 'layanan.index', 'match' => 'layanan.*'],
 ['label' => 'Kertas', 'icon' => 'lucide-file-cog', 'route' => 'kertas.index', 'match' => 'kertas.*'],
@@ -94,7 +95,6 @@ $menu = [
         @yield('content')
     </div>
     @stack('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/flowbite@4.0.1/dist/flowbite.min.js"></script>
 </body>
 
 </html>

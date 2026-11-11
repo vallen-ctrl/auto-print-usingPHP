@@ -197,6 +197,40 @@ class KedaluwarsaOrder
     }
 
     /**
+     * Batalkan order yang belum lunas atas permintaan user sendiri (tombol
+     * Kembali di halaman konfirmasi). Status menjadi failed dan file dihapus,
+     * supaya alur di browser itu benar-benar dimulai lagi dari nol.
+     */
+    public function batalkan(Order $order): bool
+    {
+        return DB::transaction(function () use ($order) {
+            // Klaim atomik: order yang baru saja lunas / sudah gagal tidak ikut
+            // diubah. Order "processing" hanya boleh dibatalkan kalau memang
+            // sedang menunggu pembayaran di kasir.
+            $diubah = Order::where('id', $order->id)
+                ->where(function ($query) {
+                    $query->where('status_pembayaran', 'pending')
+                        ->orWhere(function ($q) {
+                            $q->where('status_pembayaran', 'processing')
+                                ->where('metode_pembayaran', 'kasir');
+                        });
+                })
+                ->update([
+                    'status_pembayaran' => 'failed',
+                    'browser_session' => null,
+                ]);
+
+            if ($diubah === 0) {
+                return false;
+            }
+
+            $this->hapusFile($order->id);
+
+            return true;
+        });
+    }
+
+    /**
      * Hapus file upload milik order dari storage beserta relasinya,
      * tanpa menghapus baris order-nya.
      *

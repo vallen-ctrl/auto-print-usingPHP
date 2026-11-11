@@ -1,7 +1,7 @@
 # Customer UI/UX Flow — Home to Receipt
 
-Last updated: 2026-11-06
-Branch at time of writing: `fitur/scan-qr-kilat`
+Last updated: 2026-11-09
+Branch at time of writing: `fitur/kasir-konfirmasi-order`
 
 This document describes the **customer-facing print ordering flow** of the
 "Nama Print" Laravel app: from the home page, through PDF upload, the print
@@ -45,6 +45,8 @@ GET /                          Home (service picker)
     └─ Edit di Handphone → /print/kilat/upload/handphone (layanan kilat-langsung)
          └─ upload PDF → /print/kilat/formulir/{mode} (form without WhatsApp)
               └─ "Lanjut proses pembayaran" → /order/konfirmasi/{id}
+                   ├─ kilat-edit → konfirmasi menyebut komputer tujuan edit
+                   └─ kasir → menunggu pembayaran di kasir
 ```
 
 Only **Terjadwal** (scheduled pickup) is wired end to end. **Cetak Kilat** now
@@ -73,6 +75,12 @@ the form (see §6).
 | GET | `/print/kilat` | `Route::view` → `print-kilat.blade.php` | Choose edit location (computer / handphone) |
 | GET | `/print/kilat/upload/{mode}` | `KilatController::upload` → `kilat-upload.blade.php` | Upload PDF for a kilat mode |
 | GET | `/print/kilat/formulir/{mode}` | `FormulirTerjadwalController::get` → `kilat-formulir.blade.php` | Kilat print form (no WhatsApp) |
+| POST | `/order/konfirmasi/{order}/batalkan` | `KonfirmasiPembayaranController::batalkan` | Kembali: cancel order, delete files + session |
+| GET | `/order/konfirmasi/{order}/status` | `KonfirmasiPembayaranController::status` | Lightweight `{ status, paid, kode }` for the Kembali status check |
+| GET | `/dashboard/kasir` | `KasirController::index` → `Dashboard/selection/kasir.blade.php` | Cashier queue; search by name, code, or order id |
+| POST | `/dashboard/kasir/{id}/lunas` | `KasirController::lunas` | Mark cashier order paid, record final total, queue files |
+| POST | `/dashboard/kasir/{id}/batal` | `KasirController::batal` | Mark cashier order failed and delete its files |
+| POST | `/dashboard/order/{id}/status-file` | `OrderController::updateStatusFile` | Staff-print orders: update all `file_queue` statuses of the order |
 
 ---
 
@@ -83,8 +91,8 @@ the form (see §6).
 | Service id (`files.layanan`) | Label | Payment methods | Notes |
 | --- | --- | --- | --- |
 | `terjadwal` | "Terjadwal" | QRIS only | Active end-to-end flow |
-| `kilat-langsung` | "Ambil di tempat" | QRIS or cashier | Upload + form (no WhatsApp) implemented; no editing step |
-| `kilat-edit` | "Ambil di tempat" | Cashier only | Upload + form implemented; price not final, total shown as `Rp. —` |
+| `kilat-langsung` | "Ambil di tempat" | QRIS or cashier | Upload + form (no WhatsApp, no pickup date/time) implemented; no editing step |
+| `kilat-edit` | "Ambil di tempat" | Cashier only | Upload + form with **name only** (no print settings, no date/time); total "akan ditentukan di kasir" |
 
 `KonfirmasiPembayaranController` derives the service from the **first file** of
 the order. A single order never mixes services.
@@ -109,13 +117,18 @@ pending ──(QRIS paid, receipt poll)──> paid
 
 The confirmation page treats `processing` + `metode_pembayaran = kasir` as the
 "waiting for cashier" state; any other `processing` order is redirected to the
-receipt page.
+receipt page. The dashboard kasir page resolves that state: **Pembayaran
+berhasil** → `paid` (plus final total and print queue), **Batalkan** → `failed`
+(files deleted).
 
 ### 2.3 Session vs `orders.browser_session`
 
 - Laravel session key `terjadwal_order` holds the active order while the user
   is inside the flow:
   `{ orderid (hex), sessionid, files {hex → {id,name,total_pages,localPath}}, where }`.
+- `kilat_computer_id` (hex of `computer.id`) is written by `scanQr` and copied to
+  `orders.computer_id` when a kilat order is created. It is cleared when the
+  terjadwal upload page starts a new order.
 - `orders.browser_session` stores the Laravel session id of the browser that
   uploaded the files. It is the **source of truth for resuming** after a reload
   or a lost session.
@@ -176,6 +189,52 @@ browser to a printer computer.
   Rp 0 today. Receipt hides the row when it is 0.
 - Formatting is always `Rp. 5.500` (dot as thousands separator).
 
+### 2.7 Antrean cetak & mode cetak
+
+After an order is paid (or, for `kilat-edit`, when the customer chooses "Bayar
+di Kasir"), `App\Service\AntreanCetak` creates one `file_queue` row per file.
+It is idempotent: files that already have a queue row are skipped.
+
+| Layanan / mode | `computer_id` | SSE event | When |
+| --- | --- | --- | --- |
+| `kilat-langsung` (edit di handphone) | least-busy computer | `print` | immediately after paid |
+| `kilat-edit` (edit di komputer) | `orders.computer_id` (scanned QR) | `download` | when the customer picks "Bayar di Kasir" |
+| `terjadwal` + `mode_cetak = otomatis` | least-busy computer | `print` | once `orders.tanggal_ambil <= now()` |
+| `terjadwal` + `mode_cetak = tukang` | `NULL` (stays on the server) | none | admin changes the file status in Orders |
+
+Server SSE loop (`Api\ComputerController::serverSendEvent`) groups pending rows
+per event and emits `print` (kilat-langsung + due terjadwal) and/or `download`
+(kilat-edit). Rows for future scheduled orders and staff-print orders are not
+selected.
+
+Client (`printerClient/Commands.ts`):
+- `print` → download if missing, then print via SumatraPDF.
+- `download` → download only to `%USERPROFILE%\Downloads`, no printing; status
+  becomes `completed`.
+- Heartbeat events are logged once at the start (daemon), not on every poll.
+
+Dashboard Orders (`/dashboard/order`) has a **Mode cetak** column. For
+staff-print orders the "Status file" cell becomes a select + **Simpan** button
+(`POST /dashboard/order/{id}/status-file`), updating every `file_queue` row of
+that order. Automatic orders keep the read-only status badge.
+
+### 2.8 Branding (nama toko + logo)
+
+`toko.name` and `toko.logo_path` are managed from **Dashboard → Pengaturan**:
+the logo is uploaded by clicking the round logo (PNG/JPG/WEBP, max 2 MB, stored
+on the `public` disk under `toko/logo/`), and the name is edited inline. The
+save request is multipart; `App\Support\Branding` caches both for 10 minutes and
+the save clears that cache.
+
+A global view composer shares `$branding` with every Blade view, so:
+- all customer headers render `<x-brand-logo />` (the uploaded logo, or the old
+  "logo jasa" placeholder when `logo_path` is empty);
+- every "nama print" brand text and every page `<title>` uses `toko.name`.
+
+Pages covered: beranda, upload terjadwal/kilat, formulir terjadwal/kilat,
+konfirmasi pembayaran, scan QR, print kilat, struk, and the static
+`formulir-kilat` mockup.
+
 ---
 
 ## 3. Step by step
@@ -184,7 +243,8 @@ browser to a printer computer.
 
 **What the user sees**
 
-- Header: "logo jasa" placeholder + "nama print".
+- Header: store logo + store name (both from **Pengaturan**; without an uploaded
+  logo the old "logo jasa" placeholder is shown).
 - Two sketch buttons: **Cetak Kilat** and **Cetak Terjadwal**.
 - Optional red/grey notice panel when the server redirected here with an error
   (`session('error')`), e.g. files deleted because the order expired.
@@ -256,8 +316,9 @@ tab or closes an error dialog.
    (`App\Service\tokenComputer`).
 4. Failure (non-2xx or `{ error: true }`) → `modal-info` (type error) with the
    server message; closing the dialog restarts the camera.
-5. Success (200, payload `{ computerid, userSession, exp, jti }`) → token and
-   payload stored in `sessionStorage` → navigate to `/print/kilat`.
+5. Success (200, payload `{ computerid, userSession, exp, jti }`) → `scanQr`
+   also stores the computer id in session (`kilat_computer_id`), while the token
+   and payload are stored in `sessionStorage` → navigate to `/print/kilat`.
 
 **Verification errors**
 
@@ -299,6 +360,9 @@ The verified computer token stays in `sessionStorage`
 - `POST /upload/terjadwal` validates and stores the files with
   `files.layanan = kilat-edit` (komputer) or `kilat-langsung` (handphone), then
   redirects to `/print/kilat/formulir/{mode}?order={hex}`.
+- For kilat uploads, the order also gets `orders.computer_id` from the scanned
+  QR (session key `kilat_computer_id`), so the confirmation page knows which
+  computer the customer must use. Terjadwal orders never set it.
 - Opening the upload page starts a new order and releases this browser's pending
   order marker (same reset as the terjadwal upload page).
 
@@ -306,9 +370,20 @@ The verified computer token stays in `sessionStorage`
 
 - `FormulirTerjadwalController::get` renders `kilat-formulir.blade.php` when the
   route has a `mode`; the page reuses the terjadwal CSS + JS.
-- Content is identical to the terjadwal form **except the WhatsApp field**
-  (removed). Customer name, pickup date/time, per-file print settings, packages
-  and live subtotal remain.
+- Title is **"Formulir Cetak Kilat"** with a subtitle for the mode
+  ("Edit di Komputer" / "Edit di Handphone") — never the terjadwal title.
+- **No pickup date/time**: the date & pukul fieldsets are removed for both kilat
+  modes. `POST /order/create` unsets the `tanggal_ambil` rule for kilat orders
+  and uses `now()` for the store-hours check.
+- `kilat-langsung` (handphone): customer name + per-file print settings +
+  packages + live subtotal, same as the terjadwal form minus WhatsApp and
+  date/time.
+- `kilat-edit` (komputer): **only the customer name is visible**
+  (`.konfigurasi-cetak.is-hidden` hides file picker, orientation, paper, color,
+  quality, copies, custom pages, notes, and packages). The footer reads
+  **"SUB TOTAL: akan ditentukan di kasir"**; the hidden fields still submit their
+  defaults so the order row stays valid. A short note explains that the file is
+  edited at the store computer and the price is set by the cashier.
 - Server-side safety net: `POST /order/create` makes `no_wa` optional when the
   order's files are kilat, and stores `user.no_wa = ''` for new customers
   (the column is NOT NULL). The WhatsApp value is preserved if it already exists
@@ -397,6 +472,9 @@ page count, no paper rows, or all paper prices 0.
 
 - Header brand + **Kembali** button (always → `/upload/terjadwal`, i.e. start over).
 - Customer fields: Nama lengkap, WhatsApp, Tanggal ambil, Pukul.
+- **Cara mencetak**: "Cetak otomatis pada jam pengambilan" (default) or
+  "Dicetak oleh tukang". Saved as `orders.mode_cetak`; the pickup date/time is
+  also persisted to `orders.tanggal_ambil` on submit.
 - Per-file print settings, switchable with a file combo (multiple uploads):
   orientation, paper size (radio, carries `harga_color` / `harga_grayscale`),
   color (default **hitam putih**), quality, copies, custom pages, notes,
@@ -482,9 +560,15 @@ user on the form (data is still in localStorage).
 
 - Header brand + **Kembali**.
 - Title "Konfirmasi Pembayaran".
+- **Kode order** pill under the title (6 characters, e.g. `A7K2QX`) — read it to
+  the cashier or let the cashier type it into `/dashboard/kasir`.
 - Payment countdown pill: "Sisa waktu pembayaran MM:SS" (hidden in cashier-waiting state).
 - Badge: "Terjadwal" or "Ambil di tempat".
 - Card "Rincian dokumen" (per file: name, pages, size, color, price).
+- `kilat-edit` only: card "Komputer untuk edit" with the scanned computer name
+  and three steps (edit at that computer, then pay at the cashier). Card is
+  rendered for both `pending` and cashier-waiting states; hidden when the order
+  has no `computer_id`.
 - Card "Pilih Metode Pembayaran" with selectable options (arrow keys + Space/Enter
   supported, `role="radiogroup"`). Options depend on the service (§2.1).
 - Card "Ringkasan Pembayaran": subtotal, Biaya Admin, optional Biaya Penanganan.
@@ -534,21 +618,77 @@ user on the form (data is still in localStorage).
 
 - Server claims the order atomically: `pending` → `processing`,
   `metode_pembayaran = 'kasir'`, `tanggal_bayar = now()`.
-- Success opens `modal-kasir` ("Pesanan berhasil" / "Silakan bayar di kasir",
-  with the order id). Closing it reloads the page, which now renders the
-  waiting state (no timer, CTA disabled, notice text explaining the seller will
-  confirm).
+- Success opens `modal-kasir` ("Pesanan berhasil" + the server message). Closing
+  it reloads the page, which now renders the waiting state (no timer, CTA
+  disabled, notice text explaining the seller will confirm).
+- `kilat-edit`: the message, notice, and CTA label name the target computer
+  (`orders.computer_id`), e.g. "Silakan menuju komputer PC Edit 1 untuk
+  mengedit file Anda" and a footer label "Komputer: PC Edit 1". Without a
+  scanned computer the older "menunggu konfirmasi kasir" wording is kept.
 - Repeating the request for an order already in `processing + kasir` returns the
   same success payload (idempotent).
 
 **Back navigation**
 
-| Situation | Kembali goes to |
-| --- | --- |
-| Order editable (`terjadwal`, not waiting for cashier) | Form page (edit mode); timer resets, price recalculated on submit |
-| `terjadwal` but not editable | Upload page |
-| Other services | `/formulir/kilat` |
-| After "Ya, lanjutkan" | Button is hidden; only browser back/refresh remains |
+**Kembali cancels the order, after checking the database and warning.** Before
+the user confirms "Ya, lanjutkan", clicking Kembali (or pressing the browser
+back button) first calls `GET /order/konfirmasi/{hex}/status`:
+
+- **Already paid** → `modal-sukses-keluar` ("Pembayaran berhasil…"). Closing it
+  (button, ✕, backdrop, Escape) redirects to `/` (`location.replace`) so the
+  customer starts from zero. The server never cancels a paid order.
+- **Not paid** → `modal-keluar` warning:
+
+> "Pembayaran kamu belum dikonfirmasi. Kalau kamu kembali ke halaman sebelumnya
+> sekarang, pesanan ini langsung dibatalkan dan pembayaran dianggap gagal
+> (hangus)…"
+
+- **Tidak, tetap di sini** / ✕ / backdrop / Escape → dialog closes, nothing is
+  sent. Browser back is intercepted with a `history.pushState` sentinel +
+  `popstate`, so the page is not left.
+- **Ya, batalkan pesanan** → hidden POST to
+  `/order/konfirmasi/{hex}/batalkan`:
+  - the order is claimed atomically (`pending`, or `processing + kasir`) and set
+    to `failed`;
+  - uploaded files and related rows are deleted (`KedaluwarsaOrder::batalkan`);
+  - `browser_session` and the flow session (`terjadwal_order`,
+    `kilat_computer_id`) are cleared, so `/` starts from zero;
+  - the user lands on `/` with the notice "Pesanan dibatalkan dan pembayaran
+    sebelumnya dianggap gagal."
+- If the status check fails (network), the warning is shown as a safe fallback;
+  the cancel endpoint still refuses a paid order and redirects to `/` with a
+  success notice.
+
+After "Ya, lanjutkan" the button is hidden; only browser back/refresh remains.
+Cross-document history (e.g. a fresh tab with no same-document entry) cannot be
+intercepted — there is no `beforeunload` prompt.
+
+---
+
+### Step 3b — Dashboard kasir `/dashboard/kasir`
+
+Admin page (sidebar **Kasir**, `VerifyTokenMiddleware`) to resolve cashier orders.
+
+**What the cashier sees**
+
+- Two stat cards: number of waiting orders and the total nominal waiting.
+- Search field: matches **customer name**, **order code**, or the order id hex.
+- One card per waiting order (`metode_pembayaran = kasir`, status `processing`):
+  kode order (mono, large), service badge, customer name + WhatsApp, file count,
+  current total, order time, and the time the customer chose cashier payment.
+- Actions:
+  - **Pembayaran berhasil** → modal asks for **Total dibayar (Rp)** (prefilled
+    from `orders.total_pembayaran`; for `kilat-edit` the cashier types the final
+    price after editing). Submitting sets `paid`, updates
+    `total_pembayaran`/`total_dibayar`, and enqueues every file via
+    `App\Service\AntreanCetak`.
+  - **Batalkan** → confirmation modal; sets `failed`, clears
+    `browser_session`, and deletes the order's files.
+- Empty state when the queue is empty or the search finds nothing; Flash toasts
+  for success / error / warning (e.g. no printer computer available).
+
+Both actions are atomic: an order that was already paid/failed is not changed
+again, and the page shows an error toast asking for a reload.
 
 ---
 
@@ -701,8 +841,12 @@ fixed at 150 px, and dividers stay dashed.
    `orders.tanggal_bayar`; only returning to the form clears it.
 3. **One confirmation dialog before charging.** "Ya, lanjutkan" is the only path
    that requests a token or claims a cashier order.
-4. **Hide the back button once payment started** (after "Ya, lanjutkan"), so the
-   user cannot edit files under a live payment.
+4. **Leaving before confirmation is destructive and warned.** Kembali or the
+   browser back button first checks `GET /order/konfirmasi/{hex}/status`.
+   Paid → success dialog → `/`; not paid → `modal-keluar`, and only
+   "Ya, batalkan pesanan" posts to `/order/konfirmasi/{hex}/batalkan`
+   (order → `failed`, files + session deleted, back to `/`). After
+   "Ya, lanjutkan" the button is hidden.
 5. **Expired means deleted.** Files are removed from storage; the user must
    re-upload and cannot resume that order.
 6. **Errors never leave the user on a dead page.** Closing an error dialog on the
@@ -726,11 +870,12 @@ fixed at 150 px, and dividers stay dashed.
 | --- | --- |
 | Kilat edit-at-computer flow not built | `kilat-edit` orders reach confirmation and cashier payment, but there is no page where the store edits the uploaded file or recalculates the final price |
 | `/formulir/kilat` is still a static prototype | Not linked from the new flow; kept only as an old mockup |
-| Scanned token is not consumed | `scanQr` only verifies the HMAC + `exp`; the same token can be scanned again until it expires (60 s) |
-| Seller confirmation for cashier orders | `processing` never becomes `paid` from a UI action |
-| Receipt page for cashier orders | Polling sees `processing` forever (no success/error branch) |
+| Scanned token is not consumed | `scanQr` verifies the HMAC + `exp` and remembers the computer in session, but the same token can still be scanned again until it expires (60 s) |
+| Seller confirmation for cashier orders | Dashboard kasir can now set `paid` / `failed`, but the final `kilat-edit` price is typed manually (no price recalculation UI yet) |
+| Receipt page for cashier orders | Polling sees `processing` until the cashier acts; once confirmed it switches to the paid receipt |
+| Confirmation page does not poll | After the cashier confirms/cancels, the customer only sees the new status after reloading |
 | Midtrans webhook / background expiry | Status only advances when the user is on the receipt page or someone triggers a check |
-| Admin dashboard status editing | Dashboard lists orders only |
+| Admin dashboard status editing | Dashboard lists orders; status changes only through the kasir page |
 
 Known code smells worth fixing when touching this area:
 
@@ -739,9 +884,9 @@ Known code smells worth fixing when touching this area:
   counts; real parser failures surface as exceptions/JSON 500 messages.
 - The receipt page is reachable by URL without authentication (intentional for
   sharing, but `/struk/order/{id}` returns full order data).
-- There is no `beforeunload` guard on the confirmation page; after "Ya,
-  lanjutkan" the browser back button and refresh still work even though the
-  in-page back button is hidden.
+- The confirmation page intercepts same-document back (`history.pushState` +
+  `popstate`) and warns before cancelling, but there is no `beforeunload` guard:
+  refresh or a cross-document back still leaves without a prompt.
 
 ---
 

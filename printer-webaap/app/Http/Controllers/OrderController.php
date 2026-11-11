@@ -6,10 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 use App\Http\Controllers\Controller;
-use App\Models\Computer;
 use App\Models\Configuration;
 use App\Models\File;
-use App\Models\FileQueue;
 use App\Models\Order;
 use Illuminate\Validation\Rule;
 use App\Models\Paper;
@@ -18,6 +16,7 @@ use App\Models\LayananTerpilih;
 use App\Rules\CustomHalamanRule;
 use App\Models\User;
 use App\Models\PengaturanToko;
+use App\Service\AntreanCetak;
 use App\Service\JadwalToko;
 use App\Service\KedaluwarsaOrder;
 use Illuminate\Support\Facades\Cache;
@@ -53,6 +52,7 @@ class OrderController extends Controller
                 'orders.total_dibayar',
                 'orders.status_pembayaran',
                 'orders.metode_pembayaran',
+                'orders.mode_cetak',
                 DB::raw('LOWER(HEX(orders.id)) as id_hex'),
                 DB::raw('GROUP_CONCAT(DISTINCT files.layanan) as layanan'),
                 DB::raw('GROUP_CONCAT(DISTINCT file_queue.status) as status_file'),
@@ -65,7 +65,8 @@ class OrderController extends Controller
                 'orders.total_pembayaran',
                 'orders.total_dibayar',
                 'orders.status_pembayaran',
-                'orders.metode_pembayaran'
+                'orders.metode_pembayaran',
+                'orders.mode_cetak'
             );
 
         // Pencarian: order id (hex), status bayar, metode bayar, atau nama file.
@@ -101,6 +102,34 @@ class OrderController extends Controller
         return redirect()->route('order.index')->with('success', 'Order berhasil dihapus.');
     }
 
+    /**
+     * Ubah status file untuk order yang dicetak oleh tukang (mode_cetak = tukang).
+     * File-file ini sengaja tidak dikirim ke komputer lewat SSE; admin memproses
+     * dan memperbarui statusnya manual dari tab Order.
+     */
+    public function updateStatusFile(Request $request, string $id)
+    {
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(['pending', 'processing', 'downloading', 'completed', 'failed'])],
+        ]);
+
+        $order = Order::findOrFail(hex2bin($id));
+
+        if ($order->mode_cetak !== 'tukang') {
+            return back()->with('error', 'Status file hanya bisa diubah untuk order yang dicetak oleh tukang.');
+        }
+
+        $diubah = DB::table('file_queue')
+            ->where('order_id', $order->id)
+            ->update(['status' => $validated['status']]);
+
+        if ($diubah === 0) {
+            return back()->with('warning', 'Belum ada file di antrean. Pastikan pembayaran order sudah lunas.');
+        }
+
+        return back()->with('success', 'Status file order berhasil diubah menjadi "' . $validated['status'] . '".');
+    }
+
     /** Respons JSON untuk kegagalan pembuatan token pembayaran. */
     private function gagalBayar(string $pesan, int $status = 422)
     {
@@ -120,6 +149,7 @@ class OrderController extends Controller
                 'date_format:Y-m-d\TH:i:sP',
                 'after_or_equal:' . now()->addHours(5)->toIso8601String(),
             ],
+            'mode_cetak' => ['nullable', Rule::in(['otomatis', 'tukang'])],
             // 'metode_pembayaran' => "required|string",
             'files' => 'required|array|min:1|max:10',
 
@@ -261,16 +291,22 @@ class OrderController extends Controller
 
         if ($jenisLayanan !== 'terjadwal') {
             $aturan['no_wa'] = 'nullable|max:14';
+
+            // Cetak kilat diambil di tempat: formulirnya tidak punya kolom
+            // tanggal/pukul pengambilan, jadi server memakai waktu sekarang.
+            unset($aturan['tanggal_ambil']);
         }
 
         $validated = $request->validate($aturan);
+
+        $tanggalAmbil = $validated['tanggal_ambil'] ?? now()->toIso8601String();
 
         try {
             // Tolak lebih awal (sebelum ada data yang ditulis) kalau jadwal pengambilan
             // tidak sesuai status buka toko / jam operasional (pengaturan_toko & jam_operasional).
             $getBiaya = PengaturanToko::findOrFail(1);
 
-            if ($tolak = (new JadwalToko())->cek($getBiaya, $validated["tanggal_ambil"])) {
+            if ($tolak = (new JadwalToko())->cek($getBiaya, $tanggalAmbil)) {
                 return redirect()->back()->with("error", $tolak);
             }
 
@@ -300,7 +336,7 @@ class OrderController extends Controller
                 return redirect()->route('order.konfirmasi', ['order_id' => $orderid]);
             }
 
-            DB::transaction(function () use (&$TotalSemua, &$validated, $files, $request, $orderSession, $getBiaya) {
+            DB::transaction(function () use (&$TotalSemua, &$validated, $files, $request, $orderSession, $getBiaya, $jenisLayanan) {
                 $orderTerkunci = Order::whereKey(hex2bin($orderSession["orderid"]))
                     ->lockForUpdate()
                     ->first();
@@ -424,13 +460,22 @@ class OrderController extends Controller
 
                 $pelanggan->save();
 
+                $perubahanOrder = [
+                    "biaya_admin" => $getBiaya->biaya_admin,
+                    "total_pembayaran" => $TotalSemua,
+                    "total_dibayar" => 0,
+                    "session_id" => $orderSession["sessionid"],
+                ];
+
+                // Hanya order terjadwal yang punya jadwal pengambilan dan pilihan
+                // cetak otomatis / dicetak tukang. Alur kilat memakai waktu sekarang.
+                if ($jenisLayanan === 'terjadwal') {
+                    $perubahanOrder['tanggal_ambil'] = $validated['tanggal_ambil'];
+                    $perubahanOrder['mode_cetak'] = $validated['mode_cetak'] ?? 'otomatis';
+                }
+
                 Order::findOrFail(hex2bin($orderSession["orderid"]))
-                    ->update([
-                        "biaya_admin" => $getBiaya->biaya_admin,
-                        "total_pembayaran" => $TotalSemua,
-                        "total_dibayar" => 0,
-                        "session_id" => $orderSession["sessionid"]
-                    ]);
+                    ->update($perubahanOrder);
             });
             return redirect()->route('order.konfirmasi', ['order_id' => $orderid]);
         } catch (\Exception $e) {
@@ -555,39 +600,6 @@ class OrderController extends Controller
         ]);
     }
 
-    private function addFileQueue(string $orderid, string $fileid)
-    {
-        $computer = Computer::from('computer as c')
-            ->leftJoin('file_queue as f', function ($j) {
-                $j->on('f.computer_id', '=', 'c.id')
-                    ->whereIn('f.status', ['pending', 'processing']);
-            })
-            ->select('c.id', 'c.name')
-            ->groupBy('c.id', 'c.name', 'c.tanggal_dibuat')
-            ->orderByRaw('COUNT(f.id)')
-            ->orderBy('c.tanggal_dibuat')
-            ->first();
-
-        if (!$computer) {
-            throw new \RuntimeException('Tidak ada komputer yang tersedia.');
-        }
-
-        $filesBinId = hex2bin($fileid);
-        $file = File::select('path')->findOrFail($filesBinId);
-
-        FileQueue::create([
-            'path'        => $file->path,
-            'order_id'    => hex2bin($orderid),
-            'file_id'     => $filesBinId,
-            'computer_id' => $computer->id,
-        ]);
-
-        return [
-            'computer_id'   => bin2hex($computer->id),
-            'computer_name' => $computer->name,
-        ];
-    }
-
     public function strukOrder(Request $request, string $orderId)
     {
         if (!ctype_xdigit($orderId) || strlen($orderId) % 2 !== 0) {
@@ -623,20 +635,9 @@ class OrderController extends Controller
                 Order::where('id', $binId)->update(['status_pembayaran' => $status]);
 
                 if ($status === 'paid') {
-                    $files = File::select('id')->where('order_id', $binId)->get();
-
-                    foreach ($files as $fileItem) {
-                        try {
-                            $this->addFileQueue($orderId, bin2hex($fileItem->id));
-                        } catch (\Throwable $e) {
-                            // Antrean gagal (mis. tidak ada komputer) tidak boleh
-                            // menggagalkan halaman struk.
-                            logger()->warning('Gagal menambahkan file ke antrean', [
-                                'order' => $orderId,
-                                'e' => $e->getMessage(),
-                            ]);
-                        }
-                    }
+                    // Antrean gagal (mis. tidak ada komputer) tidak boleh
+                    // menggagalkan halaman struk.
+                    app(AntreanCetak::class)->untukOrder($order);
                 }
             }
         }

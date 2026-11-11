@@ -209,6 +209,8 @@ async function setStatus(state: SSEState | "unpaired" | "error", info?: string) 
   } catch {}
 }
 
+let heartbeatLogged = false; // log heartbeat hanya sekali (event ini datang tiap ~2 dtk)
+
 async function dispatch(ev: SSEEvent, ctx: CommandContext) {
   let data: unknown = ev.data;
   try { data = JSON.parse(ev.data); } catch {}
@@ -219,7 +221,16 @@ async function dispatch(ev: SSEEvent, ctx: CommandContext) {
     name = String(d.command ?? d.type ?? "message");
   }
 
-  await writeLog(`event "${name}" (${ev.data.length} byte)`, "SSE");
+  // Heartbeat dikirim server terus-menerus; menulis log untuk setiap event
+  // membuat file log cepat membesar. Cukup catat sekali di awal koneksi.
+  if (name === "heartbeat") {
+    if (!heartbeatLogged) {
+      heartbeatLogged = true;
+      await writeLog("heartbeat pertama diterima (log heartbeat berikutnya dimatikan)", "SSE");
+    }
+  } else {
+    await writeLog(`event "${name}" (${ev.data.length} byte)`, "SSE");
+  }
 
   const handler = custom.commands[name];
   if (!handler) return custom.onUnknown(ev, data, ctx);

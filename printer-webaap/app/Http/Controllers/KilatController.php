@@ -19,6 +19,13 @@ use Illuminate\Http\Request;
 class KilatController extends Controller
 {
     /**
+     * Kunci session berisi id komputer (hex) yang QR-nya dipindai customer.
+     * Diisi ComputerController::scanQr, lalu dipakai saat order dibuat agar
+     * halaman konfirmasi tahu user harus mengedit file di komputer mana.
+     */
+    public const COMPUTER_SESSION_KEY = 'kilat_computer_id';
+
+    /**
      * Mode yang didukung beserta layanan yang disimpan di tabel files.
      */
     public const MODE = [

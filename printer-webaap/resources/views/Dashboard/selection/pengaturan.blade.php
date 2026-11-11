@@ -23,25 +23,36 @@
         {{-- Profil toko --}}
         <section class="rounded-xl border border-line bg-surface p-5 shadow-sm">
             <div class="flex items-start gap-4">
-                <div class="group relative shrink-0">
-                    <div class="flex size-20 items-center justify-center rounded-full border border-line bg-muted/40">
-                        <x-lucide-printer class="size-8 text-ink-muted" aria-hidden="true" />
-                    </div>
+                <label for="logo-input" class="group relative block shrink-0 cursor-pointer" aria-label="Ganti logo toko">
+                    <span id="logo-preview" class="flex size-20 items-center justify-center overflow-hidden rounded-full border border-line bg-muted/40">
+                        @if (!empty($pengaturan['logo_url']))
+                            <img src="{{ $pengaturan['logo_url'] }}" alt="Logo {{ $pengaturan['nama_toko'] }}" class="size-full object-contain">
+                        @else
+                            <x-lucide-printer class="size-8 text-ink-muted" aria-hidden="true" />
+                        @endif
+                    </span>
 
                     {{-- Ikon pencil muncul saat logo di-hover --}}
-                    <div class="absolute inset-0 flex items-center justify-center rounded-full bg-ink/40 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                    <span class="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-ink/40 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                         <x-lucide-pencil class="size-7 text-white" aria-hidden="true" />
-                    </div>
+                    </span>
 
                     {{-- Badge pencil --}}
                     <span class="absolute -right-1 -bottom-1 flex size-7 items-center justify-center rounded-full border-2 border-surface bg-warning text-white">
                         <x-lucide-pencil class="size-4" aria-hidden="true" />
                     </span>
-                </div>
+                </label>
+                <input type="file" id="logo-input" accept="image/png,image/jpeg,image/webp" class="sr-only">
 
                 <div class="min-w-0 flex-1">
-                    <p class="text-sm text-ink-muted">Nama toko</p>
-                    <p class="text-lg font-semibold text-ink">{{ $pengaturan['nama_toko'] }}</p>
+                    <label for="nama-toko" class="text-sm text-ink-muted">Nama toko</label>
+                    <input type="text" id="nama-toko" name="nama_toko" value="{{ $pengaturan['nama_toko'] }}"
+                        maxlength="255" autocomplete="organization"
+                        class="mt-1 block h-11 w-full max-w-md rounded-lg border border-line bg-surface px-3 text-lg font-semibold text-ink focus:border-primary focus:ring-2 focus:ring-primary/30 focus:outline-none">
+                    <p class="mt-1 text-xs text-ink-muted">
+                        Klik logo untuk mengganti ikon (PNG/JPG/WEBP, maks. 2 MB). Nama dan logo ini
+                        dipakai di semua halaman customer.
+                    </p>
 
                     <div class="mt-3 flex flex-wrap items-center gap-3">
                         <x-switch :checked="$pengaturan['status_buka']" id="status-buka" name="status_buka" />
@@ -161,6 +172,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const toastDesc = document.getElementById('toast-simpan-desc');
     const toastIcon = document.getElementById('toast-simpan-icon');
     const btnSamakan = document.getElementById('btn-samakan-semua');
+    const logoInput = document.getElementById('logo-input');
+    const logoPreview = document.getElementById('logo-preview');
+    const namaInput = document.getElementById('nama-toko');
+    let logoFile = null;
     if (!form || !bar || !btn || !toast) return;
 
     const csrf = document.querySelector('meta[name="csrf-token"]').content;
@@ -214,6 +229,40 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Pilih logo: tampilkan pratinjau dulu, file dikirim saat tombol Simpan ditekan.
+    if (logoInput) {
+        logoInput.addEventListener('change', function () {
+            const file = logoInput.files && logoInput.files[0];
+            if (!file) return;
+
+            if (!file.type || !file.type.startsWith('image/')) {
+                logoInput.value = '';
+                tampilkanToast(false, 'File tidak valid', 'Logo harus berupa gambar PNG, JPG, atau WEBP.');
+                return;
+            }
+
+            if (file.size > 2 * 1024 * 1024) {
+                logoInput.value = '';
+                tampilkanToast(false, 'Logo terlalu besar', 'Ukuran logo maksimal 2 MB.');
+                return;
+            }
+
+            logoFile = file;
+
+            if (logoPreview) {
+                const url = URL.createObjectURL(file);
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = 'Pratinjau logo';
+                img.className = 'size-full object-contain';
+                logoPreview.innerHTML = '';
+                logoPreview.appendChild(img);
+            }
+
+            tampilkanBar();
+        });
+    }
+
     form.addEventListener('input', tampilkanBar);
     form.addEventListener('change', tampilkanBar);
 
@@ -226,6 +275,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const kumpulkanData = function () {
         return {
+            nama_toko: namaInput ? namaInput.value.trim() : '',
             status_buka: statusBuka ? statusBuka.checked : true,
             biaya_admin: angka(document.getElementById('biaya-admin').value),
             biaya_layanan: angka(document.getElementById('biaya-layanan').value),
@@ -253,14 +303,36 @@ document.addEventListener('DOMContentLoaded', function () {
         loading.classList.add('inline-flex');
 
         try {
+            const payload = kumpulkanData();
+
+            // FormData dipakai supaya logo (file) bisa ikut terkirim bersama
+            // pengaturan lain dalam satu request.
+            const body = new FormData();
+            body.append('nama_toko', payload.nama_toko);
+            body.append('status_buka', payload.status_buka ? '1' : '0');
+            body.append('biaya_admin', String(payload.biaya_admin));
+            body.append('biaya_layanan', String(payload.biaya_layanan));
+            body.append('lama_file_dihapus', String(payload.lama_file_dihapus));
+
+            payload.jam.forEach(function (row, index) {
+                body.append('jam[' + index + '][nomor_hari]', String(row.nomor_hari));
+                body.append('jam[' + index + '][hari]', row.hari);
+                body.append('jam[' + index + '][apakah_dibuka]', row.apakah_dibuka ? '1' : '0');
+                if (row.waktu_buka) body.append('jam[' + index + '][waktu_buka]', row.waktu_buka);
+                if (row.waktu_tutup) body.append('jam[' + index + '][waktu_tutup]', row.waktu_tutup);
+            });
+
+            if (logoFile) {
+                body.append('logo', logoFile);
+            }
+
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': csrf,
                 },
-                body: JSON.stringify(kumpulkanData()),
+                body: body,
             });
 
             const data = await response.json().catch(function () { return {}; });
@@ -270,6 +342,19 @@ document.addEventListener('DOMContentLoaded', function () {
                     || (data.errors ? Object.values(data.errors).flat()[0] : null)
                     || 'Perubahan pengaturan gagal disimpan.';
                 throw new Error(pesan);
+            }
+
+            // Logo sudah tersimpan: lepas file sementara & tampilkan versi server.
+            logoFile = null;
+            if (logoInput) logoInput.value = '';
+
+            if (logoPreview && data.logo_url) {
+                const img = document.createElement('img');
+                img.src = data.logo_url;
+                img.alt = 'Logo ' + (data.nama_toko || 'toko');
+                img.className = 'size-full object-contain';
+                logoPreview.innerHTML = '';
+                logoPreview.appendChild(img);
             }
 
             bar.classList.add('hidden');

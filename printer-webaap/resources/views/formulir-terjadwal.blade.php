@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Nama Print — Formulir Cetak Terjadwal</title>
+    <title>{{ $branding['nama'] }} - Formulir Cetak Terjadwal</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -54,8 +54,8 @@
         </wired-button>
 
         <div class="site-header-brand">
-            <div class="logo-placeholder" role="img" aria-label="Logo jasa">logo jasa</div>
-            <p class="brand-name">nama print</p>
+            <x-brand-logo />
+            <p class="brand-name">{{ $branding['nama'] }}</p>
         </div>
     </header>
 
@@ -91,6 +91,18 @@
                                 <p class="field-error" id="error-pukul" hidden></p>
                             </div>
                         </div>
+                    </fieldset>
+
+                    <fieldset class="fieldset">
+                        <legend class="field-label">Cara mencetak</legend>
+                        <wired-radio-group roughness="1.2" id="grup-cetak" selected="otomatis">
+                            <wired-radio roughness="1.2" name="otomatis">Cetak otomatis pada jam pengambilan</wired-radio>
+                            <wired-radio roughness="1.2" name="tukang">Dicetak oleh tukang</wired-radio>
+                        </wired-radio-group>
+                        <p class="field-hint">
+                            Cetak otomatis: file dikirim ke komputer toko dan dicetak saat jadwal tiba.
+                            Dicetak oleh tukang: file tetap di server sampai tukang memprosesnya.
+                        </p>
                     </fieldset>
 
                     <div class="field">

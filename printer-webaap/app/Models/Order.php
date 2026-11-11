@@ -17,6 +17,7 @@ class Order extends Model
 
     protected $fillable = [
         'id',
+        'kode',
         'tanggal_ambil',
         'biaya_admin',
         'total_pembayaran',
@@ -24,8 +25,10 @@ class Order extends Model
         'pengaturan_id',
         'status_pembayaran',
         'metode_pembayaran',
+        'mode_cetak',
         'session_id',
         'browser_session',
+        'computer_id',
         'tanggal_bayar',
     ];
 

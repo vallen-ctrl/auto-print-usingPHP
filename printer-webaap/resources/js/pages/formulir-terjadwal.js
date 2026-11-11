@@ -636,6 +636,11 @@ const periksaWhatsapp = () => {
 };
 
 const periksaTanggal = () => {
+    // Formulir kilat tidak punya kolom tanggal pengambilan.
+    if (!inputTanggal) {
+        return true;
+    }
+
     const isi = inputTanggal.value || '';
 
     if (isi === '') {
@@ -650,6 +655,11 @@ const periksaTanggal = () => {
 };
 
 const periksaPukul = () => {
+    // Formulir kilat tidak punya kolom pukul pengambilan.
+    if (!inputPukul) {
+        return true;
+    }
+
     const isi = inputPukul.value || '';
 
     if (isi === '') {
@@ -672,6 +682,11 @@ const periksaHalaman = () => {
 // Tanggal & pukul tidak boleh mundur dari hari ini. Batasnya dipasang ulang
 // setiap kali tanggal berubah, termasuk batas jam kalau harinya hari ini.
 const perbaruiBatasWaktu = () => {
+    // Formulir kilat tidak punya tanggal/pukul pengambilan.
+    if (!inputTanggal || !inputPukul) {
+        return;
+    }
+
     inputTanggal.setAttribute('min', hariIni());
 
     if (inputTanggal.value === hariIni()) {
@@ -693,19 +708,19 @@ function toIsoWithOffset(tanggal, pukul) {
 }
 
 
-if (inputTanggal && inputPukul && inputHalaman) {
+if (inputHalaman) {
     perbaruiBatasWaktu();
 
 
     inputWhatsapp?.addEventListener('change', periksaWhatsapp);
 
-    inputTanggal.addEventListener('change', () => {
+    inputTanggal?.addEventListener('change', () => {
         perbaruiBatasWaktu();
         periksaTanggal();
         periksaPukul();
     });
 
-    inputPukul.addEventListener('change', periksaPukul);
+    inputPukul?.addEventListener('change', periksaPukul);
     inputHalaman.addEventListener('change', periksaHalaman);
 
     const tombolBayar = document.getElementById('btn-pembayaran');
@@ -811,9 +826,21 @@ if (inputTanggal && inputPukul && inputHalaman) {
                     // reload), jadi id pesanan diambil juga dari atribut form.
                     orderid: urlParams.get('order') || (cetakForm && cetakForm.dataset.order) || '',
                     nama: localStorageSaved.nama,
-                    tanggal_ambil: toIsoWithOffset(localStorageSaved.tanggal, localStorageSaved.pukul),
                     files: localStorageSaved.files
                 };
+
+                // Tanggal & pukul hanya ada di formulir terjadwal. Formulir
+                // kilat langsung diproses, jadi server memakai waktu sekarang.
+                if (inputTanggal && inputPukul) {
+                    dataBaru.tanggal_ambil = toIsoWithOffset(localStorageSaved.tanggal, localStorageSaved.pukul);
+                }
+
+                // Hanya formulir terjadwal yang punya pilihan cara mencetak.
+                const grupCetak = document.getElementById('grup-cetak');
+
+                if (grupCetak && grupCetak.selected) {
+                    dataBaru.mode_cetak = grupCetak.selected;
+                }
 
                 // no_wa hanya dikirim kalau formulir memang punya kolom WhatsApp.
                 if (localStorageSaved.whatsapp) {

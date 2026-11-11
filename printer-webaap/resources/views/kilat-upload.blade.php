@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Nama Print — Upload PDF Cetak Kilat</title>
+    <title>{{ $branding['nama'] }} - Upload PDF Cetak Kilat</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,8 +23,8 @@
         </wired-button>
 
         <div class="site-header-brand">
-            <div class="logo-placeholder" role="img" aria-label="Logo jasa">logo jasa</div>
-            <p class="brand-name">nama print</p>
+            <x-brand-logo />
+            <p class="brand-name">{{ $branding['nama'] }}</p>
         </div>
     </header>
 

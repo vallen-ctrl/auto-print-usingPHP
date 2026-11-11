@@ -47,8 +47,8 @@
         </wired-button>
 
         <div class="site-header-brand">
-            <span class="logo-placeholder" role="img" aria-label="Logo jasa">logo jasa</span>
-            <p class="brand-name">nama print</p>
+            <x-brand-logo />
+            <p class="brand-name">{{ $branding['nama'] }}</p>
         </div>
     </header>
 

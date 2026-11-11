@@ -63,7 +63,12 @@ test('halaman konfirmasi memuat data order dan memulai hitung mundur pembayaran'
         ->assertSee('Rp. 55.000')
         ->assertSee('id="timer-bayar"', false)
         ->assertSee('data-sisa-detik=', false)
-        ->assertSee('data-href="' . route('formulir.terjadwal', ['order' => bin2hex($order->id)]) . '"', false);
+        ->assertSee('data-batal-url="' . route('order.konfirmasi.batal', ['order_id' => bin2hex($order->id)]) . '"', false)
+        ->assertSee('id="modal-keluar"', false)
+        ->assertSee('id="btn-konfirmasi-keluar"', false)
+        ->assertSee('id="modal-sukses-keluar"', false)
+        ->assertSee('data-cek-status-url=', false)
+        ->assertSee('belum dikonfirmasi');
 
     expect($order->fresh()->tanggal_bayar)->not->toBeNull();
 });

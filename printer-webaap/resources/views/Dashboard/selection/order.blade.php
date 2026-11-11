@@ -93,6 +93,7 @@
                         <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Metode pembayaran</th>
                         <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Status file</th>
                         <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Tipe cetak</th>
+                        <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Mode cetak</th>
                         <th scope="col" class="whitespace-nowrap px-4 py-3 text-right font-medium">Aksi</th>
                     </tr>
                 </thead>
@@ -107,6 +108,7 @@
                             $statusFileList = $o->status_file ? explode(',', $o->status_file) : [];
                             $statusFile = $o->status_file ?: '-';
                             $statusFilePertama = $statusFileList[0] ?? '';
+                            $modeCetak = $o->mode_cetak ?: 'otomatis';
                             $layananList = $o->layanan ? explode(',', $o->layanan) : [];
                             $cetak = $layananList
                                 ? implode(', ', array_map(fn ($v) => $labelLayanan[$v] ?? $v, $layananList))
@@ -126,11 +128,36 @@
                             </td>
                             <td class="whitespace-nowrap px-4 py-3">{{ $metode }}</td>
                             <td class="whitespace-nowrap px-4 py-3">
-                                <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium capitalize {{ $badgeFile[$statusFilePertama] ?? 'bg-muted text-ink-muted' }}">
-                                    {{ $statusFile }}
-                                </span>
+                                @if ($modeCetak === 'tukang')
+                                    <form method="POST" action="{{ route('order.statusfile', $idHex) }}"
+                                        class="flex items-center gap-1.5">
+                                        @csrf
+                                        <label for="status-file-{{ $idHex }}" class="sr-only">
+                                            Status file order {{ $idHex }}
+                                        </label>
+                                        <select id="status-file-{{ $idHex }}" name="status"
+                                            class="h-9 rounded-lg border border-line bg-surface px-2 text-xs text-ink focus:border-primary focus:ring-2 focus:ring-primary/30 focus:outline-none">
+                                            @foreach (['pending' => 'Pending', 'processing' => 'Processing', 'downloading' => 'Downloading', 'completed' => 'Completed', 'failed' => 'Failed'] as $nilai => $label)
+                                                <option value="{{ $nilai }}" @selected($statusFilePertama === $nilai)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="submit"
+                                            class="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-3 text-xs font-medium text-white transition-colors hover:bg-primary-hover focus:ring-2 focus:ring-primary/40 focus:outline-none">
+                                            Simpan
+                                        </button>
+                                    </form>
+                                @else
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium capitalize {{ $badgeFile[$statusFilePertama] ?? 'bg-muted text-ink-muted' }}">
+                                        {{ $statusFile }}
+                                    </span>
+                                @endif
                             </td>
                             <td class="whitespace-nowrap px-4 py-3 text-ink-muted">{{ $cetak }}</td>
+                            <td class="whitespace-nowrap px-4 py-3">
+                                <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $modeCetak === 'tukang' ? 'bg-warning-soft text-warning-strong' : 'bg-success-soft text-success-strong' }}">
+                                    {{ $modeCetak === 'tukang' ? 'Tukang' : 'Otomatis' }}
+                                </span>
+                            </td>
                             <td class="whitespace-nowrap px-4 py-3 text-right">
                                 <div class="flex items-center justify-end gap-2">
                                     <a href="{{ route('order.detail', $idHex) }}"
@@ -149,7 +176,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-4 py-12">
+                            <td colspan="10" class="px-4 py-12">
                                 <div class="flex flex-col items-center justify-center gap-2 text-center">
                                     <x-lucide-search-x class="size-8 text-ink-muted" aria-hidden="true" />
                                     <p class="text-sm font-medium text-ink">Order tidak ditemukan</p>

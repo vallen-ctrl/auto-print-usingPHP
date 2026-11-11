@@ -87,7 +87,13 @@ class FormulirTerjadwalController extends Controller
 
         $paper = Paper::where("aktif", 1)->get();
 
-        $pesanFormulir = $this->pesanFormulir($orderModel, $paper);
+        $pesanFormulir = $this->pesanFormulir(
+            $orderModel,
+            $paper,
+            // Harga kilat-edit ditentukan kasir, jadi pengaturan harga kertas
+            // tidak perlu memblokir formulirnya.
+            $kilat && $mode === 'komputer'
+        );
 
         // Tujuan tombol kembali dan modal error: halaman upload alur yang sama.
         $uploadUrl = $kilat
@@ -102,7 +108,7 @@ class FormulirTerjadwalController extends Controller
      * Pesan yang ditampilkan saat formulir dibuka kalau datanya tidak siap:
      * jumlah halaman file tidak terbaca, atau subtotal cetak masih Rp. 0.
      */
-    private function pesanFormulir(?Order $order, $paper): ?string
+    private function pesanFormulir(?Order $order, $paper, bool $hargaDitentukanKasir = false): ?string
     {
         if ($order === null) {
             return 'Sesi formulir tidak ditemukan. Silakan upload ulang file Anda.';
@@ -121,6 +127,12 @@ class FormulirTerjadwalController extends Controller
         if ($tidakTerbaca !== null) {
             return 'Jumlah halaman file "' . $tidakTerbaca->name . '" tidak terbaca. '
                 . 'Silakan upload ulang file tersebut.';
+        }
+
+        // Kilat edit: subtotal dihitung kasir setelah file diedit, jadi harga
+        // kertas yang belum diatur tidak perlu ditampilkan sebagai error.
+        if ($hargaDitentukanKasir) {
+            return null;
         }
 
         if ($paper->isEmpty()) {

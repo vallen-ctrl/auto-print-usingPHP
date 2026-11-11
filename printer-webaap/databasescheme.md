@@ -78,7 +78,8 @@ erDiagram
 | Kolom | Tipe | Null | Default | Keterangan |
 |-------|------|------|---------|------------|
 | `id` | binary(16) | NO | - | **PK** |
-| `name` | string(255) | NO | - | |
+| `name` | string(255) | NO | - | Nama toko, dipakai sebagai brand di header semua halaman customer |
+| `logo_path` | string(255) | YES | - | Path logo di disk `public` (mis. `toko/logo/xxxx.png`). Ditampilkan di header customer; `NULL` = placeholder "logo jasa". *(migration 2026_11_10)* |
 | `username` | string(50) | NO | - | **UQ** `uq_toko_username` |
 | `password` | string(255) | NO | - | |
 | `tanggal_dibuat` | timestamp | NO | `CURRENT_TIMESTAMP` | |
@@ -136,6 +137,7 @@ erDiagram
 | Kolom | Tipe | Null | Default | Keterangan |
 |-------|------|------|---------|------------|
 | `id` | binary(16) | NO | - | **PK** |
+| `kode` | string(8) | YES | - | Kode order singkat 6 karakter untuk customer & kasir (mis. `A7K2QX`). **UQ** `uq_orders_kode`. *(migration 2026_11_09)* |
 | `tanggal_pesan` | timestamp | NO | `CURRENT_TIMESTAMP` | Awal hitung mundur batas upload |
 | `tanggal_ambil` | datetime | NO | - | |
 | `biaya_admin` | bigint | NO | `0` | |
@@ -143,8 +145,10 @@ erDiagram
 | `total_dibayar` | bigint | NO | `0` | |
 | `status_pembayaran` | enum | NO | `pending` | `paid`, `pending`, `failed`, `refunded`, `processing` |
 | `metode_pembayaran` | enum | YES | - | `qris`, `kasir` *(migration 2026_11_01)* |
+| `mode_cetak` | string(20) | NO | `otomatis` | `otomatis` (dicetak komputer saat jadwal tiba) atau `tukang` (file tetap di server). Hanya dipakai alur terjadwal. *(migration 2026_11_10)* |
 | `session_id` | string(255) | YES | - | **FK** → `user.sessionid` |
 | `browser_session` | string(255) | YES | - | Laravel session id pemilik alur. Dipakai beranda untuk melanjutkan order dari database. *(migration 2026_11_01)* |
+| `computer_id` | binary(16) | YES | - | Komputer toko tempat customer mengedit file pada alur cetak kilat. Diisi dari QR komputer yang dipindai (session `kilat_computer_id`). *(migration 2026_11_09)* |
 | `tanggal_bayar` | timestamp | YES | - | Waktu klik "Bayar sekarang" (Snap token dibuat). Awal hitung mundur batas pembayaran. *(migration 2026_10_31)* |
 
 ## 9. `files`
@@ -221,6 +225,7 @@ Nilai enum `mime`:
 | `pengaturan_toko` | `id_toko` | `toko.id` | CASCADE | CASCADE |
 | `jam_operasional` | `id_pengaturan` | `pengaturan_toko.id` | CASCADE | CASCADE |
 | `orders` | `session_id` | `user.sessionid` | CASCADE | SET NULL |
+| `orders` | `computer_id` | `computer.id` | CASCADE | SET NULL |
 | `files` | `diupload_oleh` | `user.sessionid` | CASCADE | SET NULL |
 | `files` | `order_id` | `orders.id` | CASCADE | RESTRICT |
 | `layanan_terpilih` | `files_id` | `files.id` | CASCADE | SET NULL |
@@ -238,4 +243,8 @@ Nilai enum `mime`:
 - `jam_operasional.nomor_hari` dibuat **unique global** (bukan per `id_pengaturan`). Kalau nanti ada lebih dari satu toko, insert jam operasional toko kedua akan bentrok. Pertimbangkan unique composite `(id_pengaturan, nomor_hari)`.
 - `orders.tanggal_bayar` ditambahkan di migration terpisah dan nullable. Nilainya `NULL` sampai user menekan "Bayar sekarang".
 - `orders.metode_pembayaran` sekarang hanya berisi `qris` atau `kasir`. Kolom `id_metode_pembayaran` dihapus dan tabel `metode_pembayaran` di-drop *(migration 2026_11_01)*.
+- `orders.computer_id` hanya diisi untuk order alur kilat (dari QR komputer yang dipindai); order terjadwal membiarkannya `NULL`. Dipakai halaman konfirmasi untuk menampilkan komputer tujuan edit `kilat-edit` *(migration 2026_11_09)*.
+- `orders.kode` dibuat otomatis saat order dibuat (6 karakter, tanpa I/O/0/1) dan ditampilkan di halaman konfirmasi. Kasir mencari order lewat kode ini atau nama pelanggan (`user.name`). Order lama ikut diisi saat migration *(migration 2026_11_09)*.
+- `orders.mode_cetak` hanya diisi dari formulir terjadwal: `otomatis` berarti file diantrekan ke komputer dan event SSE `print` dikirim saat `tanggal_ambil` tiba; `tukang` berarti `file_queue.computer_id` NULL dan status file diubah manual dari dashboard Order. Alur kilat tidak memakai kolom ini (event mengikuti `files.layanan`). *(migration 2026_11_10)*
+- `orders.tanggal_ambil` sekarang benar-benar diperbarui dari formulir terjadwal (sebelumnya hanya berisi waktu upload).
 - `files.order_id` memakai `RESTRICT`, jadi order tidak bisa dihapus selama masih punya file.

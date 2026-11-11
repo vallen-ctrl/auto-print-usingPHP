@@ -18,6 +18,7 @@ class Toko extends Model
     protected $fillable = [
         'id',
         'name',
+        'logo_path',
         'username',
         'password',
         'token',
