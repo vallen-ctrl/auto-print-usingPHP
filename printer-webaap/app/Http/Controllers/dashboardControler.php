@@ -20,7 +20,7 @@ class dashboardControler extends Controller
 
         $orderHariIni = Order::whereDate('tanggal_pesan', $hariIni)->count();
         $orderSelesaiHariIni = Order::whereDate('tanggal_pesan', $hariIni)
-            ->where('status_pembayaran', 'success')
+            ->where('status_pembayaran', 'paid')
             ->count();
 
         $pendapatanHariIni = (int) Order::whereDate('tanggal_pesan', $hariIni)
