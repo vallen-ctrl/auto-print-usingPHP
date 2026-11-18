@@ -4,6 +4,7 @@ import 'wired-elements/lib/wired-icon-button.js';
 import { refreshSketches } from '../wired/sketch.js';
 import '../shared/navigate.js';
 import '../shared/back-button.js';
+import { bukaModal } from '../shared/modal.js';
 import { simpanNamaFile, gabungFileKeFormulir, bersihkanPenyimpananForm } from '../shared/file-store.js';
 
 // Aturan: halaman upload selalu memulai dari nol. Begitu halaman ini dibuka,
@@ -262,8 +263,11 @@ if (pickButton && pdfInput && pdfCount && pdfList && pdfWarning) {
             }
 
             if (chosen.length === 0) {
-                pdfWarning.textContent = 'Pilih minimal satu file PDF dulu.';
-                pdfWarning.hidden = false;
+                bukaModal('modal-upload-error', {
+                    type: 'error',
+                    title: 'File Belum Dipilih',
+                    message: 'Pilih minimal satu file PDF dulu.',
+                });
                 return;
             }
 
@@ -310,13 +314,21 @@ if (pickButton && pdfInput && pdfCount && pdfList && pdfWarning) {
                 }
 
                 if (!hasil.ok) {
-                    const pesan = hasil.data.message
-                        || (hasil.data.errors ? Object.values(hasil.data.errors).flat()[0] : null)
+                    const data = hasil.data || {};
+                    const pesan = data.message
+                        || (data.errors ? Object.values(data.errors).flat().filter(Boolean).join('\n') : null)
                         || 'Upload gagal. Coba lagi.';
 
                     selesaiLoading();
-                    pdfWarning.textContent = pesan;
-                    pdfWarning.hidden = false;
+
+                    bukaModal('modal-upload-error', {
+                        type: 'error',
+                        title: String(pesan).indexOf('cant parse') !== -1
+                            ? 'File Tidak Bisa Diproses'
+                            : 'Upload Tidak Bisa Dilanjutkan',
+                        message: pesan,
+                    });
+
                     return;
                 }
 
@@ -327,8 +339,12 @@ if (pickButton && pdfInput && pdfCount && pdfList && pdfWarning) {
                 window.location.href = hasil.data.redirect || lanjutButton.dataset.next;
             } catch (error) {
                 selesaiLoading();
-                pdfWarning.textContent = 'Tidak bisa menghubungi server. Coba lagi.';
-                pdfWarning.hidden = false;
+
+                bukaModal('modal-upload-error', {
+                    type: 'error',
+                    title: 'Koneksi Terputus',
+                    message: 'Tidak bisa menghubungi server. Coba lagi.',
+                });
             }
         });
     }
