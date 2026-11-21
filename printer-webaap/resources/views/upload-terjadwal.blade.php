@@ -88,5 +88,21 @@
             <p class="upload-percent" id="upload-percent" aria-hidden="true" hidden>0%</p>
         </wired-card>
     </div>
+
+    {{-- Popup error: semua pesan error yang terjadi di halaman upload tampil
+         lewat modal ini. Validasi & flash ditangkap di sini, sedangkan kegagalan
+         unggahan yang dipicu JavaScript dibuka lewat resources/js/pages/upload-terjadwal.js. --}}
+    @if ($errors->any())
+    <x-modal id="modal-error" type="error" title="Terjadi Kesalahan" open
+        message="{{ $errors->first() }}" />
+    @endif
+
+    @if (session('error'))
+    <x-modal id="modal-error" type="error" title="Gagal" open
+        message="{{ session('error') }}" />
+    @endif
+
+    {{-- Popup error untuk kegagalan unggahan file / validasi yang dipicu JS. --}}
+    <x-modal id="modal-upload-error" type="error" title="Upload Gagal" />
 </body>
 </html>
