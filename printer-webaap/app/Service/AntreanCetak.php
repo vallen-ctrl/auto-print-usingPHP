@@ -6,6 +6,7 @@ use App\Models\Computer;
 use App\Models\File;
 use App\Models\FileQueue;
 use App\Models\Order;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -27,7 +28,7 @@ class AntreanCetak
     {
         $hasil = ['berhasil' => 0, 'gagal' => 0, 'dilewati' => 0];
 
-        foreach (File::where('order_id', $order->id)->get() as $file) {
+        foreach (File::where('order_id', $order->id)->where('dihapus', false)->get() as $file) {
             if (FileQueue::where('file_id', $file->id)->exists()) {
                 $hasil['dilewati']++;
                 continue;
@@ -50,6 +51,48 @@ class AntreanCetak
         }
 
         return $hasil;
+    }
+
+    /**
+     * Masukkan semua file lunas yang belum punya baris antrean ke komputer
+     * yang sekarang tersedia.
+     *
+     * Dipakai saat komputer pertama ditambahkan: pembayaran yang terjadi
+     * sebelum toko punya komputer sempat gagal masuk antrean, jadi file-nya
+     * sekarang ditempatkan ke komputer pertama tersebut.
+     *
+     * File yang sengaja ditahan di server (terjadwal mode tukang) tetap tidak
+     * diberi komputer oleh pilihComputer().
+     *
+     * @return int jumlah file yang berhasil masuk antrean
+     */
+    public function untukFileYangBelumTerantre(): int
+    {
+        $orderIds = File::query()
+            ->join('orders', 'orders.id', '=', 'files.order_id')
+            ->where('orders.status_pembayaran', 'paid')
+            ->where('files.dihapus', false)
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('file_queue')
+                    ->whereColumn('file_queue.file_id', 'files.id');
+            })
+            ->distinct()
+            ->pluck('files.order_id');
+
+        $berhasil = 0;
+
+        foreach ($orderIds as $orderId) {
+            $order = Order::find($orderId);
+
+            if ($order === null) {
+                continue;
+            }
+
+            $berhasil += $this->untukOrder($order)['berhasil'];
+        }
+
+        return $berhasil;
     }
 
     private function untukFile(Order $order, File $file): void

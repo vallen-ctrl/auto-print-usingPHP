@@ -212,3 +212,38 @@ test('status file order otomatis tidak bisa diubah manual', function () {
         ->post(route('order.statusfile', bin2hex($order->id)), ['status' => 'completed'])
         ->assertSessionHas('error');
 });
+
+test('komputer pertama mengambil file lunas yang belum punya antrean', function () {
+    [$order, $file] = orderModeCetak('terjadwal', ['status' => 'paid']);
+
+    // Simulasikan pembayaran saat toko belum punya komputer: file gagal masuk
+    // antrean karena pilihComputer() tidak menemukan komputer.
+    $hasil = app(AntreanCetak::class)->untukOrder($order);
+
+    expect($hasil['berhasil'])->toBe(0)
+        ->and(DB::table('file_queue')->count())->toBe(0);
+
+    $this->withSession(sesiAdminCetak())
+        ->postJson(route('komputer.post'), ['name' => 'Komputer Pertama'])
+        ->assertCreated()
+        ->assertJsonPath('antrean_dipulihkan', 1);
+
+    $komputer = Computer::firstOrFail();
+    $queue = DB::table('file_queue')->where('file_id', $file->id)->first();
+
+    expect($queue)->not->toBeNull()
+        ->and($queue->computer_id)->toBe($komputer->id)
+        ->and($queue->status)->toBe('pending');
+});
+
+test('komputer kedua tidak mengambil file lunas yang belum punya antrean', function () {
+    Computer::factory()->create();
+    [$order] = orderModeCetak('terjadwal', ['status' => 'paid']);
+
+    $this->withSession(sesiAdminCetak())
+        ->postJson(route('komputer.post'), ['name' => 'Komputer Kedua'])
+        ->assertCreated()
+        ->assertJsonPath('antrean_dipulihkan', 0);
+
+    expect(DB::table('file_queue')->count())->toBe(0);
+});
