@@ -23,8 +23,4 @@ $app->make(Kernel::class)->bootstrap();
 
 $input = ['command' => 'pembayaran:cek'];
 
-if (in_array('--tanpa-midtrans', $argv ?? [], true)) {
-    $input['--tanpa-midtrans'] = true;
-}
-
 exit($app->handleCommand(new ArrayInput($input)));

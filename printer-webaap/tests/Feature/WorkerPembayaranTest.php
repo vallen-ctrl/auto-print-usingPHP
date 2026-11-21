@@ -88,7 +88,7 @@ test('worker menggagalkan order yang lewat batas unggah dan menghapus filenya', 
     Storage::disk('local')->put('worker/unggah-lama.pdf', 'isi pdf');
     $file = fileOrderWorker($order, 'worker/unggah-lama.pdf');
 
-    $this->artisan('pembayaran:cek', ['--tanpa-midtrans' => true])->assertSuccessful();
+    $this->artisan('pembayaran:cek')->assertSuccessful();
 
     expect($order->fresh()->status_pembayaran)->toBe('failed');
     expect(File::find($file->id))->toBeNull();
@@ -107,7 +107,7 @@ test('worker menggagalkan order 20 menit setelah menekan bayar', function () {
     Storage::disk('local')->put('worker/bayar-lama.pdf', 'isi pdf');
     $file = fileOrderWorker($order, 'worker/bayar-lama.pdf');
 
-    $this->artisan('pembayaran:cek', ['--tanpa-midtrans' => true])->assertSuccessful();
+    $this->artisan('pembayaran:cek')->assertSuccessful();
 
     expect($order->fresh()->status_pembayaran)->toBe('failed');
     expect(File::find($file->id))->toBeNull();
@@ -121,7 +121,7 @@ test('worker membiarkan order yang masih dalam batas waktu', function () {
     Storage::disk('local')->put('worker/masih-baru.pdf', 'isi pdf');
     $file = fileOrderWorker($order, 'worker/masih-baru.pdf');
 
-    $this->artisan('pembayaran:cek', ['--tanpa-midtrans' => true])->assertSuccessful();
+    $this->artisan('pembayaran:cek')->assertSuccessful();
 
     expect($order->fresh()->status_pembayaran)->toBe('pending');
     expect(File::find($file->id))->not->toBeNull();
@@ -135,7 +135,7 @@ test('worker membersihkan file order gagal yang masih tertinggal', function () {
     Storage::disk('local')->put('worker/sisa-gagal.pdf', 'isi pdf');
     $file = fileOrderWorker($order, 'worker/sisa-gagal.pdf');
 
-    $this->artisan('pembayaran:cek', ['--tanpa-midtrans' => true])->assertSuccessful();
+    $this->artisan('pembayaran:cek')->assertSuccessful();
 
     expect(File::find($file->id))->toBeNull();
     Storage::disk('local')->assertMissing('worker/sisa-gagal.pdf');
@@ -149,7 +149,7 @@ test('worker menghapus file order lunas yang melewati lama penyimpanan', functio
     Storage::disk('local')->put('worker/lunas-lama.pdf', 'isi pdf');
     $file = fileOrderWorker($order, 'worker/lunas-lama.pdf', 'completed');
 
-    $this->artisan('pembayaran:cek', ['--tanpa-midtrans' => true])->assertSuccessful();
+    $this->artisan('pembayaran:cek')->assertSuccessful();
 
     // Baris file tetap ada (riwayat/struk), file fisiknya yang dihapus.
     expect(File::find($file->id))->not->toBeNull()
@@ -165,7 +165,7 @@ test('worker tidak menghapus file order lunas yang belum melewati lama penyimpan
     Storage::disk('local')->put('worker/lunas-baru.pdf', 'isi pdf');
     $file = fileOrderWorker($order, 'worker/lunas-baru.pdf', 'completed');
 
-    $this->artisan('pembayaran:cek', ['--tanpa-midtrans' => true])->assertSuccessful();
+    $this->artisan('pembayaran:cek')->assertSuccessful();
 
     expect((bool) File::find($file->id)->dihapus)->toBeFalse();
     Storage::disk('local')->assertExists('worker/lunas-baru.pdf');
@@ -179,7 +179,7 @@ test('worker tidak menghapus file yang masih menunggu dicetak', function () {
     Storage::disk('local')->put('worker/masih-antre.pdf', 'isi pdf');
     $file = fileOrderWorker($order, 'worker/masih-antre.pdf', 'pending');
 
-    $this->artisan('pembayaran:cek', ['--tanpa-midtrans' => true])->assertSuccessful();
+    $this->artisan('pembayaran:cek')->assertSuccessful();
 
     expect((bool) File::find($file->id)->dihapus)->toBeFalse();
     Storage::disk('local')->assertExists('worker/masih-antre.pdf');

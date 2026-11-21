@@ -8,10 +8,9 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Worker pembayaran: cek status Midtrans, gagalkan order yang lewat batas
-// waktu, dan hapus file sesuai pengaturan "lama disimpan".
-// Tiap 5 menit sudah cukup: konfirmasi pembayaran normal ditangani halaman
-// struk, worker hanya jaring pengaman kalau browser customer ditutup.
+// Worker pembayaran: gagalkan order yang lewat batas waktu, lalu hapus file
+// order gagal dan file order lunas yang melewati pengaturan "lama disimpan".
+// Pengecekan status ke Midtrans dilakukan manual dari halaman detail order.
 Schedule::command('pembayaran:cek')
     ->everyFiveMinutes()
     ->withoutOverlapping(10);

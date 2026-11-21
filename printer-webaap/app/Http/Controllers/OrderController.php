@@ -17,10 +17,12 @@ use App\Rules\CustomHalamanRule;
 use App\Models\User;
 use App\Models\PengaturanToko;
 use App\Service\AntreanCetak;
+use App\Service\CekPembayaranMidtrans;
 use App\Service\JadwalToko;
 use App\Service\KedaluwarsaOrder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Midtrans\Transaction;
 
 use function Illuminate\Log\log;
@@ -44,6 +46,7 @@ class OrderController extends Controller
         $query = Order::query()
             ->leftJoin('files', 'files.order_id', '=', 'orders.id')
             ->leftJoin('file_queue', 'file_queue.file_id', '=', 'files.id')
+            ->leftJoin('user', 'user.sessionid', '=', 'orders.session_id')
             ->select([
                 'orders.id',
                 'orders.tanggal_pesan',
@@ -53,6 +56,7 @@ class OrderController extends Controller
                 'orders.status_pembayaran',
                 'orders.metode_pembayaran',
                 'orders.mode_cetak',
+                'user.name as nama_pemesan',
                 DB::raw('LOWER(HEX(orders.id)) as id_hex'),
                 DB::raw('GROUP_CONCAT(DISTINCT files.layanan) as layanan'),
                 DB::raw('GROUP_CONCAT(DISTINCT file_queue.status) as status_file'),
@@ -66,16 +70,19 @@ class OrderController extends Controller
                 'orders.total_dibayar',
                 'orders.status_pembayaran',
                 'orders.metode_pembayaran',
-                'orders.mode_cetak'
+                'orders.mode_cetak',
+                'user.name'
             );
 
-        // Pencarian: order id (hex), status bayar, metode bayar, atau nama file.
+        // Pencarian: order id (hex), nama pemesan, status bayar, metode bayar,
+        // atau nama file.
         if ($search !== '') {
             $like = '%' . $search . '%';
 
             $query->where(function ($q) use ($like, $search) {
                 $q->where('orders.status_pembayaran', 'like', $like)
                     ->orWhere('orders.metode_pembayaran', 'like', $like)
+                    ->orWhere('user.name', 'like', $like)
                     ->orWhereRaw('LOWER(HEX(orders.id)) LIKE ?', ['%' . strtolower($search) . '%'])
                     ->orWhere('files.name', 'like', $like);
             });
@@ -206,6 +213,8 @@ class OrderController extends Controller
 
         $order = Order::findOrFail($orderId);
 
+        $pelanggan = $order->session_id ? User::find($order->session_id) : null;
+
         $files = File::where('order_id', $orderId)
             ->orderBy('tanggal_dibuat')
             ->get()
@@ -245,7 +254,92 @@ class OrderController extends Controller
                 ];
             });
 
-        return view("Dashboard.selection.order-detail", compact('id', 'order', 'files'));
+        return view("Dashboard.selection.order-detail", compact('id', 'order', 'files', 'pelanggan'));
+    }
+
+    /**
+     * Cek ulang status pembayaran satu order ke Midtrans dari dashboard.
+     * Hasilnya dipakai tombol "Refresh pembayaran" di halaman detail order.
+     */
+    public function refreshPembayaran(string $id, CekPembayaranMidtrans $cek)
+    {
+        $order = Order::findOrFail($this->orderIdDariHex($id));
+
+        return response()->json($cek->periksa($order));
+    }
+
+    /**
+     * Unduh semua file milik satu order sebagai satu file ZIP.
+     */
+    public function downloadSemua(string $id)
+    {
+        $orderId = $this->orderIdDariHex($id);
+        $order = Order::findOrFail($orderId);
+
+        $files = File::where('order_id', $orderId)
+            ->orderBy('tanggal_dibuat')
+            ->get()
+            ->filter(fn (File $file) => ! $file->dihapus
+                && $file->path
+                && Storage::disk('local')->exists($file->path));
+
+        abort_if($files->isEmpty(), 404, 'Tidak ada file yang bisa diunduh.');
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'order-');
+        $zip = new \ZipArchive();
+
+        abort_if(
+            $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true,
+            500,
+            'Gagal membuat file ZIP.'
+        );
+
+        $namaDipakai = [];
+
+        foreach ($files as $file) {
+            $nama = $this->namaFileUnik(basename($file->name ?: 'file.pdf'), $namaDipakai);
+
+            $zip->addFile(Storage::disk('local')->path($file->path), $nama);
+        }
+
+        $zip->close();
+
+        $namaZip = 'order-' . ($order->kode ?: substr($id, 0, 8)) . '.zip';
+
+        return response()->download($zipPath, $namaZip)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Pastikan nama file di dalam ZIP tidak bertabrakan.
+     *
+     * @param  array<int, string>  $dipakai
+     */
+    private function namaFileUnik(string $nama, array &$dipakai): string
+    {
+        $info = pathinfo($nama);
+        $dasar = $info['filename'] ?: 'file';
+        $ext = isset($info['extension']) ? '.' . $info['extension'] : '';
+        $kandidat = $nama;
+        $nomor = 1;
+
+        while (in_array(mb_strtolower($kandidat), $dipakai, true)) {
+            $nomor++;
+            $kandidat = $dasar . ' (' . $nomor . ')' . $ext;
+        }
+
+        $dipakai[] = mb_strtolower($kandidat);
+
+        return $kandidat;
+    }
+
+    /** Ubah id order hex (32 karakter) menjadi id biner, atau 404. */
+    private function orderIdDariHex(string $id): string
+    {
+        $orderId = ctype_xdigit($id) && strlen($id) === 32 ? hex2bin($id) : false;
+
+        abort_if($orderId === false, 404);
+
+        return $orderId;
     }
 
     private function parseHalaman(string $input): array
