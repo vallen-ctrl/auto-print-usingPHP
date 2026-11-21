@@ -4,8 +4,7 @@
 
 @php
     $biaya = [
-        ['id' => 'biaya-admin',   'label' => 'Admin',   'value' => $pengaturan['biaya_admin']],
-        ['id' => 'biaya-layanan', 'label' => 'Layanan', 'value' => $pengaturan['biaya_layanan']],
+        ['id' => 'biaya-admin', 'label' => 'Admin', 'value' => $pengaturan['biaya_admin']],
     ];
 @endphp
 
@@ -350,7 +349,6 @@ document.addEventListener('DOMContentLoaded', function () {
             nama_toko: namaInput ? namaInput.value.trim() : '',
             status_buka: statusBuka ? statusBuka.checked : true,
             biaya_admin: angka(document.getElementById('biaya-admin').value),
-            biaya_layanan: angka(document.getElementById('biaya-layanan').value),
             lama_file_dihapus: angka(document.getElementById('lama-disimpan').value),
             jam: Array.from(document.querySelectorAll('[data-hari]')).map(function (row) {
                 return {
@@ -383,7 +381,6 @@ document.addEventListener('DOMContentLoaded', function () {
             body.append('nama_toko', payload.nama_toko);
             body.append('status_buka', payload.status_buka ? '1' : '0');
             body.append('biaya_admin', String(payload.biaya_admin));
-            body.append('biaya_layanan', String(payload.biaya_layanan));
             body.append('lama_file_dihapus', String(payload.lama_file_dihapus));
 
             payload.jam.forEach(function (row, index) {

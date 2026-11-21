@@ -36,7 +36,6 @@ function payloadPengaturan(array $ubah = []): array
         'nama_toko' => 'Toko Baru',
         'status_buka' => '1',
         'biaya_admin' => 4000,
-        'biaya_layanan' => 1000,
         'lama_file_dihapus' => 5,
         'jam' => [[
             'nomor_hari' => 1,
@@ -206,6 +205,18 @@ test('menyimpan ikon tab browser dan memakainya di semua halaman', function () {
         ->assertOk()
         ->assertSee('rel="icon"', false)
         ->assertSee('storage/toko/favicon.ico');
+});
+
+test('halaman pengaturan tidak lagi menampilkan biaya layanan', function () {
+    $this->withoutVite();
+    Storage::fake('public');
+    $session = sesiPengaturan();
+
+    $this->withSession($session)
+        ->get(route('pengaturan.index'))
+        ->assertOk()
+        ->assertDontSee('Biaya layanan')
+        ->assertDontSee('biaya-layanan', false);
 });
 
 test('ikon tab browser harus berformat ico', function () {

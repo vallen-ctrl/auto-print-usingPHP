@@ -55,7 +55,6 @@ class PengaturanController extends Controller
             'favicon_url'       => Branding::get()['favicon_url'],
             'status_buka'       => $pengaturanTersimpan ? (bool) $pengaturanTersimpan->status_buka : true,
             'biaya_admin'       => $pengaturanTersimpan->biaya_admin ?? 20000,
-            'biaya_layanan'     => $pengaturanTersimpan->biaya_layanan ?? 20000,
             'lama_file_dihapus' => $pengaturanTersimpan->lama_file_dihapus ?? 5,
         ];
 
@@ -70,7 +69,6 @@ class PengaturanController extends Controller
             'favicon'             => 'nullable|file|mimes:ico|max:512',
             'status_buka'         => 'required|boolean',
             'biaya_admin'         => 'required|integer|min:0',
-            'biaya_layanan'       => 'required|integer|min:0',
             'lama_file_dihapus'   => 'required|integer|min:1|max:365',
             'jam'                 => 'required|array|min:1',
             'jam.*.nomor_hari'    => 'required|integer|between:1,7',
@@ -92,9 +90,6 @@ class PengaturanController extends Controller
             'biaya_admin.required'       => 'Biaya admin wajib diisi.',
             'biaya_admin.integer'        => 'Biaya admin harus berupa angka.',
             'biaya_admin.min'            => 'Biaya admin tidak boleh negatif.',
-            'biaya_layanan.required'     => 'Biaya layanan wajib diisi.',
-            'biaya_layanan.integer'      => 'Biaya layanan harus berupa angka.',
-            'biaya_layanan.min'          => 'Biaya layanan tidak boleh negatif.',
             'lama_file_dihapus.required' => 'Lama penyimpanan file wajib diisi.',
             'lama_file_dihapus.integer'  => 'Lama penyimpanan file harus berupa angka.',
             'lama_file_dihapus.min'      => 'Lama penyimpanan file minimal 1 hari.',
@@ -124,7 +119,6 @@ class PengaturanController extends Controller
                 [
                     'status_buka'       => $validated['status_buka'],
                     'biaya_admin'       => $validated['biaya_admin'],
-                    'biaya_layanan'     => $validated['biaya_layanan'],
                     'lama_file_dihapus' => $validated['lama_file_dihapus'],
                 ]
             );
