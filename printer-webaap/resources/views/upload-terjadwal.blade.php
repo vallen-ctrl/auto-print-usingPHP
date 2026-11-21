@@ -17,7 +17,7 @@
             <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M15 5 8 12l7 7" />
             </svg>
-            Kembali
+            <span class="btn-label">Kembali</span>
         </wired-button>
 
         <div class="site-header-brand">
@@ -31,15 +31,17 @@
             <wired-card roughness="1.2" class="panel">
                 <p class="badge">
                     <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" />
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v5l3 2" />
                     </svg>
-                    Cetak Kilat 1 Jam Jadi
+                    Cetak Terjadwal
                 </p>
 
-                <h1 class="panel-title">Tinggal Upload PDF, Langsung Jadi</h1>
+                <h1 class="panel-title">Upload PDF, Cetak Sesuai Jadwal</h1>
 
                 <p class="panel-text">
-                    Cetak dokumen PDF tanpa antre. Cukup upload file, kami langsung proses.
+                    Cetak tanpa menunggu di toko. Upload file dulu, lalu atur jam pengambilan
+                    dan pengaturan cetaknya di langkah berikutnya.
                 </p>
 
                 <wired-card roughness="1.2" class="dropzone">
@@ -59,7 +61,7 @@
                     <input type="file" id="input-pdf" name="files[]" class="visually-hidden" accept="application/pdf, .pdf" data-max="10" multiple>
 
                     <wired-button roughness="1.2" elevation="1" id="btn-pilih-pdf" class="pick-button">
-                        Pilih File PDF Sekarang
+                        <span class="btn-label">Pilih File PDF Sekarang</span>
                     </wired-button>
 
                     <p class="file-count" id="file-count" hidden></p>
@@ -69,7 +71,7 @@
             </wired-card>
 
             <div class="next-step">
-                <wired-button roughness="1.2" elevation="1" id="btn-lanjutkan" class="next-button" data-next="{{ route('formulir.terjadwal') }}" data-action="{{ route('upload.terjadwal.store') }}" data-token="{{ csrf_token() }}">Lanjutkan</wired-button>
+                <wired-button roughness="1.2" elevation="1" id="btn-lanjutkan" class="next-button" data-next="{{ route('formulir.terjadwal') }}" data-action="{{ route('upload.terjadwal.store') }}" data-token="{{ csrf_token() }}"><span class="btn-label">Lanjutkan</span></wired-button>
             </div>
         </div>
     </main>

@@ -50,7 +50,7 @@
             <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M15 5 8 12l7 7" />
             </svg>
-            Kembali
+            <span class="btn-label">Kembali</span>
         </wired-button>
 
         <div class="site-header-brand">
@@ -195,7 +195,7 @@
                     @endif
 
                     <div class="form-footer">
-                        <wired-button roughness="1.2" elevation="1" id="btn-pembayaran" class="pay-button">Lanjut proses pembayaran</wired-button>
+                        <wired-button roughness="1.2" elevation="1" id="btn-pembayaran" class="pay-button"><span class="btn-label">Lanjut proses pembayaran</span></wired-button>
                         <div class="form-totals">
                             <p class="form-subtotal form-subtotal-file">SUB TOTAL FILE: Rp. <span id="sub-total-file">0</span></p>
                             <p class="form-subtotal">SUB TOTAL: Rp. <span id="sub-total">0</span></p>

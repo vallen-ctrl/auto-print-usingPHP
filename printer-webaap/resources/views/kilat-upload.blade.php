@@ -19,7 +19,7 @@
             <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M15 5 8 12l7 7" />
             </svg>
-            Kembali
+            <span class="btn-label">Kembali</span>
         </wired-button>
 
         <div class="site-header-brand">
@@ -61,7 +61,7 @@
                     <input type="file" id="input-pdf" name="files[]" class="visually-hidden" accept="application/pdf, .pdf" data-max="10" multiple>
 
                     <wired-button roughness="1.2" elevation="1" id="btn-pilih-pdf" class="pick-button">
-                        Pilih File PDF Sekarang
+                        <span class="btn-label">Pilih File PDF Sekarang</span>
                     </wired-button>
 
                     <p class="file-count" id="file-count" hidden></p>
@@ -81,7 +81,7 @@
                     data-next="{{ route('kilat.formulir', ['mode' => $mode]) }}"
                     data-action="{{ route('upload.terjadwal.store') }}"
                     data-layanan="{{ $layanan }}"
-                    data-token="{{ csrf_token() }}">Lanjutkan</wired-button>
+                    data-token="{{ csrf_token() }}"><span class="btn-label">Lanjutkan</span></wired-button>
             </div>
         </div>
     </main>

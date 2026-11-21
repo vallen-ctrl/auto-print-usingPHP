@@ -36,8 +36,8 @@
 
         <wired-card roughness="1.2" class="panel">
             <div class="panel-inner">
-                <wired-button roughness="1.2" class="panel-button" elevation="1" data-href="{{ route('scan.qr') }}">Cetak Kilat</wired-button>
-                <wired-button roughness="1.2" class="panel-button" elevation="1" data-href="{{ route('upload.terjadwal') }}">Cetak Terjadwal</wired-button>
+                <wired-button roughness="1.2" class="panel-button" elevation="1" data-href="{{ route('scan.qr') }}"><span class="btn-label">Cetak Kilat</span></wired-button>
+                <wired-button roughness="1.2" class="panel-button" elevation="1" data-href="{{ route('upload.terjadwal') }}"><span class="btn-label">Cetak Terjadwal</span></wired-button>
             </div>
         </wired-card>
     </main>
