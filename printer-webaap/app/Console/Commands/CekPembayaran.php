@@ -11,8 +11,9 @@ use Illuminate\Console\Command;
  * hapus file order gagal, dan hapus file order lunas sesuai pengaturan
  * "lama disimpan" (pengaturan_toko.lama_file_dihapus).
  *
- * Contoh cron (setiap menit):
- *   * * * * * cd /path/ke/printer-webaap && php artisan pembayaran:cek >> /dev/null 2>&1
+ * Scheduler menjalankannya tiap 5 menit (lihat routes/console.php). Kalau
+ * dipanggil langsung lewat cron, sesuaikan sendiri intervalnya, misalnya:
+ *   *\/5 * * * * cd /path/ke/printer-webaap && php artisan pembayaran:cek >> /dev/null 2>&1
  */
 class CekPembayaran extends Command
 {
