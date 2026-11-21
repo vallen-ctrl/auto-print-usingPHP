@@ -43,14 +43,14 @@
 
                 <div class="panel-options">
                     <div class="panel-option">
-                        <wired-button roughness="1.2" class="panel-button" elevation="1" data-href="{{ route('scan.qr') }}">Cetak Kilat</wired-button>
+                        <wired-button roughness="1.2" class="panel-button" elevation="1" data-href="{{ route('scan.qr') }}"><span class="btn-label">Cetak Kilat</span></wired-button>
                         <p class="panel-option-desc">
                             Harus dilakukan di tempat. Datang ke toko, scan QR, lalu file langsung dicetak saat itu juga.
                         </p>
                     </div>
 
                     <div class="panel-option">
-                        <wired-button roughness="1.2" class="panel-button" elevation="1" data-href="{{ route('upload.terjadwal') }}">Cetak Terjadwal</wired-button>
+                        <wired-button roughness="1.2" class="panel-button" elevation="1" data-href="{{ route('upload.terjadwal') }}"><span class="btn-label">Cetak Terjadwal</span></wired-button>
                         <p class="panel-option-desc">
                             Dicetak otomatis sesuai jam yang kamu pilih. Hasilnya bisa diambil pada jam tersebut,
                             atau dicetak oleh tukang saat jamnya tiba.

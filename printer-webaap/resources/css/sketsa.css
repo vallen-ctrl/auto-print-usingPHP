@@ -1,0 +1,205 @@
+/* ==========================================================================
+   Gaya sketsa tangan (wired-elements) — token & komponen dasar bersama.
+   Dipakai semua halaman pelanggan. Halaman cukup mengimpor file ini
+   (@import './sketsa.css';) lalu menambahkan gayanya sendiri.
+   Mobile-first; nilai desktop ada di media query 768px.
+   ========================================================================== */
+
+:root {
+    --font-heading: "Caveat", "Patrick Hand", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+    --font-body: "Patrick Hand", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+
+    --fs-display: clamp(2.25rem, 1.6rem + 3vw, 3.06rem);
+    --fs-h1: clamp(1.9rem, 1.4rem + 2.2vw, 2.44rem);
+    --fs-h2: clamp(1.6rem, 1.3rem + 1.4vw, 1.94rem);
+    --fs-h3: 1.56rem;
+    --fs-sub: 1.25rem;
+    --fs-body: 1.0625rem;
+    --fs-body-sm: 0.875rem;
+    --fs-caption: 0.9375rem;
+    --fs-label: 0.8125rem;
+
+    --color-bg: #ffffff;
+    --color-surface: #ffffff;
+    --color-text: #1f1f1f;
+    --color-muted: #57575c;
+    --color-border: #1f1f1f;
+    --color-line: #d8d8d8;
+    --color-chip: #f4f2ec;
+    --color-error: #b3261e;
+    --color-error-soft: #fdecea;
+    --color-error-ink: #8c1d18;
+    --color-success: #2f6f4e;
+    --color-success-soft: #e8f3ec;
+    --color-success-ink: #1f5138;
+    --color-warning: #9a7200;
+    --color-info: #2b6cb0;
+    /* Latar gelap pratinjau kamera (scan QR). */
+    --color-stage: #101010;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-12: 48px;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--fs-body);
+    /* Huruf tulis tangan terasa rapat; sedikit renggang membuatnya lebih
+       enak dibaca tanpa mengubah hierarki. */
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Fokus keyboard harus tetap terlihat di semua kontrol, termasuk yang
+   dirender di dalam shadow DOM wired-elements. */
+:where(a, button, input, [tabindex]):focus-visible {
+    outline: 2px dashed var(--color-border);
+    outline-offset: 3px;
+}
+
+:where(wired-button, wired-icon-button, wired-input, wired-radio,
+    wired-checkbox, wired-combo):focus-within {
+    outline: 2px dashed var(--color-border);
+    outline-offset: 3px;
+}
+
+/* ---------- Kepala halaman: tombol kembali + logo jasa & nama print ---------- */
+
+.site-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4);
+}
+
+/* Logo jasa + nama print di kanan atas, tombol kembali di kiri. */
+.site-header-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-left: auto;
+}
+
+.logo-placeholder {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 46px;
+    padding: var(--space-1);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    color: var(--color-muted);
+    font-size: var(--fs-label);
+    line-height: 1.2;
+    letter-spacing: 0.03em;
+    text-align: center;
+}
+
+.brand-name {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: var(--fs-h3);
+    line-height: 1.3;
+    letter-spacing: -0.005em;
+}
+
+wired-button.back-button {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    min-height: 44px;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--fs-caption);
+}
+
+/* Teks di dalam shadow DOM wired-button selalu uppercase dan sifatnya
+   diwarisi ke isi slotted. Label dibungkus .btn-label agar tampil huruf
+   normal, sesuai aturan tipografi sketsa (tanpa all-caps). */
+wired-button .btn-label {
+    text-transform: none;
+    letter-spacing: 0.01em;
+}
+
+wired-button.back-button[hidden] {
+    display: none;
+}
+
+.back-icon {
+    width: 14px;
+    height: 14px;
+    margin-right: var(--space-1);
+    vertical-align: -2px;
+}
+
+/* ---------- Utilitas ---------- */
+
+/* Label isian formulir: dibuat lebih besar dan tebal supaya mudah dibaca
+   sambil mengisi form. */
+.field-label {
+    font-family: var(--font-body);
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: 0.04em;
+    color: var(--color-text);
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* ---------- Desktop ---------- */
+
+@media (min-width: 768px) {
+    .site-header {
+        gap: var(--space-4);
+        padding: var(--space-6) var(--space-8);
+    }
+
+    .logo-placeholder {
+        width: 64px;
+        height: 56px;
+        border-radius: 12px;
+        font-size: var(--fs-caption);
+    }
+
+    .brand-name {
+        font-size: var(--fs-h2);
+    }
+}

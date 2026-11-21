@@ -41,7 +41,7 @@
             <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M15 5 8 12l7 7" />
             </svg>
-            Kembali
+            <span class="btn-label">Kembali</span>
         </wired-button>
 
         <div class="site-header-brand">
@@ -88,7 +88,7 @@
                         id="btn-coba"
                         class="retry-button"
                         hidden>
-                        Coba Lagi
+                        <span class="btn-label">Coba Lagi</span>
                     </wired-button>
                 </div>
             </div>
