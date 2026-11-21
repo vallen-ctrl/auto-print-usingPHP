@@ -55,8 +55,32 @@ node-printer --daemon          # jalankan daemon saja
 node-printer --setup           # menu setup saja
 node-printer qr                # tampilkan QR (butuh binary tauri-qr)
 node-printer autostart on|off  # jalan otomatis saat login
+node-printer stop              # hentikan daemon (config tetap disimpan)
+node-printer status            # cek daemon & status SSE
 node-printer uninstall         # hapus daemon, config, dan file aplikasi
 ```
+
+### Menghentikan daemon
+
+```sh
+node-printer stop     # cara normal
+node-printer status   # pastikan sudah mati
+```
+
+Kalau binary yang terpasang masih versi lama (belum punya perintah `stop`),
+matikan manual:
+
+```sh
+pkill -f "node-printer --daemon"
+# atau cek PID dulu
+pgrep -af node-printer
+cat ~/.node-printer/status.json
+```
+
+Kalau dijalankan lewat systemd: `sudo systemctl stop node-printer`.
+
+Di Windows, daemon juga bisa dihentikan dari ikon system tray (klik kanan →
+Keluar) atau lewat menu setup → **Hentikan daemon**.
 
 Saat development:
 

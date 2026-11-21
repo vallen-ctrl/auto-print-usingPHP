@@ -47,6 +47,23 @@ export function isDaemonRunning(): Promise<boolean> {
   });
 }
 
+/** Ringkasan daemon untuk perintah `status` di CLI. */
+export async function daemonStatus(): Promise<{
+  running: boolean;
+  state?: string;
+  info?: string | null;
+  pid?: number;
+}> {
+  const running = await isDaemonRunning();
+  let data: { state?: string; info?: string | null; pid?: number } = {};
+
+  try {
+    data = JSON.parse(await readFile(STATUS_FILE, "utf8"));
+  } catch {}
+
+  return { running, state: data.state, info: data.info ?? null, pid: data.pid };
+}
+
 export function startDaemonDetached() {
   const [cmd, ...args] = selfCmd(["--daemon"]);
   spawn(cmd!, args, {
