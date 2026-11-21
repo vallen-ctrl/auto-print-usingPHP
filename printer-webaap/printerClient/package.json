@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "bun run index.ts",
     "daemon": "bun run index.ts --daemon",
-    "build": "bun build index.ts --compile --outfile node-printer.exe",
+    "build": "bun run build:win",
+    "build:win": "bun build index.ts --compile --target=bun-windows-x64 --outfile dist/node-printer.exe",
+    "build:linux": "bun build index.ts --compile --target=bun-linux-x64 --outfile dist/node-printer",
     "build:qr": "cargo build --release --manifest-path tauri-qr/src-tauri/Cargo.toml"
   },
   "dependencies": {

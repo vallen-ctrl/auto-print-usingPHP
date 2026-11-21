@@ -1,11 +1,11 @@
 // index.ts — entry point
 //
-//   node-printer.exe              -> pastikan daemon jalan (tray), lalu buka TUI setup
-//   node-printer.exe --setup      -> TUI setup saja
-//   node-printer.exe --daemon     -> background + system tray
-//   node-printer.exe qr           -> ambil QR dari server & tampilkan di window Tauri
-//   node-printer.exe autostart on|off  -> jalan otomatis saat login Windows
-//   node-printer.exe uninstall    -> hapus daemon, auto-start, config & file aplikasi
+//   node-printer (.exe)        -> pastikan daemon jalan (tray), lalu buka TUI setup
+//   node-printer --setup       -> TUI setup saja
+//   node-printer --daemon      -> background (system tray hanya di Windows)
+//   node-printer qr            -> ambil QR dari server & tampilkan di window Tauri
+//   node-printer autostart on|off  -> jalan otomatis saat login (Windows/Linux)
+//   node-printer uninstall     -> hapus daemon, auto-start, config & file aplikasi
 import { isDaemonRunning, startDaemonDetached, runDaemon, setAutostart, IS_COMPILED } from "./daemon";
 
 const arg = process.argv[2];
@@ -35,7 +35,7 @@ switch (arg) {
   case "autostart": {
     const on = process.argv[3] !== "off";
     if (on && !IS_COMPILED) {
-      console.log("Auto-start hanya untuk versi build (.exe). Jalankan `bun run build` dulu.");
+      console.log("Auto-start hanya untuk versi build. Jalankan `bun run build:win` atau `bun run build:linux` dulu.");
       break;
     }
     const ok = setAutostart(on);

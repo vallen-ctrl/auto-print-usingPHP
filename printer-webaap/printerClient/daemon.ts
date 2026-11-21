@@ -1,10 +1,10 @@
-// daemon.ts — background process + system tray (Windows)
+// daemon.ts — background process + system tray (system tray hanya di Windows)
 import net from "node:net";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { mkdir, writeFile, readFile, rm } from "node:fs/promises";
-import { watch, existsSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { watch, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { homedir, platform } from "node:os";
+import { dirname, join } from "node:path";
 import { createDecipheriv, scryptSync } from "node:crypto";
 import { log as writeLog, loggedFetch, disableLogging, LOG_FILE } from "./logger";
 
@@ -13,6 +13,8 @@ const SERVER_CONF = join(CONF_DIR, "server.conf");
 const TOKEN_FILE = join(CONF_DIR, "token.enc");
 const PRINTER_CONF = join(CONF_DIR, "printers.conf");
 const TRAY_SCRIPT = join(CONF_DIR, "tray.ps1");
+const STATUS_FILE = join(CONF_DIR, "status.json");
+const AUTOSTART_FILE = join(homedir(), ".config", "autostart", "node-printer.desktop");
 
 // Samakan dengan ENC_SECRET di setup.ts
 const ENC_SECRET = process.env.NODE_PRINTER_SECRET ?? "CHANGE_ME_LATER";
@@ -54,8 +56,11 @@ export function startDaemonDetached() {
   }).unref();
 }
 
-/** Buka jendela console baru berisi TUI setup */
+/** Buka jendela console baru berisi TUI setup (Windows). */
 export function openSetupWindow() {
+  // Di Linux tidak ada system tray; setup dibuka dengan menjalankan aplikasi lagi.
+  if (platform() !== "win32") return;
+
   const full = selfCmd(["--setup"]).map(q).join(" ");
   spawn("cmd.exe", ["/c", `start "Node Printer Setup" ${full}`], {
     detached: true,
@@ -85,21 +90,61 @@ export async function stopDaemon(): Promise<boolean> {
     await sleep(250);
   }
 
-  // fallback (mis. daemon versi lama): paksa matikan lewat PID yang listen di port lock
-  const out = spawnSync(
-    "cmd.exe",
-    ["/c", `netstat -ano | findstr LISTENING | findstr :${LOCK_PORT}`],
-    { encoding: "utf8", windowsHide: true }
-  ).stdout;
-  const pid = out.trim().split(/\s+/).pop();
-  if (pid && /^\d+$/.test(pid)) {
-    spawnSync("taskkill", ["/PID", pid, "/T", "/F"], { windowsHide: true });
-    await sleep(500);
+  // fallback (mis. daemon versi lama): paksa matikan lewat PID daemon
+  if (platform() === "win32") {
+    const out = spawnSync(
+      "cmd.exe",
+      ["/c", `netstat -ano | findstr LISTENING | findstr :${LOCK_PORT}`],
+      { encoding: "utf8", windowsHide: true }
+    ).stdout;
+    const pid = out.trim().split(/\s+/).pop();
+    if (pid && /^\d+$/.test(pid)) {
+      spawnSync("taskkill", ["/PID", pid, "/T", "/F"], { windowsHide: true });
+      await sleep(500);
+    }
+  } else {
+    // status.json menyimpan PID daemon; SIGTERM cukup untuk mematikannya.
+    try {
+      const st = JSON.parse(await readFile(STATUS_FILE, "utf8")) as { pid?: number };
+      if (st.pid) process.kill(st.pid, "SIGTERM");
+    } catch {}
+    await sleep(700);
   }
+
   return !(await isDaemonRunning());
 }
 
 export function setAutostart(enable: boolean): boolean {
+  if (platform() === "linux") {
+    // XDG autostart: otomatis jalan saat login di desktop (GNOME/KDE/XFCE, dsb).
+    try {
+      if (!enable) {
+        rmSync(AUTOSTART_FILE, { force: true });
+        return true;
+      }
+
+      mkdirSync(dirname(AUTOSTART_FILE), { recursive: true });
+      writeFileSync(
+        AUTOSTART_FILE,
+        [
+          "[Desktop Entry]",
+          "Type=Application",
+          "Name=Node Printer",
+          `Exec="${process.execPath}" --daemon`,
+          "Terminal=false",
+          "X-GNOME-Autostart-enabled=true",
+          "",
+        ].join("\n"),
+        "utf8"
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  if (platform() !== "win32") return false;
+
   const r = enable
     ? spawnSync("reg", ["add", RUN_KEY, "/v", "NodePrinter", "/t", "REG_SZ", "/d", `"${process.execPath}" --daemon`, "/f"], { windowsHide: true })
     : spawnSync("reg", ["delete", RUN_KEY, "/v", "NodePrinter", "/f"], { windowsHide: true });
@@ -111,18 +156,18 @@ export type UninstallStep = { step: string; ok: boolean; note?: string };
 export async function uninstallAll(opts: { removeExe: boolean }): Promise<UninstallStep[]> {
   const res: UninstallStep[] = [];
 
-  // 1. hentikan daemon + tray
+  // 1. hentikan daemon (di Windows ikon tray ikut mati)
   const wasRunning = await isDaemonRunning();
   const stopped = await stopDaemon();
   res.push({
-    step: "Hentikan daemon & ikon tray",
+    step: platform() === "win32" ? "Hentikan daemon & ikon tray" : "Hentikan daemon",
     ok: !(await isDaemonRunning()),
     note: wasRunning ? (stopped ? undefined : "gagal dihentikan") : "tidak sedang berjalan",
   });
 
   // 2. hapus auto-start
   const hadAuto = setAutostart(false);
-  res.push({ step: "Hapus auto-start Windows", ok: true, note: hadAuto ? undefined : "tidak aktif" });
+  res.push({ step: "Hapus auto-start", ok: true, note: hadAuto ? undefined : "tidak aktif" });
 
   // 3. hapus folder config (token, server, printer, log, tray script)
   let ok = false, err = "";
@@ -146,15 +191,24 @@ export async function uninstallAll(opts: { removeExe: boolean }): Promise<Uninst
     res.push({ step: `Hapus log (${LOG_FILE})`, ok: false, note: e instanceof Error ? e.message : String(e) });
   }
 
-  // 4. hapus file .exe (tidak bisa saat masih jalan -> dijadwalkan setelah proses ini selesai)
+  // 4. hapus file aplikasi (Windows tidak bisa menghapus exe yang sedang jalan,
+  //    jadi dijadwalkan setelah proses ini selesai; Linux boleh langsung).
   if (opts.removeExe && COMPILED) {
-    spawn("cmd.exe", ["/c", `ping 127.0.0.1 -n 4 >nul & del /f /q "${process.execPath}"`], {
-      detached: true,
-      windowsHide: true,
-      windowsVerbatimArguments: true,
-      stdio: "ignore",
-    }).unref();
-    res.push({ step: "Hapus file aplikasi (.exe)", ok: true, note: "dihapus beberapa detik setelah ditutup" });
+    if (platform() === "win32") {
+      spawn("cmd.exe", ["/c", `ping 127.0.0.1 -n 4 >nul & del /f /q "${process.execPath}"`], {
+        detached: true,
+        windowsHide: true,
+        windowsVerbatimArguments: true,
+        stdio: "ignore",
+      }).unref();
+      res.push({ step: "Hapus file aplikasi (.exe)", ok: true, note: "dihapus beberapa detik setelah ditutup" });
+    } else {
+      spawn("sh", ["-c", `sleep 1; rm -f "$1"`, "sh", process.execPath], {
+        detached: true,
+        stdio: "ignore",
+      }).unref();
+      res.push({ step: "Hapus file aplikasi", ok: true, note: "dihapus beberapa detik setelah ditutup" });
+    }
   }
 
   return res;
@@ -196,7 +250,6 @@ export async function loadConfig() {
 import { runSSELoop, type SSEEvent, type SSEState, type CommandContext } from "./see";
 import * as custom from "./Commands";
 
-const STATUS_FILE = join(CONF_DIR, "status.json");
 let sseCtrl: AbortController | null = null;
 
 async function setStatus(state: SSEState | "unpaired" | "error", info?: string) {
@@ -421,15 +474,21 @@ export async function runDaemon() {
     }, 500);
   });
 
-  const tray = await startTray(
-    () => openSetupWindow(),
-    async () => {
-      await log("Daemon exit");
-      server.close();
-      process.exit(0);
-    }
-  );
-  process.on("exit", () => tray.kill());
+  // Tray hanya ada di Windows. Di Linux daemon tetap berjalan headless dan
+  // setup dibuka dengan menjalankan aplikasi lagi.
+  let tray: ChildProcess | null = null;
+
+  if (platform() === "win32") {
+    tray = await startTray(
+      () => openSetupWindow(),
+      async () => {
+        await log("Daemon exit");
+        server.close();
+        process.exit(0);
+      }
+    );
+    process.on("exit", () => tray?.kill());
+  }
 
   // jaga proses tetap hidup
   setInterval(() => {}, 1 << 30);

@@ -1,4 +1,5 @@
 node_modules/
+dist/
 printerClient-relase
 /tauri-qr/src-tauri/target/release
 node-printer.exe

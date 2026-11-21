@@ -1,12 +1,17 @@
-// printpdf.ts — cetak PDF lewat SumatraPDF (portable) memakai konfigurasi dari server
+// printpdf.ts — cetak PDF memakai konfigurasi dari server
 //
-// Khusus Windows.
+// Windows : lewat SumatraPDF (portable), menunggu proses cetak selesai.
+// Linux   : lewat CUPS (`lp`), PDF dikirim ke antrean printer.
 // Alur: ambil config (/api/files/conf/getid) -> pakai printer terpilih dengan prioritas tertinggi
-//       -> susun argumen CLI -> jalankan SumatraPDF -> tunggu selesai
+//       -> susun argumen -> jalankan SumatraPDF / lp -> tunggu selesai
 //
-// Contoh hasil:
+// Contoh Windows:
 //   SumatraPDF.exe -print-to "EPSON L3210 Series" -silent -exit-when-done
 //     -print-settings "paper=210mm x 297mm,portrait,monochrome,1-3,2x" "C:\Users\kamu\Downloads\file.pdf"
+//
+// Contoh Linux:
+//   lp -d EPSON_L3210 -n 2 -o portrait -o print-color-mode=monochrome
+//     -o page-ranges=1-3 -o media=A4 /home/kamu/Downloads/file.pdf
 import { spawn } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -102,6 +107,59 @@ export function buildSettings(conf: PrintConf, warn: (m: string) => void = () =>
   return parts.join(",");
 }
 
+/**
+ * Argumen `lp` (CUPS) untuk Linux. Nilai yang dipakai sama dengan buildSettings,
+ * tapi diterjemahkan ke opsi IPP/CUPS.
+ *
+ *   lp -d <printer> -n 2 -o landscape -o print-color-mode=monochrome \
+ *      -o page-ranges=1-3 -o media=A4 file.pdf
+ */
+export function buildCupsArgs(
+  conf: PrintConf,
+  printer: string,
+  warn: (m: string) => void = () => {}
+): string[] {
+  const args = ["-d", printer];
+
+  const copies = Math.trunc(num(conf.jumlah_cetak));
+  if (copies > 1) args.push("-n", String(copies));
+
+  const ori = norm(conf.orientasi);
+  if (ori === "portrait" || ori === "landscape") args.push("-o", ori);
+
+  const warna = norm(conf.warna);
+  if (warna === "berwarna") args.push("-o", "print-color-mode=color");
+  else if (warna === "hitam putih") args.push("-o", "print-color-mode=monochrome");
+
+  // halaman: custom_halaman > pages_toprint > (kosong = semua)
+  const custom = String(conf.custom_halaman ?? "").replace(/\s+/g, "");
+  const pt = Math.trunc(num(conf.pages_toprint));
+  let halaman = "";
+
+  if (custom) {
+    if (/^[0-9]+(-[0-9]+)?(,[0-9]+(-[0-9]+)?)*$/.test(custom)) halaman = custom;
+    else warn(`custom_halaman "${custom}" tidak valid, diabaikan (cetak semua halaman)`);
+  } else if (pt > 0) {
+    halaman = PAGES_AS_RANGE ? `1-${pt}` : String(pt);
+  }
+
+  if (halaman) args.push("-o", `page-ranges=${halaman}`);
+
+  // ukuran kertas: nama standar kalau cocok, selain itu ukuran mm langsung.
+  // CUPS menerima media=A4 maupun media=210x297mm.
+  const w = num(conf.paper_width), h = num(conf.paper_height);
+  if (w > 0 && h > 0) {
+    const nama = namedPaper(w, h);
+    const media = nama
+      ? ({ letter: "Letter", legal: "Legal", tabloid: "Tabloid", statement: "Statement" } as Record<string, string>)[nama] ?? nama
+      : `${w}x${h}mm`;
+
+    args.push("-o", `media=${media}`);
+  }
+
+  return args;
+}
+
 /* ───────────── Cari SumatraPDF ───────────── */
 
 export function findSumatra(): string | null {
@@ -185,7 +243,7 @@ export async function probePrinter(ctx: CommandContext): Promise<PrinterDownErro
 
   try {
     const found = findPrinterByName(await listPrinters(), top.name);
-    if (!found) return new PrinterDownError(top.name, "tidak terdeteksi di Windows");
+    if (!found) return new PrinterDownError(top.name, "tidak terdeteksi di sistem");
     if (!found.online) return new PrinterDownError(top.name, found.detail);
     return null;
   } catch (e) {
@@ -216,9 +274,10 @@ async function pickPrinter(ctx: CommandContext): Promise<string> {
 function run(exe: string, args: string[]): Promise<number> {
   return new Promise((resolve, reject) => {
     const p = spawn(exe, args, { stdio: "ignore", windowsHide: true });
+    const nama = exe.split(/[\\/]/).pop() ?? exe;
     const t = setTimeout(() => {
       p.kill();
-      reject(new Error(`SumatraPDF tidak selesai dalam ${PRINT_TIMEOUT / 1000} detik, dihentikan`));
+      reject(new Error(`${nama} tidak selesai dalam ${PRINT_TIMEOUT / 1000} detik, dihentikan`));
     }, PRINT_TIMEOUT);
     p.once("error", (e) => { clearTimeout(t); reject(e); });
     p.once("exit", (code) => { clearTimeout(t); resolve(code ?? 0); });
@@ -228,10 +287,34 @@ function run(exe: string, args: string[]): Promise<number> {
 // cetak berurutan: satu job selesai dulu, baru job berikutnya
 let queue: Promise<unknown> = Promise.resolve();
 
-/** Ambil config dari server lalu cetak `file` lewat SumatraPDF. Throw kalau gagal. */
+/** Ambil config dari server lalu cetak `file` lewat SumatraPDF (Windows) atau CUPS `lp` (Linux). */
 export function printFile(file: string, fileid: string, ctx: CommandContext): Promise<void> {
   const job = queue.then(async () => {
-    if (process.platform !== "win32") throw new Error("print hanya didukung di Windows");
+    if (process.platform !== "win32" && process.platform !== "linux") {
+      throw new Error(`print belum didukung di sistem "${process.platform}"`);
+    }
+    if (!existsSync(file)) throw new Error(`file tidak ada: ${file}`);
+
+    const conf = await fetchConf(fileid, ctx);
+    const printer = await pickPrinter(ctx);
+
+    if (process.platform === "linux") {
+      if (!Bun.which("lp")) {
+        throw new Error("perintah lp tidak ditemukan; pastikan CUPS dan paket cups-client terpasang");
+      }
+
+      const args = buildCupsArgs(conf, printer, (m) => void ctx.log("print: " + m));
+
+      // hanya untuk log (token tidak ada di sini)
+      const shown = [...args, file].map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(" ");
+      await ctx.log(`print: lp ${shown}`);
+
+      const code = await run("lp", [...args, file]);
+      if (code !== 0) throw new Error(`lp exit code ${code}`);
+      await ctx.log(`print selesai (dikirim ke CUPS): ${file}`);
+      return;
+    }
+
     const exe = findSumatra();
     if (!exe) {
       throw new Error(
@@ -239,11 +322,8 @@ export function printFile(file: string, fileid: string, ctx: CommandContext): Pr
         "atau set env NODE_PRINTER_SUMATRA=<path exe>"
       );
     }
-    if (!existsSync(file)) throw new Error(`file tidak ada: ${file}`);
 
-    const conf = await fetchConf(fileid, ctx);
     const settings = buildSettings(conf, (m) => void ctx.log("print: " + m));
-    const printer = await pickPrinter(ctx);
 
     const args = [
       "-print-to", printer,

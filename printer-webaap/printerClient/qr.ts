@@ -12,7 +12,7 @@ import { loggedFetch } from "./logger";
 /* ───────────── Konfigurasi ───────────── */
 
 export const QR_PATH = "/api/computer/scanqr";
-const QR_BIN_NAME = "tauri-qr.exe";
+const QR_BIN_NAME = process.platform === "win32" ? "tauri-qr.exe" : "tauri-qr";
 
 /** Atur cara kirim token ke server di sini (samakan dengan see.ts kalau perlu). */
 function buildRequest(token: string): RequestInit {
@@ -25,7 +25,7 @@ function buildRequest(token: string): RequestInit {
 
 /* ───────────── Helpers ───────────── */
 
-/** Cari tauri-qr.exe: env > sebelah .exe ini > folder kerja > hasil build cargo */
+/** Cari binary QR: env > sebelah aplikasi ini > folder kerja > hasil build cargo */
 export function findQrBinary(): string | null {
   const candidates = [
     process.env.NODE_PRINTER_QR_BIN,
@@ -71,7 +71,7 @@ export async function prepareQr(): Promise<QrJob> {
   const bin = findQrBinary();
   if (!bin) {
     throw new Error(
-      `${QR_BIN_NAME} tidak ditemukan. Build: bun run build:qr, lalu taruh di sebelah node-printer.exe`
+      `${QR_BIN_NAME} tidak ditemukan. Build: bun run build:qr, lalu taruh di sebelah aplikasi ini`
     );
   }
   const cfg = await loadConfig();

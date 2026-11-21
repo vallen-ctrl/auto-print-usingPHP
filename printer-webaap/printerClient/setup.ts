@@ -438,9 +438,9 @@ export async function uninstallFlow() {
   note(
     "Yang akan dihapus:\n" +
       pc.red("  • ") + "Daemon background & ikon system tray (dihentikan)\n" +
-      pc.red("  • ") + "Auto-start Windows\n" +
+      pc.red("  • ") + "Auto-start\n" +
       pc.red("  • ") + "Semua config, token & log: " + pc.dim(CONF_DIR) +
-      (IS_COMPILED ? "\n" + pc.red("  • ") + "File aplikasi .exe (opsional, ditanya berikutnya)" : ""),
+      (IS_COMPILED ? "\n" + pc.red("  • ") + "File aplikasi (opsional, ditanya berikutnya)" : ""),
     pc.red("Uninstall")
   );
 
@@ -479,12 +479,18 @@ export async function uninstallFlow() {
 /* ───────────────────────── Exit notice ───────────────────────── */
 
 async function closeWithNotice(seconds = 10): Promise<never> {
+  const caraBuka =
+    platform() === "win32"
+      ? pc.cyan("  1. ") + "Klik ikon panah " + pc.bold("^") + " di taskbar (system tray)\n" +
+        pc.cyan("  2. ") + "Klik kanan / dobel klik ikon " + pc.bold("Node Printer") + "\n" +
+        pc.cyan("  3. ") + "Pilih " + pc.bold("Buka Setup")
+      : pc.cyan("  1. ") + "Jalankan aplikasi ini lagi untuk membuka setup\n" +
+        pc.cyan("  2. ") + "Atau jalankan " + pc.bold("uninstall") + " untuk menghentikan daemon";
+
   note(
     "Node Printer " + pc.green("tetap berjalan di background") + ".\n\n" +
       "Untuk membukanya lagi:\n" +
-      pc.cyan("  1. ") + "Klik ikon panah " + pc.bold("^") + " di taskbar (system tray)\n" +
-      pc.cyan("  2. ") + "Klik kanan / dobel klik ikon " + pc.bold("Node Printer") + "\n" +
-      pc.cyan("  3. ") + "Pilih " + pc.bold("Buka Setup"),
+      caraBuka,
     "Info"
   );
 
