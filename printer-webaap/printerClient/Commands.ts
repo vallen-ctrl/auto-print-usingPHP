@@ -9,6 +9,7 @@
 // `data` sudah di-parse JSON kalau valid, kalau tidak berupa string mentah.
 import { createWriteStream, existsSync, renameSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import { homedir } from "node:os";
 import { dirname, join, parse, resolve, sep } from "node:path";
 import { Readable } from "node:stream";
@@ -20,7 +21,18 @@ type Handler = (data: any, ctx: CommandContext, ev: SSEEvent) => void | Promise<
 
 /* ═════════════════════ DOWNLOAD & DELETE FILE ═════════════════════ */
 
-const DOWNLOAD_DIR = join(homedir(), "Downloads");
+const DOWNLOAD_DIR = (() => {
+  // Linux: ikuti folder Download dari xdg-user-dir (bisa beda bahasa/lokasi).
+  if (process.platform === "linux") {
+    try {
+      const r = spawnSync("xdg-user-dir", ["DOWNLOAD"], { encoding: "utf8" });
+      const p = (r.stdout ?? "").trim();
+      if (r.status === 0 && p && p !== homedir()) return p;
+    } catch {}
+  }
+
+  return join(homedir(), "Downloads");
+})();
 const DOWNLOAD_TIMEOUT = 10 * 60_000; // 10 menit per file
 const PARALLEL = 3; // maksimal download bersamaan
 const SKIP_IF_DOWNLOADED = true; // id yang filenya masih ada di Downloads tidak diunduh ulang
@@ -28,14 +40,17 @@ const SKIP_IF_DOWNLOADED = true; // id yang filenya masih ada di Downloads tidak
 /** Kalau nama file sudah dipakai file lain: "rename" -> nama (1).ext | "overwrite" -> timpa */
 const ON_CONFLICT: "rename" | "overwrite" = "rename";
 
-/* ── Nama file: TIDAK diubah, kecuali melanggar aturan penamaan Windows ── */
+/* ── Nama file: dipertahankan, hanya dibersihkan dari karakter yang tidak aman ── */
 
-const INVALID_CHARS = /[<>:"/\\|?*\x00-\x1f]/g; // karakter terlarang
+const INVALID_CHARS = /[<>:"/\\|?*\x00-\x1f]/g; // karakter terlarang (paling ketat di Windows)
 const RESERVED = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])$/i; // nama perangkat (CON.txt juga terlarang)
 
-function windowsSafeName(name: string, fallback: string): string {
-  // sisakan ruang untuk " (99)" dan batas path Windows 260 karakter
-  const maxLen = Math.max(20, Math.min(255, 259 - DOWNLOAD_DIR.length - 1 - 6));
+function safeFileName(name: string, fallback: string): string {
+  // Windows: sisakan ruang untuk " (99)" dan batas path 260 karakter.
+  // Linux: batas nama file 255 byte, 200 karakter aman untuk UTF-8.
+  const maxLen = process.platform === "win32"
+    ? Math.max(20, Math.min(255, 259 - DOWNLOAD_DIR.length - 1 - 6))
+    : 200;
 
   let n = name.replace(INVALID_CHARS, "_"); // 1. karakter terlarang -> "_"
   n = n.replace(/[. ]+$/, ""); //              2. tidak boleh diakhiri titik / spasi
@@ -146,7 +161,7 @@ async function downloadFile(fileid: string, ctx: CommandContext): Promise<string
 
   await mkdir(DOWNLOAD_DIR, { recursive: true });
   const original = filenameFromHeader(res.headers.get("content-disposition")) ?? `file-${fileid}`;
-  const name = windowsSafeName(original, `file-${fileid}`);
+  const name = safeFileName(original, `file-${fileid}`);
   const tmp = join(DOWNLOAD_DIR, `.nodeprinter-${fileid.slice(0, 40)}.part`); // nama sementara
 
   try {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Computer;
 use App\Models\FileQueue;
+use App\Service\AntreanCetak;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -134,7 +135,7 @@ class KomputerController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, AntreanCetak $antrean)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:100',
@@ -159,9 +160,18 @@ class KomputerController extends Controller
             'toko_id' => hex2bin($validated['toko_id']),
         ]);
 
+        // Kalau ini komputer pertama, ambil file lunas yang sebelumnya gagal
+        // masuk antrean karena toko belum punya komputer sama sekali.
+        $antreanDipulihkan = 0;
+
+        if (Computer::count() === 1) {
+            $antreanDipulihkan = $antrean->untukFileYangBelumTerantre();
+        }
+
         return response()->json([
             'token' => bin2hex($token),
             'id' => str_replace("-", "", $id->toString()),
+            'antrean_dipulihkan' => $antreanDipulihkan,
         ], 201);
     }
 

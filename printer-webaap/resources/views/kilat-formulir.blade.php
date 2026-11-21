@@ -5,6 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $branding['nama'] }} - Formulir Cetak Kilat</title>
+    <x-favicon />
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -48,7 +49,7 @@
             <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M15 5 8 12l7 7" />
             </svg>
-            Kembali
+            <span class="btn-label">Kembali</span>
         </wired-button>
 
         <div class="site-header-brand">
@@ -174,7 +175,7 @@
                     </div>{{-- /.konfigurasi-cetak --}}
 
                     <div class="form-footer">
-                        <wired-button roughness="1.2" elevation="1" id="btn-pembayaran" class="pay-button">Lanjut proses pembayaran</wired-button>
+                        <wired-button roughness="1.2" elevation="1" id="btn-pembayaran" class="pay-button"><span class="btn-label">Lanjut proses pembayaran</span></wired-button>
                         <div class="form-totals">
                             @if ($mode === 'komputer')
                             <p class="form-subtotal">SUB TOTAL: akan ditentukan di kasir</p>

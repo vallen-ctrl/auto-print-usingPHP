@@ -5,6 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $branding['nama'] }} - Cetak Kilat</title>
+    <x-favicon />
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +26,7 @@
             <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M15 5 8 12l7 7" />
             </svg>
-            Kembali
+            <span class="btn-label">Kembali</span>
         </wired-button>
 
         <div class="site-header-brand">
@@ -35,6 +36,14 @@
     </header>
 
     <main class="print-main">
+        <header class="print-intro">
+            <h1 class="print-title">Edit di Mana?</h1>
+            <p class="print-lead">
+                Cetak kilat harus dilakukan di toko. Pilih tempat mengedit file sebelum
+                dicetak, lalu tunjukkan halaman ini ke petugas.
+            </p>
+        </header>
+
         <wired-card roughness="1.2" elevation="1" class="print-card">
             <div class="print-card-inner">
                 <wired-button
@@ -44,7 +53,7 @@
                     class="print-button"
                     data-href="{{ route('kilat.upload', ['mode' => 'komputer']) }}"
                     data-tempat="Komputer">
-                    Edit di Komputer
+                    <span class="btn-label">Edit di Komputer</span>
                 </wired-button>
 
                 <wired-button
@@ -54,7 +63,7 @@
                     class="print-button"
                     data-href="{{ route('kilat.upload', ['mode' => 'handphone']) }}"
                     data-tempat="Handphone">
-                    Edit di Handphone
+                    <span class="btn-label">Edit di Handphone</span>
                 </wired-button>
             </div>
         </wired-card>

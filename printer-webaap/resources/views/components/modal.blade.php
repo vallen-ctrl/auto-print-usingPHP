@@ -208,6 +208,14 @@ $atribut['data-modal-dismissible'] = 'true';
         white-space: pre-line; /* <-- TAMBAHAN: Biar \n atau enter di pesan error jadi baris baru */
     }
 
+    /* Hanya dua bobot font yang dimuat (Caveat 600, Patrick Hand 400), jadi
+       <strong> tidak boleh memalsukan tebal. Tekankan dengan garis bawah. */
+    wired-dialog.modal .modal__text strong {
+        font-weight: 400;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
     wired-dialog.modal .modal__sr {
         position: absolute;
         width: 1px;
@@ -239,6 +247,14 @@ $atribut['data-modal-dismissible'] = 'true';
         color: var(--color-text, #1f1f1f);
         font-family: inherit;
         font-size: var(--fs-body, 1.0625rem);
+    }
+
+    /* Shadow DOM wired-button memaksa uppercase; label dikembalikan ke huruf
+       normal. Ditulis di sini juga karena modal dipakai halaman dashboard
+       yang tidak mengimpor sketsa.css. */
+    wired-dialog.modal wired-button .btn-label {
+        text-transform: none;
+        letter-spacing: 0.01em;
     }
 
     wired-dialog.modal wired-button:not(.wired-rendered),
@@ -306,7 +322,7 @@ $atribut['data-modal-dismissible'] = 'true';
             @if ($adaAksi)
             {{ $aksiSlot }}
             @else
-            <wired-button roughness="1.2" elevation="1" data-modal-close>{{ $closeLabel }}</wired-button>
+            <wired-button roughness="1.2" elevation="1" data-modal-close><span class="btn-label">{{ $closeLabel }}</span></wired-button>
             @endif
         </div>
         @endif

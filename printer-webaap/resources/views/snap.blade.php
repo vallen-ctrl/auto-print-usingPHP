@@ -8,6 +8,7 @@
         data-client-key="{{config('midtrans.')}}"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+    <x-favicon />
 </head>
 
 <body>

@@ -9,7 +9,7 @@ import { existsSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { join } from "node:path";
 import { createCipheriv, randomBytes, scryptSync } from "node:crypto";
-import { uninstallAll, IS_COMPILED, isDaemonRunning } from "./daemon";
+import { uninstallAll, IS_COMPILED, isDaemonRunning, stopDaemon } from "./daemon";
 import { openSSE, readSSE } from "./see";
 import { prepareQr, showQr } from "./qr";
 import { log as writeLog } from "./logger";
@@ -438,9 +438,9 @@ export async function uninstallFlow() {
   note(
     "Yang akan dihapus:\n" +
       pc.red("  • ") + "Daemon background & ikon system tray (dihentikan)\n" +
-      pc.red("  • ") + "Auto-start Windows\n" +
+      pc.red("  • ") + "Auto-start\n" +
       pc.red("  • ") + "Semua config, token & log: " + pc.dim(CONF_DIR) +
-      (IS_COMPILED ? "\n" + pc.red("  • ") + "File aplikasi .exe (opsional, ditanya berikutnya)" : ""),
+      (IS_COMPILED ? "\n" + pc.red("  • ") + "File aplikasi (opsional, ditanya berikutnya)" : ""),
     pc.red("Uninstall")
   );
 
@@ -479,12 +479,25 @@ export async function uninstallFlow() {
 /* ───────────────────────── Exit notice ───────────────────────── */
 
 async function closeWithNotice(seconds = 10): Promise<never> {
+  // Kalau daemon sudah dimatikan (mis. lewat menu Hentikan daemon), tidak perlu
+  // menampilkan instruksi membukanya lagi.
+  if (!(await isDaemonRunning())) {
+    outro("Sampai jumpa 👋");
+    process.exit(0);
+  }
+
+  const caraBuka =
+    platform() === "win32"
+      ? pc.cyan("  1. ") + "Klik ikon panah " + pc.bold("^") + " di taskbar (system tray)\n" +
+        pc.cyan("  2. ") + "Klik kanan / dobel klik ikon " + pc.bold("Node Printer") + "\n" +
+        pc.cyan("  3. ") + "Pilih " + pc.bold("Buka Setup")
+      : pc.cyan("  1. ") + "Jalankan aplikasi ini lagi untuk membuka setup\n" +
+        pc.cyan("  2. ") + "Untuk menghentikan daemon: " + pc.bold("node-printer stop");
+
   note(
     "Node Printer " + pc.green("tetap berjalan di background") + ".\n\n" +
       "Untuk membukanya lagi:\n" +
-      pc.cyan("  1. ") + "Klik ikon panah " + pc.bold("^") + " di taskbar (system tray)\n" +
-      pc.cyan("  2. ") + "Klik kanan / dobel klik ikon " + pc.bold("Node Printer") + "\n" +
-      pc.cyan("  3. ") + "Pilih " + pc.bold("Buka Setup"),
+      caraBuka,
     "Info"
   );
 
@@ -522,6 +535,7 @@ export async function main() {
         { value: "server", label: "🔗  Konek ke server", hint: "pairing pakai token dari admin panel" },
         { value: "printer", label: "🖨️   Printer", hint: "lihat status & atur prioritas" },
         { value: "qr", label: "🔳  Scan QR", hint: "buka window QR (Tauri)" },
+        { value: "stop", label: "⏹️   Hentikan daemon", hint: "matikan proses background tanpa hapus config" },
         { value: "uninstall", label: "🗑️   Uninstall", hint: "hapus daemon, config & semua file" },
         { value: "exit", label: "🚪  Keluar" },
       ],
@@ -534,6 +548,19 @@ export async function main() {
     if (choice === "server") await connectServer();
     if (choice === "printer") await managePrinters();
     if (choice === "qr") await qrFlow();
+
+    if (choice === "stop") {
+      if (!(await isDaemonRunning())) {
+        log.info("Daemon tidak sedang berjalan.");
+      } else {
+        const ok = await stopDaemon();
+        ok ? log.success("Daemon dihentikan.") : log.error("Gagal menghentikan daemon.");
+      }
+
+      await sleep(1200);
+      continue;
+    }
+
     if (choice === "uninstall") await uninstallFlow();
   }
 }

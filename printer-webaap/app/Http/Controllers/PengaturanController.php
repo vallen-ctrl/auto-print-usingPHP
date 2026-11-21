@@ -52,9 +52,9 @@ class PengaturanController extends Controller
         $pengaturan = [
             'nama_toko'         => $toko->name ?? 'Toko print saya',
             'logo_url'          => $toko?->logo_path ? asset('storage/' . $toko->logo_path) : null,
+            'favicon_url'       => Branding::get()['favicon_url'],
             'status_buka'       => $pengaturanTersimpan ? (bool) $pengaturanTersimpan->status_buka : true,
             'biaya_admin'       => $pengaturanTersimpan->biaya_admin ?? 20000,
-            'biaya_layanan'     => $pengaturanTersimpan->biaya_layanan ?? 20000,
             'lama_file_dihapus' => $pengaturanTersimpan->lama_file_dihapus ?? 5,
         ];
 
@@ -66,9 +66,9 @@ class PengaturanController extends Controller
         $validated = $request->validate([
             'nama_toko'           => 'required|string|max:255',
             'logo'                => 'nullable|image|mimes:png,jpg,jpeg,webp|max:2048',
+            'favicon'             => 'nullable|file|mimes:ico|max:512',
             'status_buka'         => 'required|boolean',
             'biaya_admin'         => 'required|integer|min:0',
-            'biaya_layanan'       => 'required|integer|min:0',
             'lama_file_dihapus'   => 'required|integer|min:1|max:365',
             'jam'                 => 'required|array|min:1',
             'jam.*.nomor_hari'    => 'required|integer|between:1,7',
@@ -82,14 +82,14 @@ class PengaturanController extends Controller
             'logo.image'                 => 'Logo harus berupa gambar.',
             'logo.mimes'                 => 'Logo harus berformat PNG, JPG, JPEG, atau WEBP.',
             'logo.max'                   => 'Ukuran logo maksimal 2 MB.',
+            'favicon.file'               => 'Ikon tab browser tidak valid.',
+            'favicon.mimes'              => 'Ikon tab browser harus berformat .ico.',
+            'favicon.max'                => 'Ukuran ikon tab browser maksimal 512 KB.',
             'status_buka.required'       => 'Status buka wajib diisi.',
             'status_buka.boolean'        => 'Status buka tidak valid.',
             'biaya_admin.required'       => 'Biaya admin wajib diisi.',
             'biaya_admin.integer'        => 'Biaya admin harus berupa angka.',
             'biaya_admin.min'            => 'Biaya admin tidak boleh negatif.',
-            'biaya_layanan.required'     => 'Biaya layanan wajib diisi.',
-            'biaya_layanan.integer'      => 'Biaya layanan harus berupa angka.',
-            'biaya_layanan.min'          => 'Biaya layanan tidak boleh negatif.',
             'lama_file_dihapus.required' => 'Lama penyimpanan file wajib diisi.',
             'lama_file_dihapus.integer'  => 'Lama penyimpanan file harus berupa angka.',
             'lama_file_dihapus.min'      => 'Lama penyimpanan file minimal 1 hari.',
@@ -119,7 +119,6 @@ class PengaturanController extends Controller
                 [
                     'status_buka'       => $validated['status_buka'],
                     'biaya_admin'       => $validated['biaya_admin'],
-                    'biaya_layanan'     => $validated['biaya_layanan'],
                     'lama_file_dihapus' => $validated['lama_file_dihapus'],
                 ]
             );
@@ -155,12 +154,19 @@ class PengaturanController extends Controller
             }
         });
 
+        // Ikon tab browser memakai nama tetap supaya semua halaman otomatis
+        // memakai file yang sama tanpa perlu kolom tambahan di database.
+        if ($request->hasFile('favicon')) {
+            Storage::disk('public')->putFileAs('toko', $request->file('favicon'), 'favicon.ico');
+        }
+
         Branding::lupakan();
 
         return response()->json([
             'message' => 'Pengaturan berhasil disimpan.',
             'nama_toko' => $toko->name,
             'logo_url' => $toko->logo_path ? asset('storage/' . $toko->logo_path) : null,
+            'favicon_url' => Branding::get()['favicon_url'],
         ]);
     }
 

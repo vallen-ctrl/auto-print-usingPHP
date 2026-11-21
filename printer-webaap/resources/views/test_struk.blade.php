@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Struk Pembayaran</title>
+    <x-favicon />
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,6 +17,8 @@
 </head>
 
 <body>
+    <h1 class="visually-hidden">Struk Pembayaran</h1>
+
     {{-- Ingatkan user menyimpan struk. Dibuka otomatis saat struk tampil. --}}
     <x-modal
         id="modal-struk"
@@ -28,8 +31,8 @@
         Pastikan kamu sudah screenshot atau menyimpan struk ini, atau salin URL-nya. Kalau keluar
         tanpa menyimpannya, pesanan akan sulit dicari.
         <x-slot:actions>
-            <wired-button roughness="1.2" elevation="1" data-modal-close>Tetap di sini</wired-button>
-            <wired-button roughness="1.2" elevation="2" id="btn-keluar">Ya, keluar</wired-button>
+            <wired-button roughness="1.2" elevation="1" data-modal-close><span class="btn-label">Tetap di sini</span></wired-button>
+            <wired-button roughness="1.2" elevation="2" id="btn-keluar"><span class="btn-label">Ya, keluar</span></wired-button>
         </x-slot:actions>
     </x-modal>
 
@@ -43,7 +46,7 @@
             <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M15 5 8 12l7 7" />
             </svg>
-            Kembali
+            <span class="btn-label">Kembali</span>
         </wired-button>
 
         <div class="site-header-brand">

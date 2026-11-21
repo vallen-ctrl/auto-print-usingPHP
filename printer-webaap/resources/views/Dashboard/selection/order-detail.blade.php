@@ -4,6 +4,42 @@
 
 @php
     $rupiah = fn ($v) => 'Rp. ' . number_format((int) $v, 0, ',', '.');
+
+    // Nomor WhatsApp pelanggan (kalau ada) dinormalkan ke format internasional
+    // supaya link wa.me bisa langsung dibuka.
+    $nomorWa = $pelanggan && filled($pelanggan->no_wa)
+        ? preg_replace('/\D+/', '', (string) $pelanggan->no_wa)
+        : '';
+
+    if ($nomorWa !== '') {
+        if (str_starts_with($nomorWa, '0')) {
+            $nomorWa = '62' . substr($nomorWa, 1);
+        } elseif (str_starts_with($nomorWa, '8')) {
+            $nomorWa = '62' . $nomorWa;
+        } elseif (! str_starts_with($nomorWa, '62')) {
+            $nomorWa = '62' . $nomorWa;
+        }
+    }
+
+    $pesanWa = 'Halo ' . ($pelanggan?->name ?: 'pelanggan')
+        . ', ini dari toko cetak. Kami ingin mengonfirmasi pesanan Anda (order '
+        . substr($id, 0, 8) . ').';
+
+    $tautanWa = $nomorWa !== ''
+        ? 'https://wa.me/' . $nomorWa . '?text=' . rawurlencode($pesanWa)
+        : null;
+
+    // Warna badge status pembayaran, sama dengan yang dipakai di halaman Order.
+    $badgeBayar = [
+        'pending'    => 'bg-warning-soft text-warning-strong',
+        'processing' => 'bg-blue-100 text-blue-800',
+        'paid'       => 'bg-success-soft text-success-strong',
+        'failed'     => 'bg-danger-soft text-danger-strong',
+        'fail'       => 'bg-danger-soft text-danger-strong',
+        'refunded'   => 'bg-muted text-ink-muted',
+    ];
+
+    $statusBayar = $order->status_pembayaran ?: '-';
 @endphp
 
 @section('content')
@@ -23,12 +59,29 @@
                 <dd class="font-medium break-all text-ink">{{ $id }}</dd>
             </div>
             <div class="flex flex-wrap items-baseline gap-2">
+                <dt class="text-ink-muted">Pelanggan</dt>
+                <dd class="font-medium text-ink">
+                    <span>{{ $pelanggan?->name ?: '-' }}</span>
+                    @if ($tautanWa)
+                        <a href="{{ $tautanWa }}" target="_blank" rel="noopener"
+                            class="ml-1 inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary-hover focus:outline-none focus-visible:underline">
+                            <x-lucide-message-circle class="size-4" aria-hidden="true" />
+                            WhatsApp
+                        </a>
+                    @endif
+                </dd>
+            </div>
+            <div class="flex flex-wrap items-baseline gap-2">
                 <dt class="text-ink-muted">Waktu order</dt>
                 <dd class="font-medium text-ink">{{ $order->tanggal_pesan ? $order->tanggal_pesan->format('d/m/Y H:i') : '-' }}</dd>
             </div>
             <div class="flex flex-wrap items-baseline gap-2">
                 <dt class="text-ink-muted">Status pembayaran</dt>
-                <dd class="font-medium capitalize text-ink">{{ $order->status_pembayaran ?: '-' }}</dd>
+                <dd>
+                    <span class="inline-flex items-center rounded-full px-3 py-1 text-sm font-bold uppercase tracking-wide {{ $badgeBayar[$statusBayar] ?? 'bg-muted text-ink-muted' }}">
+                        {{ $statusBayar }}
+                    </span>
+                </dd>
             </div>
             <div class="flex flex-wrap items-baseline gap-2">
                 <dt class="text-ink-muted">Mode cetak</dt>
@@ -42,11 +95,20 @@
             </div>
         </dl>
 
-        <button type="button"
-            class="inline-flex h-10 shrink-0 items-center gap-2 self-start rounded-lg border border-line bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-muted focus:ring-2 focus:ring-primary/30 focus:outline-none">
-            Unduh semua
-            <x-lucide-download class="size-4" aria-hidden="true" />
-        </button>
+        <div class="flex flex-wrap items-center gap-2 self-start">
+            <button type="button" id="btn-refresh-pembayaran"
+                data-url="{{ route('order.refreshpembayaran', $id) }}"
+                class="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white transition-colors hover:bg-primary-hover focus:ring-2 focus:ring-primary/40 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60">
+                <x-lucide-refresh-cw class="size-4" aria-hidden="true" />
+                <span data-label>Refresh pembayaran</span>
+            </button>
+
+            <a href="{{ route('order.downloadsemua', $id) }}"
+                class="inline-flex h-10 items-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-muted focus:ring-2 focus:ring-primary/30 focus:outline-none">
+                Unduh semua
+                <x-lucide-download class="size-4" aria-hidden="true" />
+            </a>
+        </div>
     </div>
 
     @if ($files->isEmpty())
@@ -194,6 +256,35 @@
             Ubah status menjadi berhasil
         </button>
     </div>
+
+    {{-- Modal hasil "Refresh pembayaran" --}}
+    <div id="modal-refresh-pembayaran" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+        <div class="relative p-4 w-full max-w-md max-h-full">
+            <div class="relative bg-white rounded-lg shadow-sm">
+                <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Hasil cek pembayaran</h3>
+                    <button type="button" data-modal-hide="modal-refresh-pembayaran"
+                        class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center">
+                        <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" />
+                        </svg>
+                        <span class="sr-only">Tutup</span>
+                    </button>
+                </div>
+                <div class="p-4 md:p-5 text-center">
+                    <p id="pesan-refresh-pembayaran" class="mb-6 text-sm leading-relaxed text-ink"></p>
+                    <button type="button" data-modal-hide="modal-refresh-pembayaran"
+                        class="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-hover focus:ring-4 focus:ring-primary/30 focus:outline-none">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Pemicu tersembunyi: dipakai JavaScript untuk membuka modal lewat Flowbite. --}}
+    <button type="button" id="pemicu-modal-refresh" class="hidden" tabindex="-1" aria-hidden="true"
+        data-modal-target="modal-refresh-pembayaran" data-modal-toggle="modal-refresh-pembayaran"></button>
 </div>
 
 <script>
@@ -207,6 +298,84 @@ document.addEventListener('DOMContentLoaded', function () {
                 panel.classList.toggle('hidden', panel.id !== 'panel-' + radio.value);
             });
         });
+    });
+
+    /* ---------- Refresh pembayaran ke Midtrans ---------- */
+
+    const tombolRefresh = document.getElementById('btn-refresh-pembayaran');
+    const pemicuModal = document.getElementById('pemicu-modal-refresh');
+    const pesanModal = document.getElementById('pesan-refresh-pembayaran');
+    const KUNCI_PESAN = 'refresh-pembayaran-pesan';
+
+    const bukaPopup = (pesan) => {
+        if (!pemicuModal || !pesanModal) {
+            return;
+        }
+
+        pesanModal.textContent = pesan;
+        pemicuModal.click();
+    };
+
+    try {
+        const pesanTertunda = window.sessionStorage.getItem(KUNCI_PESAN);
+
+        if (pesanTertunda) {
+            window.sessionStorage.removeItem(KUNCI_PESAN);
+            bukaPopup(pesanTertunda);
+        }
+    } catch (error) {
+        // sessionStorage bisa diblokir browser; popup tetap muncul tanpa reload.
+    }
+
+    tombolRefresh?.addEventListener('click', async function () {
+        const label = tombolRefresh.querySelector('[data-label]');
+        const labelAwal = label ? label.textContent : '';
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+        tombolRefresh.disabled = true;
+
+        if (label) {
+            label.textContent = 'Memeriksa...';
+        }
+
+        try {
+            const respons = await fetch(tombolRefresh.dataset.url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json',
+                },
+            });
+
+            const data = await respons.json().catch(() => ({}));
+
+            if (!respons.ok) {
+                throw new Error(data.pesan || data.message || 'Gagal memeriksa pembayaran.');
+            }
+
+            // Ada perubahan status: muat ulang halaman supaya tampilan ikut
+            // diperbarui, lalu modal pesan muncul setelah halaman dimuat.
+            if (data.berubah) {
+                try {
+                    window.sessionStorage.setItem(KUNCI_PESAN, data.pesan);
+                } catch (error) {
+                    // abaikan; popup tetap dicoba setelah reload
+                }
+
+                window.location.reload();
+                return;
+            }
+
+            bukaPopup(data.pesan || 'Tidak ada perubahan status pembayaran.');
+        } catch (error) {
+            bukaPopup(error.message || 'Gagal menghubungi server. Coba lagi.');
+        } finally {
+            tombolRefresh.disabled = false;
+
+            if (label) {
+                label.textContent = labelAwal;
+            }
+        }
     });
 });
 </script>

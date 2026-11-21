@@ -9,6 +9,7 @@ $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Konfirmasi Pembayaran</title>
+    <x-favicon />
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,9 +24,9 @@ $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
 </head>
 
 <body>
-    <div id="bgRolling" style="position:fixed;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:oklch(55.2% 0.016 285.938 / 0.6);">
+    <div id="bgRolling" class="page-overlay">
         <x-loader />
-        <p style="color:#000;font-weight:600;letter-spacing:0.1em;font-size:1.2em">Mohon tunggu..</p>
+        <p class="page-overlay-text">Mohon tunggu…</p>
     </div>
     {{-- Total untuk kilat-edit kosong karena harga menyesuaikan setelah diedit. --}}
     @if ($order['harga_menyesuaikan'])
@@ -53,8 +54,8 @@ $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
         sebelumnya dianggap gagal, jadi file harus diupload ulang dari awal. Pastikan file
         dan pengaturan cetak sudah benar.
         <x-slot:actions>
-            <wired-button roughness="1.2" elevation="1" data-modal-close>Tidak</wired-button>
-            <wired-button roughness="1.2" elevation="2" id="btn-lanjut-bayar">Ya, lanjutkan</wired-button>
+            <wired-button roughness="1.2" elevation="1" data-modal-close><span class="btn-label">Tidak</span></wired-button>
+            <wired-button roughness="1.2" elevation="2" id="btn-lanjut-bayar"><span class="btn-label">Ya, lanjutkan</span></wired-button>
         </x-slot:actions>
     </x-modal>
 
@@ -68,8 +69,8 @@ $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
         sebelumnya sekarang, pesanan ini langsung dibatalkan dan pembayaran dianggap
         gagal (hangus), jadi file harus diupload ulang dari awal.
         <x-slot:actions>
-            <wired-button roughness="1.2" elevation="1" data-modal-close>Tidak, tetap di sini</wired-button>
-            <wired-button roughness="1.2" elevation="2" id="btn-konfirmasi-keluar">Ya, batalkan pesanan</wired-button>
+            <wired-button roughness="1.2" elevation="1" data-modal-close><span class="btn-label">Tidak, tetap di sini</span></wired-button>
+            <wired-button roughness="1.2" elevation="2" id="btn-konfirmasi-keluar"><span class="btn-label">Ya, batalkan pesanan</span></wired-button>
         </x-slot:actions>
     </x-modal>
 
@@ -82,7 +83,7 @@ $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
         halaman ini. Setelah pesan ini ditutup, kamu akan diarahkan ke beranda untuk
         mulai dari awal.
         <x-slot:actions>
-            <wired-button roughness="1.2" elevation="2" data-modal-close>Kembali ke beranda</wired-button>
+            <wired-button roughness="1.2" elevation="2" data-modal-close><span class="btn-label">Kembali ke beranda</span></wired-button>
         </x-slot:actions>
     </x-modal>
 
@@ -102,7 +103,7 @@ $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
         Waktu pembayaran sudah habis. File Anda dihapus dari server, silakan upload ulang file Anda.
         <x-slot:actions>
             <wired-button roughness="1.2" elevation="1" data-href="{{ url('/') }}">
-                Kembali ke beranda
+                <span class="btn-label">Kembali ke beranda</span>
             </wired-button>
         </x-slot:actions>
     </x-modal>
@@ -125,7 +126,7 @@ $rupiah = fn ($nilai) => 'Rp. ' . number_format((int) $nilai, 0, ',', '.');
             <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M15 5 8 12l7 7" />
             </svg>
-            Kembali
+            <span class="btn-label">Kembali</span>
         </wired-button>
 
         <div class="site-header-brand">

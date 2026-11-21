@@ -53,7 +53,7 @@
                 <x-lucide-search class="size-4 text-ink-muted" aria-hidden="true" />
             </div>
             <input type="search" id="order-search" name="search" value="{{ $search }}"
-                placeholder="Cari order id, status, metode..."
+                placeholder="Cari order id, nama pemesan, status, metode..."
                 class="block h-10 w-full rounded-lg border border-line bg-surface pl-10 pr-3 text-sm text-ink placeholder:text-ink-muted focus:border-primary focus:ring-2 focus:ring-primary/30 focus:outline-none">
         </div>
 
@@ -86,6 +86,7 @@
                 <thead class="border-b border-line bg-muted/60">
                     <tr class="text-ink-muted">
                         <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Order Id</th>
+                        <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Nama pemesan</th>
                         <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Tanggal pesan</th>
                         <th scope="col" class="whitespace-nowrap px-4 py-3 font-medium">Waktu ambil</th>
                         <th scope="col" class="whitespace-nowrap px-4 py-3 text-right font-medium">Total</th>
@@ -118,6 +119,7 @@
                             <td class="whitespace-nowrap px-4 py-3 font-medium">
                                 <span class="block max-w-[9rem] truncate" title="{{ $idHex }}">{{ $idHex }}</span>
                             </td>
+                            <td class="whitespace-nowrap px-4 py-3">{{ $o->nama_pemesan ?: '-' }}</td>
                             <td class="whitespace-nowrap px-4 py-3 text-ink-muted">{{ $pesan }}</td>
                             <td class="whitespace-nowrap px-4 py-3 text-ink-muted">{{ $ambil }}</td>
                             <td class="whitespace-nowrap px-4 py-3 text-right font-medium tabular-nums">{{ $rupiah($o->total_pembayaran) }}</td>
@@ -176,7 +178,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="px-4 py-12">
+                            <td colspan="11" class="px-4 py-12">
                                 <div class="flex flex-col items-center justify-center gap-2 text-center">
                                     <x-lucide-search-x class="size-8 text-ink-muted" aria-hidden="true" />
                                     <p class="text-sm font-medium text-ink">Order tidak ditemukan</p>
