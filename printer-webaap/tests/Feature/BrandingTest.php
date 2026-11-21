@@ -58,6 +58,20 @@ function logoPng(): UploadedFile
     return UploadedFile::fake()->createWithContent('logo-toko.png', $png);
 }
 
+/** ICO 1x1 valid (header + bitmap 32bpp) untuk pengujian ikon tab. */
+function faviconIco(): UploadedFile
+{
+    $header = pack('vvv', 0, 1, 1);
+    $entry = pack('CCCCvvVV', 1, 1, 0, 0, 1, 32, 48, 22);
+    $dib = pack('V', 40) . pack('V', 1) . pack('V', 2)
+        . pack('v', 1) . pack('v', 32)
+        . pack('V', 0) . pack('V', 4)
+        . pack('V', 0) . pack('V', 0) . pack('V', 0) . pack('V', 0)
+        . pack('V', 0) . pack('V', 0);
+
+    return UploadedFile::fake()->createWithContent('favicon.ico', $header . $entry . $dib);
+}
+
 test('halaman pengaturan menampilkan nama toko dan logo yang tersimpan', function () {
     $this->withoutVite();
     Storage::fake('public');
@@ -162,4 +176,46 @@ test('logo harus berupa gambar dengan ukuran wajar', function () {
         ]), ['Accept' => 'application/json'])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('logo');
+});
+
+test('menyimpan ikon tab browser dan memakainya di semua halaman', function () {
+    Storage::fake('public');
+    $session = sesiPengaturan();
+
+    $this->withSession($session)
+        ->post(route('pengaturan.store'), payloadPengaturan([
+            'favicon' => faviconIco(),
+        ]), ['Accept' => 'application/json'])
+        ->assertOk()
+        ->assertJsonPath('favicon_url', fn ($url) => str_contains($url, 'storage/toko/favicon.ico'));
+
+    Storage::disk('public')->assertExists('toko/favicon.ico');
+
+    expect(Branding::get()['favicon_url'])->toContain('storage/toko/favicon.ico');
+
+    // Dashboard mengambil ikon dari file yang baru disimpan.
+    $this->withSession($session)
+        ->get(route('pengaturan.index'))
+        ->assertOk()
+        ->assertSee('rel="icon"', false)
+        ->assertSee('storage/toko/favicon.ico');
+
+    // Halaman customer juga memakai ikon yang sama.
+    $this->withoutVite();
+    $this->get('/')
+        ->assertOk()
+        ->assertSee('rel="icon"', false)
+        ->assertSee('storage/toko/favicon.ico');
+});
+
+test('ikon tab browser harus berformat ico', function () {
+    Storage::fake('public');
+    $session = sesiPengaturan();
+
+    $this->withSession($session)
+        ->post(route('pengaturan.store'), payloadPengaturan([
+            'favicon' => UploadedFile::fake()->create('favicon.png', 100, 'image/png'),
+        ]), ['Accept' => 'application/json'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('favicon');
 });

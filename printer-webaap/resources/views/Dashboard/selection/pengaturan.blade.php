@@ -63,6 +63,36 @@
             </div>
         </section>
 
+        {{-- Ikon tab browser --}}
+        <section class="rounded-xl border border-line bg-surface p-5 shadow-sm">
+            <h2 class="text-base font-semibold text-ink">Ikon tab browser</h2>
+            <p class="mt-0.5 text-sm text-ink-muted">
+                Ikon <span class="font-medium text-ink">.ico</span> ini dipakai sebagai ikon tab di semua
+                halaman customer maupun dashboard.
+            </p>
+
+            <div class="mt-4 flex flex-wrap items-center gap-3">
+                <span id="favicon-preview" class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-muted/40">
+                    @if (!empty($pengaturan['favicon_url']))
+                        <img src="{{ $pengaturan['favicon_url'] }}" alt="Ikon tab browser" class="size-6 object-contain">
+                    @else
+                        <x-lucide-app-window class="size-5 text-ink-muted" aria-hidden="true" />
+                    @endif
+                </span>
+
+                <label for="favicon-input"
+                    class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-muted focus-within:ring-2 focus-within:ring-primary/30">
+                    <x-lucide-upload class="size-4" aria-hidden="true" />
+                    Pilih file .ico
+                </label>
+                <input type="file" id="favicon-input" accept=".ico,image/x-icon,image/vnd.microsoft.icon" class="sr-only">
+
+                <span id="favicon-nama" class="text-sm text-ink-muted">
+                    {{ !empty($pengaturan['favicon_url']) ? 'Ikon sudah tersimpan' : 'Maks. 512 KB' }}
+                </span>
+            </div>
+        </section>
+
         {{-- Biaya --}}
         <section class="rounded-xl border border-line bg-surface p-5 shadow-sm">
             <h2 class="text-base font-semibold text-ink">Biaya</h2>
@@ -175,7 +205,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const logoInput = document.getElementById('logo-input');
     const logoPreview = document.getElementById('logo-preview');
     const namaInput = document.getElementById('nama-toko');
+    const faviconInput = document.getElementById('favicon-input');
+    const faviconPreview = document.getElementById('favicon-preview');
+    const faviconNama = document.getElementById('favicon-nama');
     let logoFile = null;
+    let faviconFile = null;
     if (!form || !bar || !btn || !toast) return;
 
     const csrf = document.querySelector('meta[name="csrf-token"]').content;
@@ -263,6 +297,44 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Pilih ikon tab browser (.ico): dipratinjau dulu, dikirim saat Simpan.
+    if (faviconInput) {
+        faviconInput.addEventListener('change', function () {
+            const file = faviconInput.files && faviconInput.files[0];
+            if (!file) return;
+
+            if (!/\.ico$/i.test(file.name)) {
+                faviconInput.value = '';
+                tampilkanToast(false, 'File tidak valid', 'Ikon tab browser harus berformat .ico.');
+                return;
+            }
+
+            if (file.size > 512 * 1024) {
+                faviconInput.value = '';
+                tampilkanToast(false, 'Ikon terlalu besar', 'Ukuran ikon tab browser maksimal 512 KB.');
+                return;
+            }
+
+            faviconFile = file;
+
+            if (faviconPreview) {
+                const url = URL.createObjectURL(file);
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = 'Pratinjau ikon tab browser';
+                img.className = 'size-6 object-contain';
+                faviconPreview.innerHTML = '';
+                faviconPreview.appendChild(img);
+            }
+
+            if (faviconNama) {
+                faviconNama.textContent = file.name;
+            }
+
+            tampilkanBar();
+        });
+    }
+
     form.addEventListener('input', tampilkanBar);
     form.addEventListener('change', tampilkanBar);
 
@@ -326,6 +398,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 body.append('logo', logoFile);
             }
 
+            if (faviconFile) {
+                body.append('favicon', faviconFile);
+            }
+
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
@@ -355,6 +431,37 @@ document.addEventListener('DOMContentLoaded', function () {
                 img.className = 'size-full object-contain';
                 logoPreview.innerHTML = '';
                 logoPreview.appendChild(img);
+            }
+
+            // Ikon tab browser: tampilkan versi server dan perbarui ikon tab
+            // halaman ini tanpa perlu reload.
+            faviconFile = null;
+            if (faviconInput) faviconInput.value = '';
+
+            if (data.favicon_url) {
+                if (faviconPreview) {
+                    const img = document.createElement('img');
+                    img.src = data.favicon_url;
+                    img.alt = 'Ikon tab browser';
+                    img.className = 'size-6 object-contain';
+                    faviconPreview.innerHTML = '';
+                    faviconPreview.appendChild(img);
+                }
+
+                if (faviconNama) {
+                    faviconNama.textContent = 'Ikon sudah tersimpan';
+                }
+
+                let ikonTab = document.querySelector('link[rel="icon"]');
+
+                if (!ikonTab) {
+                    ikonTab = document.createElement('link');
+                    ikonTab.rel = 'icon';
+                    document.head.appendChild(ikonTab);
+                }
+
+                ikonTab.type = 'image/x-icon';
+                ikonTab.href = data.favicon_url;
             }
 
             bar.classList.add('hidden');
