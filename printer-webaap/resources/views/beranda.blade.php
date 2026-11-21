@@ -36,8 +36,27 @@
 
         <wired-card roughness="1.2" class="panel">
             <div class="panel-inner">
-                <wired-button roughness="1.2" class="panel-button" elevation="1" data-href="{{ route('scan.qr') }}">Cetak Kilat</wired-button>
-                <wired-button roughness="1.2" class="panel-button" elevation="1" data-href="{{ route('upload.terjadwal') }}">Cetak Terjadwal</wired-button>
+                <header class="panel-intro">
+                    <h1 class="panel-title">Pilih Cara Cetak</h1>
+                    <p class="panel-lead">Ada dua layanan dengan alur berbeda. Pilih yang paling sesuai dengan kebutuhanmu.</p>
+                </header>
+
+                <div class="panel-options">
+                    <div class="panel-option">
+                        <wired-button roughness="1.2" class="panel-button" elevation="1" data-href="{{ route('scan.qr') }}">Cetak Kilat</wired-button>
+                        <p class="panel-option-desc">
+                            Harus dilakukan di tempat. Datang ke toko, scan QR, lalu file langsung dicetak saat itu juga.
+                        </p>
+                    </div>
+
+                    <div class="panel-option">
+                        <wired-button roughness="1.2" class="panel-button" elevation="1" data-href="{{ route('upload.terjadwal') }}">Cetak Terjadwal</wired-button>
+                        <p class="panel-option-desc">
+                            Dicetak otomatis sesuai jam yang kamu pilih. Hasilnya bisa diambil pada jam tersebut,
+                            atau dicetak oleh tukang saat jamnya tiba.
+                        </p>
+                    </div>
+                </div>
             </div>
         </wired-card>
     </main>
