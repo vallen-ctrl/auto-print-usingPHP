@@ -28,6 +28,18 @@
     $tautanWa = $nomorWa !== ''
         ? 'https://wa.me/' . $nomorWa . '?text=' . rawurlencode($pesanWa)
         : null;
+
+    // Warna badge status pembayaran, sama dengan yang dipakai di halaman Order.
+    $badgeBayar = [
+        'pending'    => 'bg-warning-soft text-warning-strong',
+        'processing' => 'bg-blue-100 text-blue-800',
+        'paid'       => 'bg-success-soft text-success-strong',
+        'failed'     => 'bg-danger-soft text-danger-strong',
+        'fail'       => 'bg-danger-soft text-danger-strong',
+        'refunded'   => 'bg-muted text-ink-muted',
+    ];
+
+    $statusBayar = $order->status_pembayaran ?: '-';
 @endphp
 
 @section('content')
@@ -65,7 +77,11 @@
             </div>
             <div class="flex flex-wrap items-baseline gap-2">
                 <dt class="text-ink-muted">Status pembayaran</dt>
-                <dd class="font-medium capitalize text-ink">{{ $order->status_pembayaran ?: '-' }}</dd>
+                <dd>
+                    <span class="inline-flex items-center rounded-full px-3 py-1 text-sm font-bold uppercase tracking-wide {{ $badgeBayar[$statusBayar] ?? 'bg-muted text-ink-muted' }}">
+                        {{ $statusBayar }}
+                    </span>
+                </dd>
             </div>
             <div class="flex flex-wrap items-baseline gap-2">
                 <dt class="text-ink-muted">Mode cetak</dt>

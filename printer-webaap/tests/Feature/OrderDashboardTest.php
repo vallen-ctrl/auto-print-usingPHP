@@ -101,6 +101,16 @@ test('halaman order menampilkan nama pemesan dan bisa mencari berdasarkan nama',
         ->assertDontSee('Budi Santoso');
 });
 
+test('detail order menampilkan status pembayaran sebagai badge', function () {
+    $sesi = sesiOrderDashboard();
+    $order = buatOrderDashboard(buatPelangganDashboard(), 'paid');
+
+    $this->withSession($sesi)->get(route('order.detail', bin2hex($order->id)))
+        ->assertOk()
+        ->assertSee('bg-success-soft')
+        ->assertSee('paid');
+});
+
 test('detail order menampilkan link WhatsApp pelanggan', function () {
     $sesi = sesiOrderDashboard();
     $pelanggan = buatPelangganDashboard('Budi Santoso', '0812-3456-789');
