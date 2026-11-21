@@ -386,8 +386,8 @@ wired-card.card {
     border-radius: 10px 12px 10px 12px;
     background: var(--color-chip);
     color: var(--color-muted);
-    font-size: var(--fs-caption);
-    line-height: 1.4;
+    font-size: 1rem;
+    line-height: 1.5;
 }
 
 /* ---------- Ringkasan pembayaran ---------- */
