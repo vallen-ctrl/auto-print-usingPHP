@@ -164,7 +164,11 @@ bun run build:qr
 
 Hasil build ada di `tauri-qr/src-tauri/target/release/` (`tauri-qr.exe` di
 Windows, `tauri-qr` di Linux). Letakkan di sebelah binary utama, atau set
-`NODE_PRINTER_QR_BIN`.
+`NODE_PRINTER_QR_BIN`. Di Linux pastikan file boleh dijalankan:
+
+```sh
+chmod +x tauri-qr
+```
 
 Build Tauri di Linux membutuhkan dependensi webkit2gtk (lihat dokumentasi
 Tauri). Kalau QR tidak dibutuhkan di server Linux headless, menu ini boleh

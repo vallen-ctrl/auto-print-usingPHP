@@ -2,7 +2,7 @@
 // Alur: Bun request ke server -> simpan HTML ke file temp -> jalankan tauri-qr.exe <file>
 //       -> window ditutup = proses Tauri selesai = RAM langsung bebas.
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { accessSync, chmodSync, existsSync, statSync, constants as fsConstants } from "node:fs";
 import { writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -25,6 +25,30 @@ function buildRequest(token: string): RequestInit {
 
 /* ───────────── Helpers ───────────── */
 
+/** File biasa dan (di Linux/macOS) boleh dijalankan. */
+function isExecutableFile(path: string): boolean {
+  try {
+    if (!statSync(path).isFile()) return false;
+  } catch {
+    return false;
+  }
+
+  if (process.platform === "win32") return true;
+
+  try {
+    accessSync(path, fsConstants.X_OK);
+    return true;
+  } catch {
+    // File hasil unduhan/zip sering kehilangan bit executable.
+    try {
+      chmodSync(path, 0o755);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
 /** Cari binary QR: env > sebelah aplikasi ini > folder kerja > hasil build cargo */
 export function findQrBinary(): string | null {
   const candidates = [
@@ -33,7 +57,7 @@ export function findQrBinary(): string | null {
     join(process.cwd(), QR_BIN_NAME),
     join(process.cwd(), "tauri-qr", "src-tauri", "target", "release", QR_BIN_NAME),
   ];
-  return candidates.find((p): p is string => !!p && existsSync(p)) ?? null;
+  return candidates.find((p): p is string => !!p && existsSync(p) && isExecutableFile(p)) ?? null;
 }
 
 async function fetchQrHtml(host: string, token: string): Promise<string> {
@@ -71,7 +95,8 @@ export async function prepareQr(): Promise<QrJob> {
   const bin = findQrBinary();
   if (!bin) {
     throw new Error(
-      `${QR_BIN_NAME} tidak ditemukan. Build: bun run build:qr, lalu taruh di sebelah aplikasi ini`
+      `${QR_BIN_NAME} tidak ditemukan atau tidak bisa dijalankan. Build: bun run build:qr, ` +
+        `lalu taruh di sebelah aplikasi ini. Di Linux pastikan: chmod +x ${QR_BIN_NAME}`
     );
   }
   const cfg = await loadConfig();
@@ -88,8 +113,19 @@ export async function showQr(job: QrJob): Promise<void> {
   try {
     await new Promise<void>((resolve, reject) => {
       const p = spawn(job.bin, [job.file], { stdio: "ignore" });
-      p.once("error", reject);
-      p.once("exit", () => resolve());
+
+      p.once("error", (e: NodeJS.ErrnoException) => {
+        reject(
+          e.code === "EACCES"
+            ? new Error(`Tidak boleh menjalankan ${job.bin}. Jalankan: chmod +x "${job.bin}"`)
+            : e
+        );
+      });
+
+      p.once("exit", (code) => {
+        if (code && code !== 0) reject(new Error(`${QR_BIN_NAME} keluar dengan kode ${code}`));
+        else resolve();
+      });
     });
   } finally {
     await rm(job.file, { force: true });
