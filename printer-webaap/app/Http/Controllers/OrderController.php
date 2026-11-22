@@ -296,6 +296,46 @@ class OrderController extends Controller
     }
 
     /**
+     * Ubah status pembayaran order langsung dari halaman detail (dropdown).
+     * Kalau diubah menjadi paid, total dibayar dicatat dan file masuk antrean.
+     */
+    public function updateStatusPembayaran(Request $request, string $id, AntreanCetak $antrean)
+    {
+        $validated = $request->validate([
+            'status_pembayaran' => ['required', Rule::in(['pending', 'processing', 'paid', 'failed', 'refunded'])],
+        ], [
+            'status_pembayaran.required' => 'Status pembayaran wajib dipilih.',
+            'status_pembayaran.in' => 'Status pembayaran tidak valid.',
+        ]);
+
+        $order = Order::findOrFail($this->orderIdDariHex($id));
+        $status = $validated['status_pembayaran'];
+
+        $perubahan = ['status_pembayaran' => $status];
+
+        if ($status === 'paid') {
+            $perubahan['total_dibayar'] = $order->total_pembayaran;
+            $perubahan['browser_session'] = null;
+        }
+
+        $order->update($perubahan);
+
+        if ($status === 'paid') {
+            $antrean->untukOrder($order->fresh());
+        }
+
+        Log::info('Status pembayaran diubah manual dari dashboard', [
+            'order' => bin2hex($order->id),
+            'status' => $status,
+        ]);
+
+        return back()->with(
+            'success',
+            'Status pembayaran order berhasil diubah menjadi "' . $status . '".'
+        );
+    }
+
+    /**
      * Cek ulang status pembayaran satu order ke Midtrans dari dashboard.
      * Hasilnya dipakai tombol "Refresh pembayaran" di halaman detail order.
      */

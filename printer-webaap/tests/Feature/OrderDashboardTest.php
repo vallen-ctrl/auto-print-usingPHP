@@ -179,3 +179,41 @@ test('unduh semua tanpa file yang tersedia mengembalikan 404', function () {
         ->get(route('order.downloadsemua', bin2hex($order->id)))
         ->assertNotFound();
 });
+
+test('admin bisa mengubah status pembayaran dari halaman detail', function () {
+    $sesi = sesiOrderDashboard();
+    $order = buatOrderDashboard(buatPelangganDashboard(), 'pending');
+
+    $this->withSession($sesi)
+        ->post(route('order.statuspembayaran', bin2hex($order->id)), ['status_pembayaran' => 'paid'])
+        ->assertRedirect();
+
+    $segar = $order->fresh();
+
+    expect($segar->status_pembayaran)->toBe('paid')
+        ->and((int) $segar->total_dibayar)->toBe((int) $segar->total_pembayaran);
+});
+
+test('status pembayaran yang tidak dikenal ditolak', function () {
+    $sesi = sesiOrderDashboard();
+    $order = buatOrderDashboard(buatPelangganDashboard());
+
+    $this->withSession($sesi)
+        ->postJson(route('order.statuspembayaran', bin2hex($order->id)), ['status_pembayaran' => 'lunas'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('status_pembayaran');
+
+    expect($order->fresh()->status_pembayaran)->toBe('pending');
+});
+
+test('detail order menampilkan dropdown status pembayaran', function () {
+    $sesi = sesiOrderDashboard();
+    $order = buatOrderDashboard(buatPelangganDashboard(), 'failed');
+
+    $this->withSession($sesi)
+        ->get(route('order.detail', bin2hex($order->id)))
+        ->assertOk()
+        ->assertSee('id="status-pembayaran"', false)
+        ->assertSee('Simpan status')
+        ->assertSee('value="paid"', false);
+});
