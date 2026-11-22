@@ -58,6 +58,11 @@
         </div>
 
         <div class="flex items-center gap-2">
+            <button type="button" id="btn-scan-qr"
+                class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-muted focus:ring-2 focus:ring-primary/30 focus:outline-none">
+                <x-lucide-scan-qr-code class="size-4" aria-hidden="true" />
+                Scan QR
+            </button>
             <button type="submit"
                 class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white transition-colors hover:bg-primary-hover focus:ring-2 focus:ring-primary/40 focus:outline-none">
                 <x-lucide-search class="size-4" aria-hidden="true" />
@@ -202,6 +207,34 @@
         @endif
     </div>
 
+    {{-- Modal scan QR order --}}
+    <div id="modal-scan-qr" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4"
+        role="dialog" aria-modal="true" aria-labelledby="judul-scan-qr">
+        <div class="w-full max-w-md rounded-xl border border-line bg-surface p-5 shadow-lg">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h3 id="judul-scan-qr" class="text-lg font-semibold text-ink">Scan QR Order</h3>
+                    <p class="mt-0.5 text-sm text-ink-muted">Arahkan kamera ke QR pada struk pelanggan.</p>
+                </div>
+                <button type="button" data-tutup-scan aria-label="Tutup scan QR"
+                    class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-muted hover:text-ink focus:ring-2 focus:ring-primary/30 focus:outline-none">
+                    <x-lucide-x class="size-4" aria-hidden="true" />
+                </button>
+            </div>
+
+            <div id="qr-reader" class="mt-4 min-h-56 w-full overflow-hidden rounded-lg border border-line bg-muted/40"></div>
+
+            <p id="scan-status" class="mt-3 text-sm text-ink-muted" role="status" aria-live="polite"></p>
+
+            <div class="mt-4 flex justify-end">
+                <button type="button" data-tutup-scan
+                    class="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-muted focus:ring-2 focus:ring-primary/30 focus:outline-none">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
     {{-- Modal konfirmasi hapus order --}}
     <div id="hapus-order" data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
         <div class="relative p-4 w-full max-w-md max-h-full">
@@ -240,6 +273,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const formHapus = document.getElementById('form-hapus-order');
@@ -255,6 +289,169 @@ document.addEventListener('DOMContentLoaded', function () {
                 namaHapus.textContent = tombol.dataset.name || '';
             }
         });
+    });
+
+    /* ---------- Scan QR order ---------- */
+
+    const modalScan = document.getElementById('modal-scan-qr');
+    const areaScan = document.getElementById('qr-reader');
+    const statusScan = document.getElementById('scan-status');
+    const tombolScan = document.getElementById('btn-scan-qr');
+    const tombolTutupScan = document.querySelectorAll('[data-tutup-scan]');
+    const urlValidasi = "{{ route('order.validasiqr') }}";
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    let pemindai = null;
+    let sedangValidasi = false;
+
+    const aturStatusScan = function (pesan, jenis) {
+        if (!statusScan) return;
+
+        statusScan.textContent = pesan;
+        statusScan.className = 'mt-3 text-sm ' + (
+            jenis === 'error' ? 'text-fg-danger' :
+            jenis === 'sukses' ? 'text-fg-success' :
+            'text-ink-muted'
+        );
+    };
+
+    const hentikanPemindai = async function () {
+        if (!pemindai) return;
+
+        try { await pemindai.stop(); } catch (error) {}
+        try { pemindai.clear(); } catch (error) {}
+
+        pemindai = null;
+    };
+
+    const validasiHasilScan = async function (kode) {
+        if (sedangValidasi) return;
+        sedangValidasi = true;
+        aturStatusScan('Memeriksa QR...');
+
+        try {
+            const respons = await fetch(urlValidasi, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({ kode: kode }),
+            });
+
+            const data = await respons.json().catch(function () { return {}; });
+
+            if (data.valid && data.url) {
+                aturStatusScan(data.message || 'Order ditemukan. Membuka detail...', 'sukses');
+                await hentikanPemindai();
+                window.location.href = data.url;
+                return;
+            }
+
+            await hentikanPemindai();
+            aturStatusScan(data.message || 'Order tidak ditemukan.', 'error');
+
+            // Beri kesempatan kasir memindai QR lain.
+            window.setTimeout(function () {
+                if (modalScan && !modalScan.classList.contains('hidden')) {
+                    void mulaiPemindai();
+                }
+            }, 1800);
+        } catch (error) {
+            aturStatusScan('Gagal memeriksa QR. Coba lagi.', 'error');
+        } finally {
+            sedangValidasi = false;
+        }
+    };
+
+    const mulaiPemindai = async function () {
+        if (!areaScan) return;
+        // Jangan nyalakan kamera kalau modal sudah ditutup saat penjadwalan.
+        if (!modalScan || modalScan.classList.contains('hidden')) return;
+
+        if (typeof Html5Qrcode === 'undefined') {
+            aturStatusScan('Pemindai QR gagal dimuat. Periksa koneksi internet lalu muat ulang halaman.', 'error');
+            return;
+        }
+
+        await hentikanPemindai();
+        aturStatusScan('Mengaktifkan kamera...');
+
+        const pemindaiBaru = new Html5Qrcode('qr-reader');
+        pemindai = pemindaiBaru;
+
+        try {
+            await pemindaiBaru.start(
+                { facingMode: 'environment' },
+                { fps: 10, qrbox: { width: 220, height: 220 } },
+                function (teks) { void validasiHasilScan(teks); },
+                function () {}
+            );
+
+            // Modal sudah ditutup selagi kamera menyala: matikan lagi.
+            if (modalScan.classList.contains('hidden')) {
+                await hentikanPemindai();
+                return;
+            }
+
+            if (pemindai === pemindaiBaru) {
+                aturStatusScan('Arahkan kamera ke QR pada struk pelanggan.');
+            }
+        } catch (error) {
+            if (pemindai === pemindaiBaru) {
+                pemindai = null;
+            }
+
+            aturStatusScan(
+                'Kamera tidak bisa dibuka. Pastikan izin kamera aktif dan halaman diakses lewat localhost/HTTPS.',
+                'error'
+            );
+        }
+    };
+
+    const bukaModalScan = function () {
+        if (!modalScan) return;
+
+        modalScan.classList.remove('hidden');
+        modalScan.classList.add('flex');
+        document.body.classList.add('overflow-hidden');
+        aturStatusScan('Mengaktifkan kamera...');
+
+        // Tunggu modal benar-benar tampil sebelum kamera dijalankan.
+        window.setTimeout(function () { void mulaiPemindai(); }, 150);
+    };
+
+    const tutupModalScan = async function () {
+        if (!modalScan) return;
+
+        await hentikanPemindai();
+        modalScan.classList.add('hidden');
+        modalScan.classList.remove('flex');
+        document.body.classList.remove('overflow-hidden');
+        aturStatusScan('');
+    };
+
+    if (tombolScan) {
+        tombolScan.addEventListener('click', bukaModalScan);
+    }
+
+    tombolTutupScan.forEach(function (tombol) {
+        tombol.addEventListener('click', function () { void tutupModalScan(); });
+    });
+
+    if (modalScan) {
+        modalScan.addEventListener('click', function (event) {
+            if (event.target === modalScan) {
+                void tutupModalScan();
+            }
+        });
+    }
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && modalScan && !modalScan.classList.contains('hidden')) {
+            void tutupModalScan();
+        }
     });
 });
 </script>

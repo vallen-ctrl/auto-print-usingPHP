@@ -258,6 +258,44 @@ class OrderController extends Controller
     }
 
     /**
+     * Validasi hasil scan QR dari halaman Order.
+     *
+     * QR pada struk pelanggan berisi URL struk yang memuat id order (hex 32
+     * karakter). Selain URL, id hex mentah juga diterima.
+     */
+    public function validasiQr(Request $request)
+    {
+        $validated = $request->validate([
+            'kode' => 'required|string|max:2048',
+        ]);
+
+        $kode = trim($validated['kode']);
+
+        if (! preg_match('/([0-9a-f]{32})/i', $kode, $cocok)) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'QR tidak dikenali. Pastikan yang dipindai adalah QR pada struk pelanggan.',
+            ]);
+        }
+
+        $hex = strtolower($cocok[1]);
+        $order = Order::find(hex2bin($hex));
+
+        if ($order === null) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Order tidak ditemukan.',
+            ]);
+        }
+
+        return response()->json([
+            'valid' => true,
+            'message' => 'Order ditemukan.',
+            'url' => route('order.detail', $hex),
+        ]);
+    }
+
+    /**
      * Cek ulang status pembayaran satu order ke Midtrans dari dashboard.
      * Hasilnya dipakai tombol "Refresh pembayaran" di halaman detail order.
      */
