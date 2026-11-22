@@ -45,6 +45,13 @@
 @section('content')
 <div class="w-full">
 
+    @if (session('success'))
+        <x-toast type="success" :message="session('success')" />
+    @endif
+    @if (session('error'))
+        <x-toast type="error" :message="session('error')" />
+    @endif
+
     {{-- Header --}}
     <div class="flex items-start justify-between gap-4">
         <h1 class="text-2xl font-semibold text-ink">Detail order &amp; file</h1>
@@ -251,10 +258,20 @@
             class="inline-flex h-11 items-center justify-center rounded-lg border border-line bg-surface text-sm font-medium text-ink transition-colors hover:bg-muted focus:ring-2 focus:ring-primary/30 focus:outline-none">
             Keluar
         </a>
-        <button type="button"
-            class="inline-flex h-11 items-center justify-center rounded-lg bg-primary text-sm font-medium text-white transition-colors hover:bg-primary-hover focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:outline-none">
-            Ubah status menjadi berhasil
-        </button>
+        <form method="POST" action="{{ route('order.statuspembayaran', $id) }}" class="flex items-center gap-2">
+            @csrf
+            <label for="status-pembayaran" class="sr-only">Status pembayaran</label>
+            <select id="status-pembayaran" name="status_pembayaran"
+                class="h-11 min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-ink focus:border-primary focus:ring-2 focus:ring-primary/30 focus:outline-none">
+                @foreach (['pending' => 'Pending', 'processing' => 'Processing', 'paid' => 'Paid', 'failed' => 'Failed', 'refunded' => 'Refunded'] as $nilai => $label)
+                    <option value="{{ $nilai }}" @selected($statusBayar === $nilai)>{{ $label }}</option>
+                @endforeach
+            </select>
+            <button type="submit"
+                class="inline-flex h-11 shrink-0 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-white transition-colors hover:bg-primary-hover focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:outline-none">
+                Simpan status
+            </button>
+        </form>
     </div>
 
     {{-- Modal hasil "Refresh pembayaran" --}}

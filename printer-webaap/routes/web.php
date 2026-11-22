@@ -84,6 +84,7 @@ Route::prefix('dashboard')->middleware([\App\Http\Middleware\VerifyTokenMiddlewa
     Route::post('/order/validasi-qr', [\App\Http\Controllers\OrderController::class, "validasiQr"])->name("order.validasiqr");
     Route::delete('/order/{id}', [\App\Http\Controllers\OrderController::class, "destroy"])->name("order.destroy");
     Route::post('/order/{id}/status-file', [\App\Http\Controllers\OrderController::class, "updateStatusFile"])->name("order.statusfile");
+    Route::post('/order/{id}/status-pembayaran', [\App\Http\Controllers\OrderController::class, "updateStatusPembayaran"])->name("order.statuspembayaran");
     Route::post('/order/{id}/refresh-pembayaran', [\App\Http\Controllers\OrderController::class, "refreshPembayaran"])->name("order.refreshpembayaran");
     Route::get('/order/{id}/download-semua', [\App\Http\Controllers\OrderController::class, "downloadSemua"])->name("order.downloadsemua");
 
