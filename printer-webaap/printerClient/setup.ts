@@ -4,6 +4,7 @@ import {
   confirm, spinner, isCancel, cancel,
 } from "@clack/prompts";
 import pc from "picocolors";
+import readline from "node:readline";
 import { mkdir, writeFile, readFile, chmod } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { homedir, platform } from "node:os";
@@ -21,7 +22,7 @@ const CONF_DIR = join(homedir(), ".node-printer");
 const SERVER_CONF = join(CONF_DIR, "server.conf");     // host (plain JSON)
 const TOKEN_FILE = join(CONF_DIR, "token.enc");        // token (terenkripsi)
 const PRINTER_CONF = join(CONF_DIR, "printers.conf");
-const STATUS_FILE = join(CONF_DIR, "status.json");  // prioritas printer
+const STATUS_FILE = join(CONF_DIR, "status.json");  // state daemon (ditulis daemon)
 
 // TODO: ganti sumber key enkripsi sesuai keputusanmu nanti
 // (env var / machine-id / hardcode di build, dll)
@@ -99,33 +100,295 @@ function banner() {
   console.log(pc.dim("  Setup node printer • v0.1.0\n"));
 }
 
-async function statusLine() {
+type StatusSnapshot = {
+  paired: boolean;
+  running: boolean;
+  live: boolean;
+  state?: string;
+  at?: string;
+  host?: string;
+  printers: PrinterConf[];
+};
+
+async function collectStatus(): Promise<StatusSnapshot> {
   const server = await readJson<{ host: string }>(SERVER_CONF);
-  const paired = server && existsSync(TOKEN_FILE);
+  const paired = !!(server && existsSync(TOKEN_FILE));
   const printers = await loadPrinterConf();
-  const dot = (ok: boolean) => (ok ? pc.green("●") : pc.red("●"));
 
   const running = paired ? await isDaemonRunning() : false;
-  const st = running ? await readJson<{ state: string }>(STATUS_FILE) : null;
-  const live = st?.state === "connected";
-  const serverText = !paired
-    ? pc.red("belum dipairing")
-    : !running
-      ? pc.yellow(`${server!.host} • daemon mati`)
-      : live
-        ? pc.green(`${server!.host} • SSE terhubung`)
-        : pc.yellow(`${server!.host} • ${st?.state === "connecting" ? "menyambung..." : "terputus, mencoba ulang"}`);
+  const st = running ? await readJson<{ state: string; at?: string }>(STATUS_FILE) : null;
 
-  note(
-    `${dot(live)} Server   : ${serverText}\n` +
-      `${dot(!!printers?.length)} Printer  : ${
-        printers?.length
-          ? pc.green(`${printers.length} dipilih`) +
-            pc.dim(` (utama: ${printers[0]!.name})`)
-          : pc.red("belum dikonfigurasi")
-      }`,
-    "Status"
+  return {
+    paired,
+    running,
+    live: st?.state === "connected",
+    state: st?.state,
+    at: st?.at,
+    host: server?.host,
+    printers,
+  };
+}
+
+/** Lama waktu sejak status terakhir ditulis daemon, mis. "12 dtk". */
+function elapsedText(at?: string): string {
+  if (!at) return "";
+  const ms = Date.now() - new Date(at).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return "";
+  const s = Math.round(ms / 1000);
+  return s < 60 ? `${s} dtk` : `${Math.floor(s / 60)} mnt`;
+}
+
+/** Isi kotak status (2 baris). `blink` dipakai untuk menandakan layar masih hidup. */
+function statusContent(s: StatusSnapshot, blink: boolean): string[] {
+  const dot = (ok: boolean) => (ok ? pc.green("●") : pc.red("●"));
+
+  // titik berkedip selama daemon masih mencoba menyambung
+  const waitingDot = () => (blink ? pc.red("●") : pc.dim("○"));
+  const elapsed = elapsedText(s.at);
+
+  const serverText = !s.paired
+    ? pc.red("belum dipairing")
+    : !s.running
+      ? pc.yellow(`${s.host} • daemon mati`)
+      : s.live
+        ? pc.green(`${s.host} • SSE terhubung`)
+        : pc.yellow(
+            `${s.host} • ${s.state === "connecting" ? "menyambung..." : "terputus, mencoba ulang"}` +
+              (elapsed ? pc.dim(` ${elapsed}`) : "")
+          );
+
+  return [
+    `${s.paired && !s.live ? waitingDot() : dot(s.live)} Server   : ${serverText}`,
+    `${dot(!!s.printers.length)} Printer  : ${
+      s.printers.length
+        ? pc.green(`${s.printers.length} dipilih`) + pc.dim(` (utama: ${s.printers[0]!.name})`)
+        : pc.red("belum dikonfigurasi")
+    }`,
+  ];
+}
+
+/* ── Render kotak status (gaya sama dengan note() clack) ── */
+
+const ANSI_RE = /\x1b\[[0-9;]*m/g;
+const visibleLen = (s: string) => s.replace(ANSI_RE, "").length;
+
+/** Potong baris supaya tidak melewati lebar terminal (mencegah baris pecah). */
+function fitLine(line: string, max: number): string {
+  if (visibleLen(line) <= max) return line;
+  let out = "";
+  let vis = 0;
+  let i = 0;
+  while (i < line.length && vis < max) {
+    if (line[i] === "\x1b") {
+      const m = /^\x1b\[[0-9;]*m/.exec(line.slice(i));
+      if (m) {
+        out += m[0];
+        i += m[0].length;
+        continue;
+      }
+    }
+    out += line[i];
+    vis++;
+    i++;
+  }
+  return out + "\x1b[0m";
+}
+
+function buildStatusBox(content: string[]): string[] {
+  const title = "Status";
+  const inner = Math.max(title.length, ...content.map(visibleLen)) + 2;
+
+  const top =
+    pc.green("◇") +
+    "  " +
+    title +
+    " " +
+    pc.gray("─".repeat(Math.max(inner - title.length - 1, 1)) + "╮");
+
+  const body = content.map(
+    (line) =>
+      `${pc.gray("│")}  ${line}${" ".repeat(Math.max(0, inner - visibleLen(line)))}${pc.gray("│")}`
   );
+
+  const bottom = pc.gray("├" + "─".repeat(inner + 2) + "╯");
+
+  return ["", pc.gray("│"), top, ...body, bottom];
+}
+
+/* ── Blok layar live: status + menu digambar ulang di tempat ── */
+
+const HIDE_CURSOR = "\x1b[?25l";
+const SHOW_CURSOR = "\x1b[?25h";
+
+/** Lebar terminal (dikurangi 1 supaya tidak menyentuh tepi & membungkus baris). */
+function termCols() {
+  return Math.max(20, (process.stdout.columns || 80) - 1);
+}
+
+/**
+ * Tampilkan menu interaktif yang bisa diperbarui tanpa menutup menu:
+ * status di atas menu digambar ulang tiap detik, jadi "menyambung..."
+ * otomatis berubah menjadi "terhubung" di layar yang sama.
+ */
+async function liveMenu(opts: {
+  message: string;
+  options: { value: string; label: string; hint?: string }[];
+  header: () => string[];
+  refresh: () => Promise<void>;
+}): Promise<string | symbol> {
+  const { options } = opts;
+  const stdin = process.stdin;
+  let cursor = 0;
+  let drawnLines = 0;
+  let busy = false;
+  let finished = false;
+
+  const build = (): string[] => {
+    const lines = [...opts.header(), pc.cyan("│"), `${pc.cyan("◆")}  ${opts.message}`];
+
+    for (const [i, o] of options.entries()) {
+      const active = i === cursor;
+      const body = active
+        ? `${pc.green("●")} ${o.label}${o.hint ? " " + pc.dim(`(${o.hint})`) : ""}`
+        : `${pc.dim("○")} ${pc.dim(o.label)}`;
+      lines.push(`${pc.cyan("│")}  ${body}`);
+    }
+
+    lines.push(pc.cyan("└"));
+    return lines;
+  };
+
+  /** Gambar ulang blok (tanpa menambah baris baru di layar). */
+  let lastFrame = "";
+  const draw = () => {
+    if (finished) return;
+    const out = build().map((l) => fitLine(l, termCols()));
+    const key = out.join("\n");
+    if (drawnLines > 0 && key === lastFrame) return; // tidak ada perubahan
+    lastFrame = key;
+
+    let frame = "";
+    if (drawnLines > 0) frame += `\r\x1b[${drawnLines - 1}A\x1b[0J`;
+    frame += key;
+    process.stdout.write(frame);
+    drawnLines = out.length;
+  };
+
+  const cleanup = () => {
+    finished = true;
+    clearInterval(timer);
+    stdin.removeListener("keypress", onKey);
+    if (stdin.isTTY) stdin.setRawMode(false);
+    stdin.pause();
+    process.stdout.write(SHOW_CURSOR);
+  };
+
+  /** Akhiri menu: hapus blok menu, sisakan status + pilihan terakhir. */
+  const finish = (value: string | symbol) => {
+    if (finished) return;
+    cleanup();
+
+    const idx = options.findIndex((o) => o.value === value);
+    const label = idx >= 0 ? options[idx]!.label : options[cursor]!.label;
+    const head = [...opts.header(), pc.gray("│"), `${pc.gray("■")}  ${opts.message}`];
+    const tail =
+      idx >= 0
+        ? `${pc.gray("│")}  ${pc.dim(label)}`
+        : `${pc.gray("│")}  ${pc.strikethrough(pc.dim(label))}\n${pc.gray("└")}`;
+
+    const out = [...head, tail].map((l) => fitLine(l, termCols()));
+    process.stdout.write(
+      `\r\x1b[${Math.max(drawnLines - 1, 0)}A\x1b[0J` + out.join("\n") + "\n"
+    );
+    drawnLines = 0;
+
+    resolve(value);
+  };
+
+  let resolve!: (v: string | symbol) => void;
+  const result = new Promise<string | symbol>((r) => (resolve = r));
+
+  const onKey = (_str: string, key: readline.Key | undefined) => {
+    if (!key || finished) return;
+
+    if ((key.ctrl && key.name === "c") || key.name === "escape") return void finish(CANCEL);
+    if (key.name === "return" || key.name === "enter") return void finish(options[cursor]!.value);
+    if (key.name === "up" || key.name === "k") cursor = (cursor - 1 + options.length) % options.length;
+    else if (key.name === "down" || key.name === "j") cursor = (cursor + 1) % options.length;
+    else if (key.name === "home") cursor = 0;
+    else if (key.name === "end") cursor = options.length - 1;
+    else if (/^[0-9]$/.test(_str)) {
+      const idx = Number(_str) - 1;
+      if (idx >= 0 && idx < options.length) return void finish(options[idx]!.value);
+      return;
+    } else return;
+
+    draw();
+  };
+
+  // Polling status: setiap detik status dibaca ulang lalu blok digambar ulang.
+  const timer = setInterval(() => {
+    if (finished || busy) return;
+    busy = true;
+    void opts
+      .refresh()
+      .catch(() => {})
+      .finally(() => {
+        busy = false;
+        draw();
+      });
+  }, 1000);
+  timer.unref?.();
+
+  readline.emitKeypressEvents(stdin);
+  if (stdin.isTTY) stdin.setRawMode(true);
+  stdin.resume();
+  stdin.on("keypress", onKey);
+  process.stdout.write(HIDE_CURSOR);
+  draw();
+
+  return result;
+}
+
+const CANCEL = Symbol("cancel");
+
+/** Menu utama dengan status yang ikut ter-update otomatis. */
+async function mainMenu(): Promise<string | symbol> {
+  // Layar non-interaktif (mis. output dipipe): pakai menu clack biasa.
+  if (!process.stdin.isTTY) {
+    note(statusContent(await collectStatus(), true).join("\n"), "Status");
+    return select({
+      message: "Mau ngapain?",
+      options: [
+        { value: "server", label: "🔗  Konek ke server", hint: "pairing pakai token dari admin panel" },
+        { value: "printer", label: "🖨️   Printer", hint: "lihat status & atur prioritas" },
+        { value: "qr", label: "🔳  Scan QR", hint: "buka window QR (Tauri)" },
+        { value: "stop", label: "⏹️   Hentikan daemon", hint: "matikan proses background tanpa hapus config" },
+        { value: "uninstall", label: "🗑️   Uninstall", hint: "hapus daemon, config & semua file" },
+        { value: "exit", label: "🚪  Keluar" },
+      ],
+    });
+  }
+
+  let snap = await collectStatus();
+  let blink = false;
+
+  return liveMenu({
+    message: "Mau ngapain?",
+    header: () => buildStatusBox(statusContent(snap, blink)),
+    refresh: async () => {
+      blink = !blink;
+      snap = await collectStatus();
+    },
+    options: [
+      { value: "server", label: "🔗  Konek ke server", hint: "pairing pakai token dari admin panel" },
+      { value: "printer", label: "🖨️   Printer", hint: "lihat status & atur prioritas" },
+      { value: "qr", label: "🔳  Scan QR", hint: "buka window QR (Tauri)" },
+      { value: "stop", label: "⏹️   Hentikan daemon", hint: "matikan proses background tanpa hapus config" },
+      { value: "uninstall", label: "🗑️   Uninstall", hint: "hapus daemon, config & semua file" },
+      { value: "exit", label: "🚪  Keluar" },
+    ],
+  });
 }
 
 /* ───────────────────────── 1. Konek ke server ───────────────────────── */
@@ -527,19 +790,8 @@ export async function main() {
   while (true) {
     banner();
     intro(pc.bgCyan(pc.black(" Node Printer Setup ")));
-    await statusLine();
 
-    const choice = await select({
-      message: "Mau ngapain?",
-      options: [
-        { value: "server", label: "🔗  Konek ke server", hint: "pairing pakai token dari admin panel" },
-        { value: "printer", label: "🖨️   Printer", hint: "lihat status & atur prioritas" },
-        { value: "qr", label: "🔳  Scan QR", hint: "buka window QR (Tauri)" },
-        { value: "stop", label: "⏹️   Hentikan daemon", hint: "matikan proses background tanpa hapus config" },
-        { value: "uninstall", label: "🗑️   Uninstall", hint: "hapus daemon, config & semua file" },
-        { value: "exit", label: "🚪  Keluar" },
-      ],
-    });
+    const choice = await mainMenu();
 
     if (isCancel(choice) || choice === "exit") {
       await closeWithNotice(10);
